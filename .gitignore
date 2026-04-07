@@ -1,0 +1,14 @@
+# ignore everything
+*
+
+# whitelist directory
+!*/
+
+# whitelist hpp, cpp
+!*.*pp
+
+# whitelist makefile
+!Makefile
+
+# others
+!.gitignore
