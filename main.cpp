@@ -12,7 +12,7 @@
 #define PORT 8888
 
 int main() {
-	const char *hello = "HTTP/1.1 413 OK\nContent-Type: text/plain\nContent-Length: 10\n\nHello world!";
+	const char *hello = "HTTP/1.1 413 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
 
 	// create a socket
 	int server_fd;
@@ -44,24 +44,23 @@ int main() {
 	setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, addrlen);
 
 	int new_socket;
+	sockaddr_in client;
 	while (true) {
 		// new_socket = 0;
-		if ((new_socket = accept(server_fd, (struct sockaddr*)&address, &addrlen)) < 0) {
+		if ((new_socket = accept(server_fd, (struct sockaddr*)&client, &addrlen)) < 0) {
 			perror("ERR: this is unacceptable");
 			return 0;
 		}
-		printf("new connection\n");
-		write(new_socket, hello, strlen(hello));
-		// int child_fd = fork();
-		// if (child_fd < 0)
-		// 	perror("ERR: fork");
-		// if (child_fd == 0) {
-		// 	close(server_fd);
-		// 	if (send(new_socket, hello, strlen(hello), 0) < 0)
-		// 		perror("ERR:send");
-		// 	close(new_socket);
-		// 	exit(0);
-		// }
+		int child_fd = fork();
+		if (child_fd < 0)
+			perror("ERR: fork");
+		if (child_fd == 0) {
+			close(server_fd);
+			if (send(new_socket, hello, strlen(hello), 0) < 0)
+				perror("ERR:send");
+			close(new_socket);
+			exit(0);
+		}
 		close(new_socket);
 	}
 
