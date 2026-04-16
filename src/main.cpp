@@ -1,8 +1,12 @@
+#include <exception>
+#include <memory>
+#include <stdexcept>
 #include <sys/poll.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <asm-generic/socket.h>
+#include <system_error>
 #include <unistd.h>
 #include <cstdio>
 #include <iostream>
@@ -10,72 +14,110 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <string.h>
+#include <vector>
+#include <errno.h>
 
 #define PORT 8888
-#define ARRAY_LEN(arrays) (sizeof(arrays)/sizeof(arrays[0]))
+#define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
+#define LOG(msg) (std::cout << (msg) << std::endl)
+#define ERR(msg) (std::cerr << (msg) << std::endl)
+
+class Server {
+private:
+	int m_fd;
+	struct sockaddr_in m_address;
+	std::string m_ip;
+	uint m_port;
+public:
+	Server(const char *ip, uint port) {
+		m_ip = ip;
+		m_port = port;
+		m_fd = socket(AF_INET, SOCK_STREAM, 0);
+		if (m_fd < 0)
+			throw std::runtime_error("ERR: socket creation failed\n");
+
+		// configuring the address
+		in_addr_t addr = inet_addr(ip);
+		m_address.sin_family = AF_INET;
+		m_address.sin_addr.s_addr = addr;
+		m_address.sin_port = htons(port);
+		memset(m_address.sin_zero, 0, sizeof(m_address.sin_zero));
+
+		// bind fd to the address created
+		if (bind(m_fd, (struct sockaddr*)&m_address, sizeof(m_address)) < 0) {
+			close(m_fd);
+			throw std::runtime_error("ERR: bind failed\n");
+		}
+
+		if (listen(m_fd, 69) < 0) {
+			close(m_fd);
+			throw std::runtime_error("ERR: listen failed\n");
+		}
+
+		int yes = 1;
+		setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(m_address));
+	}
+
+	~Server() { close(m_fd); }
+
+	int get_fd() const {return m_fd;}
+	std::string& get_ip() { return m_ip; }
+	uint get_port() const { return m_port; }
+
+	//:handle_new_connection
+	void handle_new_connection() {
+		int new_socket;
+		socklen_t addr_len;
+		sockaddr_in addr;
+		std::string hello = "HTTP/1.1 413 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
+
+		if ((new_socket = accept(m_fd, (sockaddr *)&addr, &addr_len)) < 0) {
+			close(new_socket);
+			throw std::runtime_error("ERR: unacceptable\n");
+		}
+		if (send(new_socket, hello.c_str(), hello.length(), 0) < 0) {
+			close(new_socket);
+			throw std::runtime_error("ERR: send\n");
+		}
+		close(new_socket);
+	}
+};
 
 int main() {
-
-	// create a socket
-	int server_fd;
-	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-		perror("ERR: socket");
+	std::unique_ptr<Server> s;
+	try {
+		s = std::make_unique<Server>("127.0.0.1", PORT);
+	} catch (std::exception & e) {
+		std::cout << e.what() << std::endl;
 		return 1;
 	}
 
-	// create an sock address
-	struct sockaddr_in address;
-	socklen_t addrlen = sizeof(address);
+	std::cout << "Listening on: " << s->get_ip() << ":" << s->get_port() << std::endl;
 
-	in_addr_t addr = inet_addr("127.0.0.2");
-	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = addr;
-	address.sin_port = htons(PORT);
-	memset(address.sin_zero, 0, sizeof(address.sin_zero));
+	std::vector<struct pollfd> poll_fds;
+	poll_fds.reserve(16);
 
-	int yes = 1;
-	// binding the socket to the address
-	if (bind(server_fd, (struct sockaddr *)&address, addrlen) < 0) {
-		perror("ERR: bind");
-		return 0;
-	}
+	// add the server to the poll fds array
+	poll_fds.emplace_back((struct pollfd){.fd = s->get_fd(), .events = POLLIN});
 
-	if (listen(server_fd, 10) < 0) {
-		perror("ERR: listen");
-		return 0;
-	}
-	setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, addrlen);
-
-	int count = 0;
-	std::string hello = "HTTP/1.1 413 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
-	int new_socket;
-	sockaddr_in client;
+	int ready;
 	while (true) {
-		if ((new_socket = accept(server_fd, (struct sockaddr*)&client, &addrlen)) < 0) {
-			perror("ERR: this is unacceptable");
-			return 0;
+		std::cout << "about to poll\n";
+		ready = poll(poll_fds.data(), poll_fds.size(), -1);
+		if (ready < 0) {
+			ERR(strerror(errno));
+			return 1;
 		}
-		int child_fd = fork();
-		if (child_fd < 0)
-			perror("ERR: fork");
-		if (child_fd == 0) {
-			close(server_fd);
-			if (send(new_socket, hello.c_str(), hello.length(), 0) < 0)
-				perror("ERR:send");
-			close(new_socket);
-			exit(0);
+		std::cout << "read: " << ready << std::endl;
+		for (auto pfd : poll_fds) {
+			if (pfd.fd == poll_fds[0].fd) {// new connection
+				try {
+					s->handle_new_connection();
+				} catch (std::exception &e) {
+					ERR(e.what());
+					return 1;
+				}
+			}
 		}
-		if (child_fd > 0) {
-			std::cout << "client " << count << " connected\n";
-			count++;
-			char buffer[30000] = {0};
-			if (read(new_socket, buffer, sizeof(buffer)) < 0)
-				perror("ERR");
-			std::cout << buffer << std::endl;
-			close(new_socket);
-		}
-		wait(NULL);
 	}
-
-	close(server_fd);
 }
