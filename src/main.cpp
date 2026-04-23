@@ -1,3 +1,5 @@
+#include <csignal>
+#include <cstdlib>
 #include <exception>
 #include <memory>
 #include <stdexcept>
@@ -19,8 +21,13 @@
 
 #define PORT 8888
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
-#define LOG(msg) (std::cout << (msg) << std::endl)
-#define ERR(msg) (std::cerr << (msg) << std::endl)
+
+#define RED     "\033[31m"
+#define YELLOW  "\033[32m"
+#define RESET   "\033[0m"
+
+#define LOG(msg) (std::cout << YELLOW "LOG: " RESET << (msg) << std::endl)
+#define ERR(msg) (std::cerr << RED "ERR: " RESET << (msg) << std::endl)
 
 class Server {
 private:
@@ -30,6 +37,9 @@ private:
 	uint m_port;
 public:
 	Server(const char *ip, uint port) {
+#ifdef DEBUG
+		LOG("server constructed");
+#endif //  DEBUG
 		m_ip = ip;
 		m_port = port;
 		m_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -58,7 +68,12 @@ public:
 		setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(m_address));
 	}
 
-	~Server() { close(m_fd); }
+	~Server() {
+		#ifdef DEBUG
+			LOG("server destructed");
+		#endif // DEBUG
+		close(m_fd);
+	}
 
 	int get_fd() const {return m_fd;}
 	std::string& get_ip() { return m_ip; }
@@ -83,8 +98,14 @@ public:
 	}
 };
 
+void handler_sig_int(int sig) {
+	(void)sig;
+	LOG("signal called");
+}
+
 int main() {
 	std::unique_ptr<Server> s;
+
 	try {
 		s = std::make_unique<Server>("127.0.0.1", PORT);
 	} catch (std::exception & e) {
@@ -100,8 +121,17 @@ int main() {
 	// add the server to the poll fds array
 	poll_fds.emplace_back((struct pollfd){.fd = s->get_fd(), .events = POLLIN});
 
+	struct sigaction sa;
+	sa.sa_flags = SA_SIGINFO;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = handler_sig_int;
+	if (sigaction(SIGINT, &sa, NULL) < 0)
+		ERR("sigaction");
+
 	int ready;
 	while (true) {
+		if (sa.sa_flags == SIGINT)
+			break;
 		std::cout << "about to poll\n";
 		ready = poll(poll_fds.data(), poll_fds.size(), -1);
 		if (ready < 0) {
