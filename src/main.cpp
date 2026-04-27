@@ -156,7 +156,7 @@ int main() {
 		ready = poll(poll_fds.data(), poll_fds.size(), -1);
 		if (ready < 0) {
 			ERR(strerror(errno));
-			return 1;
+			break;
 		}
 		std::cout << "read: " << ready << std::endl;
 		// iterate the poll fds array to check if there are anything new to read
@@ -167,12 +167,16 @@ int main() {
 						s->handle_new_connection(poll_fds);
 					} catch (std::exception &e) {
 						ERR(e.what());
-						return 1;
+						break;
 					}
 				} else {// handle client data
 					handle_client_data(poll_fds, pfd.fd);
 				}
 			}
 		}
+	}
+	for (auto pfd : poll_fds) {
+		LOG("closing fd");
+		close(pfd.fd);
 	}
 }
