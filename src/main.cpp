@@ -27,7 +27,8 @@
 #define RESET   "\033[0m"
 
 #define LOG(msg) (std::cout << YELLOW "LOG: " RESET << (msg) << std::endl)
-#define ERR(msg) (std::cerr << RED "ERR: " RESET << (msg) << std::endl)
+#define ERR(msg) (std::cerr << RED "ERR: " RESET << (msg) \
+	<< "--" << __FILE__ << ":" << __LINE__ << std::endl)
 
 class Server {
 private:
@@ -56,11 +57,13 @@ public:
 		// bind fd to the address created
 		if (bind(m_fd, (struct sockaddr*)&m_address, sizeof(m_address)) < 0) {
 			close(m_fd);
+			ERR(strerror(errno));
 			throw std::runtime_error("ERR: bind failed\n");
 		}
 
 		if (listen(m_fd, 69) < 0) {
 			close(m_fd);
+			ERR(strerror(errno));
 			throw std::runtime_error("ERR: listen failed\n");
 		}
 
@@ -80,7 +83,7 @@ public:
 	uint get_port() const { return m_port; }
 
 	//:handle_new_connection
-	void handle_new_connection() {
+	void handle_new_connection(std::vector<struct pollfd>& poll_fds) {
 		int new_socket;
 		socklen_t addr_len;
 		sockaddr_in addr;
@@ -90,17 +93,34 @@ public:
 			close(new_socket);
 			throw std::runtime_error("ERR: unacceptable\n");
 		}
-		if (send(new_socket, hello.c_str(), hello.length(), 0) < 0) {
-			close(new_socket);
-			throw std::runtime_error("ERR: send\n");
-		}
-		close(new_socket);
+		poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN});
 	}
 };
 
 void handler_sig_int(int sig) {
 	(void)sig;
-	LOG("signal called");
+}
+
+// receive data from client and send the payload to everyone else
+void handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
+	char buf[256];
+	memset(buf, 0, sizeof(buf));
+	int bytes = recv(fd, buf, sizeof(buf), 0);
+	if (bytes <= 0) { // no data or error
+		if (bytes < 0)
+			ERR(strerror(errno));
+		if (bytes == 0)
+			LOG("connection close");
+		close(fd);
+		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
+	} else { // we got data
+		for (auto pfd : poll_fds) {
+			if (pfd.fd != poll_fds[0].fd && pfd.fd != fd) {
+				if (send(pfd.fd, buf, sizeof(buf), 0) < 0)
+					ERR("send");
+			}
+		}
+	}
 }
 
 int main() {
@@ -139,13 +159,18 @@ int main() {
 			return 1;
 		}
 		std::cout << "read: " << ready << std::endl;
+		// iterate the poll fds array to check if there are anything new to read
 		for (auto pfd : poll_fds) {
-			if (pfd.fd == poll_fds[0].fd) {// new connection
-				try {
-					s->handle_new_connection();
-				} catch (std::exception &e) {
-					ERR(e.what());
-					return 1;
+			if (pfd.revents & (POLLIN | POLLHUP)) {
+				if (pfd.fd == poll_fds[0].fd) {// new connection
+					try {
+						s->handle_new_connection(poll_fds);
+					} catch (std::exception &e) {
+						ERR(e.what());
+						return 1;
+					}
+				} else {// handle client data
+					handle_client_data(poll_fds, pfd.fd);
 				}
 			}
 		}
