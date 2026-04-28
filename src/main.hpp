@@ -20,7 +20,6 @@
 #include <string.h>
 #include <vector>
 #include <errno.h>
-#include "Server.hpp"
 
 #define PORT 8888
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))

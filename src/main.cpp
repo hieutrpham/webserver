@@ -1,29 +1,8 @@
 #include "main.hpp"
+#include "Server.hpp"
 
 void handler_sig_int(int sig) {
 	(void)sig;
-}
-
-// receive data from client and send the payload to everyone else
-void handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
-	char buf[256];
-	memset(buf, 0, sizeof(buf));
-	int bytes = recv(fd, buf, sizeof(buf), 0);
-	if (bytes <= 0) { // no data or error
-		if (bytes < 0)
-			ERR(strerror(errno));
-		if (bytes == 0)
-			LOG("connection close");
-		close(fd);
-		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
-	} else { // we got data
-		for (auto pfd : poll_fds) {
-			if (pfd.fd != poll_fds[0].fd && pfd.fd != fd) {
-				if (send(pfd.fd, buf, sizeof(buf), 0) < 0)
-					ERR("send");
-			}
-		}
-	}
 }
 
 int main() {
@@ -61,7 +40,7 @@ int main() {
 			ERR(strerror(errno));
 			break;
 		}
-		std::cout << "new connection" << std::endl;
+		std::cout << "got something new to read\n";
 		// iterate the poll fds array to check if there are anything new to read
 		for (auto pfd : poll_fds) {
 			if (pfd.revents & (POLLIN | POLLHUP)) {
@@ -73,7 +52,7 @@ int main() {
 						break;
 					}
 				} else {// handle client data
-					handle_client_data(poll_fds, pfd.fd);
+					s->handle_client_data(poll_fds, pfd.fd);
 				}
 			}
 		}
