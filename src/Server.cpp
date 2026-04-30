@@ -1,4 +1,6 @@
 #include "Server.hpp"
+#include "main.hpp"
+#include <cstring>
 
 Server::Server() {}
 
@@ -53,9 +55,10 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds) {
 
 	if ((new_socket = accept(m_fd, (sockaddr *)&addr, &addr_len)) < 0) {
 		close(new_socket);
+		ERR(strerror(errno));
 		throw std::runtime_error("ERR: unacceptable\n");
 	}
-	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN});
+	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
 }
 
 // receive data from client and send the payload to everyone else

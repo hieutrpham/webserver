@@ -21,7 +21,7 @@ int main() {
 	poll_fds.reserve(16);
 
 	// add the server to the poll fds array
-	poll_fds.emplace_back((struct pollfd){.fd = s->get_fd(), .events = POLLIN});
+	poll_fds.emplace_back((struct pollfd){.fd = s->get_fd(), .events = POLLIN, .revents = 0});
 
 	struct sigaction sa;
 	sa.sa_flags = SA_SIGINFO;
