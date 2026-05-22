@@ -1,25 +1,28 @@
 #include "Server.hpp"
+#include "ConfigParser.hpp"
 #include "main.hpp"
 #include <cstring>
 #include <iostream>
 
 Server::Server() {}
 
-Server::Server(const char *ip, uint port) : m_ip(ip), m_port(port)
+Server::Server(ConfigParser &config)
 {
 #ifdef DEBUG
 	LOG("server constructed");
 #endif //  DEBUG
 
+	m_ip = config.m_ip;
+	m_port = config.m_port;
 	m_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (m_fd < 0)
 		throw std::runtime_error("ERR: socket creation failed\n");
 
 	// configuring the address
-	in_addr_t addr = inet_addr(ip);
+	in_addr_t addr = inet_addr(m_ip.c_str());
 	m_address.sin_family = AF_INET;
 	m_address.sin_addr.s_addr = addr;
-	m_address.sin_port = htons(port);
+	m_address.sin_port = htons(m_port);
 	memset(m_address.sin_zero, 0, sizeof(m_address.sin_zero));
 
 	// bind fd to the address created
@@ -76,7 +79,7 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds) {
 }
 
 void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
-	char buf[1<<12] = {0}; // storing the client request data. size is configurable?
+	char buf[1<<12] = {0}; // storing the client request data.
 
 	int bytes = recv(fd, buf, sizeof(buf), 0);
 	if (bytes <= 0) { // no data or error

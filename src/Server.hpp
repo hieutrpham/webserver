@@ -1,4 +1,5 @@
 #pragma once
+#include "ConfigParser.hpp"
 #include "main.hpp"
 
 class Server {
@@ -9,7 +10,7 @@ private:
 	uint m_port;
 public:
 	Server();
-	Server(const char *ip, uint port);
+	Server(ConfigParser &);
 	~Server();
 	Server(const Server&);
 	Server& operator=(const Server&);

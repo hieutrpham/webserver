@@ -1,4 +1,5 @@
 #include "main.hpp"
+#include "ConfigParser.hpp"
 #include "Server.hpp"
 
 void handler_sig_int(int sig) {
@@ -9,7 +10,10 @@ int main() {
 	std::unique_ptr<Server> s;
 
 	try {
-		s = std::make_unique<Server>("127.0.0.2", PORT);
+		ConfigParser config;
+		config.m_ip = "127.0.0.2";
+		config.m_port = PORT;
+		s = std::make_unique<Server>(config);
 	} catch (std::exception & e) {
 		std::cout << e.what() << std::endl;
 		return 1;
