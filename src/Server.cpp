@@ -1,10 +1,12 @@
 #include "Server.hpp"
 #include "main.hpp"
 #include <cstring>
+#include <iostream>
 
 Server::Server() {}
 
-Server::Server(const char *ip, uint port) : m_ip(ip), m_port(port) {
+Server::Server(const char *ip, uint port) : m_ip(ip), m_port(port)
+{
 #ifdef DEBUG
 	LOG("server constructed");
 #endif //  DEBUG
@@ -37,16 +39,28 @@ Server::Server(const char *ip, uint port) : m_ip(ip), m_port(port) {
 	setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(m_address));
 }
 
-Server::~Server() {
+Server::~Server()
+{
 #ifdef DEBUG
 	LOG("server destructed");
 #endif // DEBUG
 	close(m_fd);
 }
 
-int Server::get_fd() const {return m_fd;}
-const std::string& Server::get_ip() const { return m_ip; }
-uint Server::get_port() const { return m_port; }
+int Server::get_fd() const
+{
+	return m_fd;
+}
+
+const std::string& Server::get_ip() const
+{
+	return m_ip;
+}
+
+uint Server::get_port() const
+{
+	return m_port;
+}
 
 void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds) {
 	int new_socket;
@@ -61,10 +75,9 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds) {
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
 }
 
-// receive data from client and send the payload to everyone else
 void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
-	char buf[256];
-	memset(buf, 0, sizeof(buf));
+	char buf[1<<12] = {0}; // storing the client request data. size is configurable?
+
 	int bytes = recv(fd, buf, sizeof(buf), 0);
 	if (bytes <= 0) { // no data or error
 		if (bytes < 0)
@@ -74,11 +87,11 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 		close(fd);
 		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
 	} else { // we got data
-		for (auto pfd : poll_fds) {
-			if (pfd.fd != poll_fds[0].fd && pfd.fd != fd) {
-				if (send(pfd.fd, buf, sizeof(buf), 0) < 0)
-					ERR("send");
-			}
-		}
+		std::cout << buf << std::endl;
+
+		// example response
+		std::string hello = "HTTP/1.1 413 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
+		if (send(fd, hello.c_str(), hello.length(), 0) < 0)
+			ERR(strerror(errno));
 	}
 }

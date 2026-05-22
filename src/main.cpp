@@ -9,7 +9,7 @@ int main() {
 	std::unique_ptr<Server> s;
 
 	try {
-		s = std::make_unique<Server>("127.0.0.1", PORT);
+		s = std::make_unique<Server>("127.0.0.2", PORT);
 	} catch (std::exception & e) {
 		std::cout << e.what() << std::endl;
 		return 1;
@@ -34,13 +34,13 @@ int main() {
 	while (true) {
 		if (sa.sa_flags == SIGINT)
 			break;
-		std::cout << "about to poll\n";
+		LOG("about to poll");
 		ready = poll(poll_fds.data(), poll_fds.size(), -1);
 		if (ready < 0) {
 			ERR(strerror(errno));
 			break;
 		}
-		std::cout << "got something new to read\n";
+		LOG("got something new to read");
 		// iterate the poll fds array to check if there are anything new to read
 		for (auto pfd : poll_fds) {
 			if (pfd.revents & (POLLIN | POLLHUP)) {
