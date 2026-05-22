@@ -1,11 +1,14 @@
 CC = c++ -std=c++20
 NAME = webserv
-CFLAGS = -Wall -Werror -Wextra
+CFLAGS = -Wall -Werror -Wextra -O3
 DFLAGS = -MMD -MP
 
 # sources
 SRC_PATH = src/
-SRC = main.cpp
+SRC = main.cpp Server.cpp
+
+#include
+INCLUDE = -I./src/
 
 # objects
 OBJ = $(SRC:.cpp=.o)
@@ -18,7 +21,7 @@ DEP = $(addprefix $(OBJ_PATH), $(SRC_PATH:.cpp=.d))
 all: $(OBJ_PATH) $(NAME)
 
 $(OBJ_PATH)%.o: $(SRC_PATH)%.cpp
-	$(CC) $(CFLAGS) $(DFLAGS) -o $@ -c $<
+	$(CC) $(INCLUDE) $(CFLAGS) $(DFLAGS) -o $@ -c $<
 
 $(OBJ_PATH):
 	@mkdir -p $(OBJ_PATH)
