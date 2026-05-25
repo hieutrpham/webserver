@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/25 14:30:03 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/05/25 14:56:49 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,37 +26,35 @@ struct ServerConfig {
 	
 };
 
+//ABSTRACT INTERFACE IMPLEMENTATION
 class ConfigParser {
 		using RegexCont		= std::map<std::string, std::regex, std::less<>>;
+
+		ConfigParser() = delete;
+		ConfigParser(std::string conf_fname) = delete;
+		ConfigParser(const ConfigParser& other) = delete;
+		~ConfigParser() = delete;
+		ConfigParser&	operator=(const ConfigParser& other) = delete;
 	public:
 		using ConfigCont	= std::vector<ServerConfig>;
 		
-		ConfigParser();
-		ConfigParser(const ConfigParser& other);
-		~ConfigParser();
-		ConfigParser&	operator=(const ConfigParser& other);
+		ConfigCont	parseToStructs();
 
-		//REGEX HANDLES
-		bool	matchPattern(const std::string_view& line, const std::string_view& pattern_name);
-		
 		//GETTERS--------------------------------------------------
-		const ConfigCont&	getServerConfigs() const;
-		std::size_t			getNumServers() const;
-		const ServerConfig&	getServer(std::size_t index) const;
+		//these are relevant ONLY if object becomes more than an abstract interface
+		// const ConfigCont&	getServerConfigs() const;
+		// std::size_t			getNumServers() const;
+		// const ServerConfig&	getServer(std::size_t index) const;
 	
 	private:
 		const RegexCont 	patterns_;
 		ConfigCont			server_configs_;
 
+		//REGEX HANDLES
+		bool	matchPattern(const std::string_view& line, const std::string_view& pattern_name);
+
 
 		
-
-
-
-
-
-
-
 
 
 
