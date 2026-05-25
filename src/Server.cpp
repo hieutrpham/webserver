@@ -3,6 +3,7 @@
 #include "main.hpp"
 #include <cstring>
 #include <iostream>
+#include "RequestParser.hpp"
 
 Server::Server() {}
 
@@ -90,7 +91,14 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 		close(fd);
 		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
 	} else { // we got data
-		std::cout << buf << std::endl;
+		// std::cout << buf << std::endl;
+
+		Request request;
+		RequestParser::parseRequestLine(buf, request);
+
+		std::cout << "METHOD: " << request.getMethod() << std::endl;
+		std::cout << "TARGET: " << request.getTarget() << std::endl;
+		std::cout << "VERSION: " << request.getVersion() << std::endl;
 
 		// example response
 		std::string hello = "HTTP/1.1 413 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
