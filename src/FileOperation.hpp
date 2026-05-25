@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/25 15:14:46 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/25 15:24:46 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/05/25 15:43:22 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,8 +23,11 @@ class FileOperation {
 
 		std::string		file;
 		std::ifstream	in_stream;
+		std::ofstream	out_stream;
 	public:
-		std::ifstream	openFileStream();
+		std::ifstream&	openInFStream(std::string in_fname);
+		std::ofstream&	openOutFStream(std::string out_fname);
+		std::string		getFileContent(std::ifstream in_stream);
 
 	class FileException : public std::exception {
 			std::string		msg_;
