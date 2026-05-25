@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/25 14:56:49 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/05/25 17:00:18 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,6 +17,10 @@
 #include <regex>
 #include <vector>
 #include <map>
+
+//vector of structs: site configs in an array.
+//linked-list type, server->next
+//		- then top level would be the generic, applicable to all
 
 struct ServerConfig {
 	std::string		ip;

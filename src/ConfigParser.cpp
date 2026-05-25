@@ -6,11 +6,12 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/25 14:59:10 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/05/25 16:56:20 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ConfigParser.hpp"
+#include "FileOperation.hpp"
 
 //OCCF-----------------------------------------------------
 //	MAYBE JUST DONT IMPLEMENT. MAKE ONLY ABSTRACT INTERFACE.
@@ -27,7 +28,14 @@
 //----------------------------------------------------------
 
 ConfigCont	ConfigParser::parseToStructs(std::string conf_fname) {
-	
+	InStreamPtr 	instream = FileOperation::openInFStream(conf_fname);
+	std::string		line{};
+
+	while (std::getline(*instream, line, ';')) {
+		matchPattern(); //hierarchy levels between '{', ';' and '}'
+	}
+	if (instream.bad())
+		throw FileOperation::FileException("Error: I/O error in configparser getline\n");
 }
 
 bool	ConfigParser::matchPattern(const std::string_view& line, const std::string_view& pattern_name) {
