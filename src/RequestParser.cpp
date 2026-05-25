@@ -36,3 +36,39 @@ bool RequestParser::parseRequestLine(const std::string& rawBuffer, Request& requ
 
 	return (true);
 }
+
+bool RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& request) {
+	size_t lineEnd = rawBuffer.find("\r\n");
+	if (lineEnd == std::string::npos)
+		return (false);
+	size_t headersStart = lineEnd + 2;
+
+	size_t headersEnd = rawBuffer.find("\r\n\r\n");
+	if (headersEnd == std::string::npos)
+		return (false);
+	
+	std::string headersStr = rawBuffer.substr(headersStart, (headersEnd - headersStart));
+	std::istringstream stream(headersStr);
+	
+	std::string line;	
+	while (std::getline(stream, line)) {
+		// Erase \r from line
+		if (!line.empty() && line[line.length() -1] == '\r')
+			line.erase(line.length() - 1);
+		
+		size_t colon = line.find(':');
+		if (colon == std::string::npos)
+			return (false);
+		
+		std::string key = line.substr(0, colon);
+		std::string value = line.substr(colon + 1);
+	
+		// Erase leading whitespace from value
+		if (!value.empty() && value[0] == ' ')
+			value.erase(0, 1);
+		
+		request.setHeader(key, value);
+	}
+
+	return (true);
+}

@@ -95,10 +95,19 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 
 		Request request;
 		RequestParser::parseRequestLine(buf, request);
+		RequestParser::parseRequestHeaders(buf, request);
 
 		std::cout << "METHOD: " << request.getMethod() << std::endl;
 		std::cout << "TARGET: " << request.getTarget() << std::endl;
 		std::cout << "VERSION: " << request.getVersion() << std::endl;
+		
+		std::cout << "HEADERS:" << std::endl;
+		for (const auto& header : request.getHeaders()) {
+			std::cout << header.first
+					<< ": "
+					<< header.second
+					<< std::endl;
+		}
 
 		// example response
 		std::string hello = "HTTP/1.1 413 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
