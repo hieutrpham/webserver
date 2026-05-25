@@ -2,6 +2,7 @@
 #define REQUEST_HPP
 
 #include <string>
+#include <map>
 
 /* Stores parsed HTTP data */
 class Request {
@@ -9,17 +10,21 @@ class Request {
 		std::string _method;
 		std::string _target;
 		std::string _version;
-	
+		std::map<std::string, std::string> _headers;
+
 	public:
 		Request();
 
 		void setMethod(const std::string& method);
 		void setTarget(const std::string& target);
 		void setVersion(const std::string& version);
+		void setHeader(const std::string& key, const std::string& value);
 
-		const std::string& getMethod() const;
-		const std::string& getTarget() const;
-		const std::string& getVersion() const;
+		const std::string&							getMethod() const;
+		const std::string&							getTarget() const;
+		const std::string&							getVersion() const;
+		std::string									getHeader(const std::string& key) const;
+		const std::map<std::string, std::string>&	getHeaders() const;
 };
 
 #endif
