@@ -83,7 +83,7 @@ bool RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& r
 		request.setHeader(key, value);
 	}
 	
-	// Validate that Host header exists
+	// Validate that Host header exists and value is not empty
 	if (request.getHeader("Host").empty())
 		return (false);
 
