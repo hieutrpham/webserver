@@ -67,9 +67,11 @@ bool RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& r
 		if (key.empty())
 			return (false);
 	
-		// Erase leading whitespace from value
-		if (!value.empty() && value[0] == ' ')
+		// Erase leading and trailing whitespace from value
+		while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
 			value.erase(0, 1);
+		while (!value.empty() && (value[value.length() - 1] == ' ' || value[value.length() - 1] == '\t'))
+			value.erase(value.length() - 1);
 
 		// Reject multiple 'Content-Length' headers with differing values (RFC 7230)
 		if (key == "Content-Length") {
