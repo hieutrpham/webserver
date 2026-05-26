@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/26 16:06:22 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/05/26 17:51:12 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,71 +30,93 @@
 
 //PARSER MAIN PATH---------------------------------------------------------------------
 ConfigCont	ConfigParser::parseFile(std::string conf_fname) {
-	this->instream_ = FileOperation::openInFStream(conf_fname);
+	instream_ = FileOperation::openInFStream(conf_fname);
 
 	constexpr std::string_view	servh_pattern{R"(^server {$)"};
-	constexpr std::string_view	top_patterns{R"((?<srv>^server {$)|(?<loc>^location {$))"};
-	constexpr std::string_view	top_patterns{R"((?<srv>^server {$)|(?<loc>^location {$))"};
-	constexpr std::string_view	serv_patters{
-		R"((?<sname>^server_name ;$)|(?<listen>^listen ;$)|(<clmxbds>^client_max_body_size ;$)|(<errp>^error_page ;$)|())"}; //"|?<s_name>server_name|"
-	constexpr std::string_view	loc_patterns{R"()"};
-	const std::regex			shead_engine(servh_patern);
-	const std::regex			tblock_engine(top_patterns);
-	const std::regex			sblock_engine(serv_patterns);
-	const std::regex			lblock_engine(loc_patterns);
+	constexpr std::string_view	locah_pattern{R"(^location {$)"};
+	constexpr std::string_view	limex_pattern{R"(^limit_except GET|POST|PUT {$)"};
+	constexpr std::string_view	serv_patters{R"((?<sn>^server_name ;$)|(?<l>^listen ;$)|(?<cmbs>^client_max_body_size ;$)|(?<ep>^error_page ;$))"}; //"|?<s_name>server_name|"
+	constexpr std::string_view	loc_patterns{R"((?<r>^root ;$)|(?<i>^index ;$)|(?<ai>^autoindex ;$)|(?<le>^limit_except {$))"};
+	shead_engine_(servh_pattern);
+	lhead_engine_(locah_pattern);
+	lehead_engine_(limex_pattern);
+	sblock_engine_(serv_patterns);
+	lblock_engine_(loc_patterns);
 
 	try {
-		while (std::getline(*instream_, line_)) {
-			if (isCommentOrWhitespace())
-				continue;
-			if (line.back() == '{') {
-				lineGetMatch(tblock_engine); //must be 'server' at the top level
-				();
-				parseBlock();
-				openBracket();
-				continue;
-			}
-			if (line_.back() == '}') {
-				if (line_.front() != line_.back())
-					throw ContentException("Error: Config File Format: Closing brackets need their own lines\n");
-				closeBracket();
-				continue;
-			}
-			throw ContentException("Error: Config File Format: Incorrect statement line terminator\n");
-		}
-		if (instream.bad())
-			throw FileOperation::FileException("Error: ConfigParser System Call: I/O system error\n");
+		parseServerBlocks();
+		if (instream_.bad())
+			throw FileOperation::FileException(ERR_IO);
 	} catch (std::exception& e) {
-		std::cerr << RED << e.what() << RST;
+		std::cerr << C_RED << e.what() << C_RST;
 	}
 }
 
-void	ConfigParser::lineGetMatch(std::regex& engine) {
-
+void	ConfigParser::parseServerBlocks() {
+	while (std::getline(*instream_, line_)) {
+		if (isCommentOrWhitespace())
+			continue;
+		if (std::regex_match(line_, shead_engine_)) {
+			openBracket();
+			parseVirtualHostBlock();
+			continue;
+		}
+		if (line_.back() == '}') {
+			blockEnd();
+			continue;
+		}
+		throw ContentException(ERR_TERMINATOR); //here terminator is not the only error condition.
+	}
 }
 
-void	ConfigParser::parseBlock(std::regex& engine) {
-	while (std::getline(*instream_, *line_)) {
+void	ConfigParser::parseVirtualHostBlock() {
+	while (std::getline(*instream_, line_)) {
+		if (isCommentOrWhitespace())
+			continue;
+		if (std::regex_match(line_, lhead_engine_)) {
+			openBracket();
+			parseLocationBlock();
+			continue;
+		}
 		if (line.back() == ';') {
 			lineGetMatch();
 			structPutValue();
 			continue;
 		}
 		if (line.back() == '}') {
-			return END;
+			return blockEnd();
 		}
 	}
+}
+
+void	ConfigParser::parseLocationBlock() {
+	while (std::getline(*instream_, line_)) {
+		if (isCommentOrWhitespace())
+			continue;
+		if (line.back() == ';') {
+			lineGetMatch();
+			structPutValue();
+			continue;
+		}
+		if (line.back() == '}') {
+			return blockEnd();
+		}
+	}
+}
+
+void	ConfigParser::lineGetMatch() {
+
 }
 
 void	ConfigParser::structPutValue() {
 	//check which str of match
 	//match the str with enum in loop
-	//switch statement from the eunm
+	//switch statement from the enum
 }
 //----------------------------------------------------------------------------------
 
 
-//PARSE HELPERS---------------------------------------------------------------------
+//PARSER HELPERS---------------------------------------------------------------------
 bool	ConfigParser::isCommentOrWhitespace() {
 	if (trimPrecedingWS(line_) == BLANK);
 		return true;
@@ -126,6 +148,12 @@ void	ConfigParser::closeBracket() {
 		return;
 	}
 	throw ContentException("Error: ConfigParser File Content: Too many closing brackets\n");
+}
+
+int		ConfigParser::blockEnd() {
+	if (line_.front() != line_.back())
+		throw ContentException(ERR_BRACKET_CL);
+	closeBracket();
 }
 //---------------------------------------------------------------------------------------
 
@@ -238,13 +266,6 @@ server {
 }
 */
 
-// bool	ConfigParser::matchPattern(const std::string_view& line, const std::string_view& pattern_name) {
-// 	// auto it = patterns_.find(pattern_name);
-// 	// if (it != patterns_.end()) {
-// 	// 	return std::regex_search(line, it->second);
-// 	// }
-// 	// return false;
-// }
 
 
 //PARSING:
@@ -256,10 +277,7 @@ server {
 			Check each '{' is closed with '}'.
 			However, a '{' could technically be followed by any number of ';' or '{' also
 		'}' for block directives end endline
-	3 Pass each 'line' from getline to the regex engine map, then ensure correct term+specifier:
-		- `location{`
-		- `autoindexoff;` or `autoindexon;`
-		- `server{'
+	3 Pass each 'line' from getline to one of the regex engines, then ensure correct term+specifier
 	4 Extract specifier and connect to correct data element
 		
 	Regex mathing should only look for patterns that should exist in current context:

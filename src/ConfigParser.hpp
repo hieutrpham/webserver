@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/26 16:06:34 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/05/26 17:21:34 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,10 +18,16 @@
 #include <vector>
 #include <map>
 
-#define RST			"\033[0m"
-#define RED			"\033[31m"
+#define ERR_BRACKET_CL		"Error: Config File Format: Closing brackets need their own lines\n"
+#define ERR_TERMINATOR		"Error: Config File Format: Incorrect statement line terminator\n"
+#define ERR_IO				"Error: ConfigParser System Call: I/O system error\n"
+
+#define C_RST		"\033[0m"
+#define C_RED		"\033[31m"
+
 #define SUCCESS		0
 #define BLANK		1
+#define END			1
 
 //vector of structs: site configs in an array.
 //linked-list type, server->next
@@ -73,13 +79,21 @@ class ConfigParser {
 	private:
 		// const RegexCont 	patterns_;
 
-		ConfigCont			server_configs_;
-		std::size_t			open_brackets_;
-		InStreamPtr			instream_;
-		std::string			line_;
-		std::smatch			matches_;
+		ConfigCont		server_configs_;
+		std::size_t		open_brackets_;
+		InStreamPtr		instream_;
+		std::string		line_;
+		std::smatch		matches_;
+		std::regex		shead_engine_;
+		std::regex		lhead_engine_;
+		std::regex		sblock_engine_;
+		std::regex		lblock_engine_;
 
 		//PRIVATE HELPERS
+		void	parseServerBlocks();
+		void	parseVirtualHostBlock();
+		void	parseLocationBlock();
+
 		bool	matchPattern(const std::string_view& line, const std::string_view& pattern_name);
 		void	parseBlock(std::regex& engine);
 		bool	isCommentOrWhitespace();
