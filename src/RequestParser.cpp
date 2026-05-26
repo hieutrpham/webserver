@@ -70,6 +70,13 @@ bool RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& r
 		// Erase leading whitespace from value
 		if (!value.empty() && value[0] == ' ')
 			value.erase(0, 1);
+
+		// Reject multiple 'Content-Length' headers with differing values (RFC 7230)
+		if (key == "Content-Length") {
+			std::string existing = request.getHeader("Content-Length");
+			if (!existing.empty() && existing != value)
+				return (false);
+		}
 		
 		request.setHeader(key, value);
 	}
