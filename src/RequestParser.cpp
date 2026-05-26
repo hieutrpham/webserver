@@ -1,7 +1,7 @@
 #include "Request.hpp"
 #include "RequestParser.hpp"
-#include <iostream>
 #include <sstream> //istringstream
+#include <cctype> //isdigit
 
 bool RequestParser::parseRequestLine(const std::string& rawBuffer, Request& request) {
 	size_t lineEnd = rawBuffer.find("\r\n");
@@ -74,8 +74,17 @@ bool RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& r
 		request.setHeader(key, value);
 	}
 	
+	// Validate that Host header exists
 	if (request.getHeader("Host").empty())
 		return (false);
 
+	// Content-Length value is numeric validation
+	std::string contentLength = request.getHeader("Content-Length");
+	if (!contentLength.empty()) {
+		for (size_t i = 0; i < contentLength.length(); i++) {
+			if (!std::isdigit(contentLength[i]))
+				return (false);
+		}
+	}
 	return (true);
 }
