@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/25 17:00:18 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/05/26 16:06:34 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,22 +18,39 @@
 #include <vector>
 #include <map>
 
+#define RST			"\033[0m"
+#define RED			"\033[31m"
+#define SUCCESS		0
+#define BLANK		1
+
 //vector of structs: site configs in an array.
 //linked-list type, server->next
 //		- then top level would be the generic, applicable to all
 
-struct ServerConfig {
-	std::string		ip;
-	unsigned		port;
-	unsigned		cl_max_bodysize;
-	bool			autoindex;
-	
+class ServerConfig {
+	private:
+		std::string		ip;
+		unsigned		port;
+		unsigned		cl_max_bodysize;
+		bool			autoindex;
+	public:
+		void	setIP(std::string);
+		void	setPort(unsigned); //a setter for all values
+		void	setBodySize(unsigned);
+		void	setAutoindex(bool);
+		//etc
+		void	setData();
+
+		void	getIP(std::string);
+		void	getPort(unsigned); //a setter for all values
+		void	getBodySize(unsigned);
+		void	getAutoindex(bool);
+		//etc
+		void	getData();
 };
 
-//ABSTRACT INTERFACE IMPLEMENTATION
 class ConfigParser {
-		using RegexCont		= std::map<std::string, std::regex, std::less<>>;
-
+		// using RegexCont		= std::map<std::string, std::regex, std::less<>>;
 		ConfigParser() = delete;
 		ConfigParser(std::string conf_fname) = delete;
 		ConfigParser(const ConfigParser& other) = delete;
@@ -41,26 +58,36 @@ class ConfigParser {
 		ConfigParser&	operator=(const ConfigParser& other) = delete;
 	public:
 		using ConfigCont	= std::vector<ServerConfig>;
-		
-		ConfigCont	parseToStructs();
 
-		//GETTERS--------------------------------------------------
-		//these are relevant ONLY if object becomes more than an abstract interface
-		// const ConfigCont&	getServerConfigs() const;
-		// std::size_t			getNumServers() const;
-		// const ServerConfig&	getServer(std::size_t index) const;
+		//INTERFACE
+		ConfigCont	parseFile(std::string conf_fname);
+
+		//CUSTOM EXCEPTION
+		class ContentException : public std::exception {
+				std::string		msg_;
+			public:
+				ContentException(const char* msg);
+				const char*	what() const noexcept override;
+		}
 	
 	private:
-		const RegexCont 	patterns_;
+		// const RegexCont 	patterns_;
+
 		ConfigCont			server_configs_;
+		std::size_t			open_brackets_;
+		InStreamPtr			instream_;
+		std::string			line_;
+		std::smatch			matches_;
 
-		//REGEX HANDLES
+		//PRIVATE HELPERS
 		bool	matchPattern(const std::string_view& line, const std::string_view& pattern_name);
-
+		void	parseBlock(std::regex& engine);
+		bool	isCommentOrWhitespace();
+		int		trimPrecedingWS(std::string& str);
+		void	openBracket();
+		void	closeBracket();
 
 		
-
-
 
 
 
@@ -70,8 +97,6 @@ class ConfigParser {
 	static constexp std::string		cl_bt = "client-body-timeout";
 	static constexp std::string 	cl_ms = "client_max_body_size";
 	static constexp std::string		err_p = "error_page";
-	static constexp std::string		
-	static constexp std::string
 };
 
 const std::string "listen"
@@ -92,6 +117,9 @@ const std::string "fastcgi_param"
 //regex a title match: index pos
 //substr the block after it, if block title (.find() '{' and '}' index pos)
 // get just value after match and space, if match is not a block
+
+//URL Paths should be treated as exact strings!! No regex needed for their internal hierarcy.
+
 
 /*
 GEMINI'S IDEA OF A MINIMUM CONFIG FILE WITH NGINX SYNTAX
