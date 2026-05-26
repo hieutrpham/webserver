@@ -21,6 +21,10 @@ bool RequestParser::parseRequestLine(const std::string& rawBuffer, Request& requ
 
 	if (method != "GET" && method != "POST" && method != "DELETE")
 		return (false);
+	if (target.empty() || target[0] != '/')
+		return (false);
+	if (version != "HTTP/1.1")
+		return (false);
 
 	// Check if anything after METHOD, TARGET, VERSION.
 	std::string extra;
