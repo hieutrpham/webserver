@@ -63,6 +63,9 @@ bool RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& r
 		
 		std::string key = line.substr(0, colon);
 		std::string value = line.substr(colon + 1);
+
+		if (key.empty())
+			return (false);
 	
 		// Erase leading whitespace from value
 		if (!value.empty() && value[0] == ' ')
@@ -70,6 +73,9 @@ bool RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& r
 		
 		request.setHeader(key, value);
 	}
+	
+	if (request.getHeader("Host").empty())
+		return (false);
 
 	return (true);
 }
