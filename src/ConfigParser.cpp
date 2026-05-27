@@ -6,13 +6,16 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/26 17:51:12 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/05/27 13:55:27 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ConfigParser.hpp"
 #include "FileOperation.hpp"
 #include <limits>
+#include <string>
+#include <sstream>
+#include <regex>
 
 //OCCF-----------------------------------------------------
 //	MAYBE JUST DONT IMPLEMENT. MAKE ONLY ABSTRACT INTERFACE.
@@ -29,22 +32,24 @@
 //----------------------------------------------------------
 
 //PARSER MAIN PATH---------------------------------------------------------------------
-ConfigCont	ConfigParser::parseFile(std::string conf_fname) {
-	instream_ = FileOperation::openInFStream(conf_fname);
+ConfigCont	ConfigParser::parse(std::string conf_fname) {
+	this->instream_ = FileOperation::openInFStream(conf_fname);
 
-	constexpr std::string_view	servh_pattern{R"(^server {$)"};
-	constexpr std::string_view	locah_pattern{R"(^location {$)"};
-	constexpr std::string_view	limex_pattern{R"(^limit_except GET|POST|PUT {$)"};
-	constexpr std::string_view	serv_patters{R"((?<sn>^server_name ;$)|(?<l>^listen ;$)|(?<cmbs>^client_max_body_size ;$)|(?<ep>^error_page ;$))"}; //"|?<s_name>server_name|"
-	constexpr std::string_view	loc_patterns{R"((?<r>^root ;$)|(?<i>^index ;$)|(?<ai>^autoindex ;$)|(?<le>^limit_except {$))"};
-	shead_engine_(servh_pattern);
-	lhead_engine_(locah_pattern);
-	lehead_engine_(limex_pattern);
-	sblock_engine_(serv_patterns);
-	lblock_engine_(loc_patterns);
+	constexpr std::string_view	servh_pattern{R"(server {)"};
+	constexpr std::string_view	locah_pattern{R"(location {)"};
+	constexpr std::string_view	limex_pattern{R"(limit_except ((?:GET|POST|DELETE)(?: +(?:GET|POST|DELETE))*) {)"};
+	constexpr std::string_view	serv_patters{R"((server_name ;)|(listen ;)|(client_max_body_size ;)|(error_page ;))"}; //"|?<s_name>server_name|"
+	constexpr std::string_view	loc_patterns{R"((root ;)|(index ;)|(autoindex ;)|(limit_except {))"};
+	constexpr std::string_view	limex_patterns{R"(deny all;)"};
+	this->shead_engine_(servh_pattern);
+	this->lhead_engine_(locah_pattern);
+	this->lexhead_engine_(lexh_pattern);
+	this->sblock_engine_(serv_patterns);
+	this->lblock_engine_(loc_patterns);
+	this->lexblock_engine_(limex_patterns);
 
 	try {
-		parseServerBlocks();
+		parseFile();
 		if (instream_.bad())
 			throw FileOperation::FileException(ERR_IO);
 	} catch (std::exception& e) {
@@ -52,7 +57,7 @@ ConfigCont	ConfigParser::parseFile(std::string conf_fname) {
 	}
 }
 
-void	ConfigParser::parseServerBlocks() {
+void	ConfigParser::parseFile() {
 	while (std::getline(*instream_, line_)) {
 		if (isCommentOrWhitespace())
 			continue;
@@ -65,7 +70,7 @@ void	ConfigParser::parseServerBlocks() {
 			blockEnd();
 			continue;
 		}
-		throw ContentException(ERR_TERMINATOR); //here terminator is not the only error condition.
+		throw ContentException(ERR_HTTP_DIR); //here terminator is not the only error condition.
 	}
 }
 
@@ -73,13 +78,13 @@ void	ConfigParser::parseVirtualHostBlock() {
 	while (std::getline(*instream_, line_)) {
 		if (isCommentOrWhitespace())
 			continue;
-		if (std::regex_match(line_, lhead_engine_)) {
+		if (std::regex_match(line_, lhead_engine_)) { //diff arg
 			openBracket();
-			parseLocationBlock();
+			parseLocationBlock(); //diff call
 			continue;
 		}
 		if (line.back() == ';') {
-			lineGetMatch();
+			matchSimpleDirective(sblock_engine_); //diff arg
 			structPutValue();
 			continue;
 		}
@@ -88,13 +93,18 @@ void	ConfigParser::parseVirtualHostBlock() {
 		}
 	}
 }
-
+//THE TWO UP AND DOWN COULD BE COMBINED INTO SINGLE RECURSION, TOLD APART BY THEIR LAUNCH POINTS (inside recursion only to location & in parseFile only to recursion)
 void	ConfigParser::parseLocationBlock() {
 	while (std::getline(*instream_, line_)) {
 		if (isCommentOrWhitespace())
 			continue;
+		if (std::regex_match(line_, lexhead_engine_)) { //diff arg
+			openBracket();
+			parseLimitExcept(); //diff call
+			continue;
+		}
 		if (line.back() == ';') {
-			lineGetMatch();
+			matchSimpleDirective(lblock_engine_); //diff arg
 			structPutValue();
 			continue;
 		}
@@ -104,8 +114,43 @@ void	ConfigParser::parseLocationBlock() {
 	}
 }
 
-void	ConfigParser::lineGetMatch() {
+void	ConfigParser::parseLimitExcept() {
+	std::istringstream	iss(matches_[1]); //matches object to stream
+	std::string			method;
+	std::size_t			count{0};
 
+	//the limit_except head only matches that the pattern is CORRECT, but it doesn't specifically parse WHICH methods were included!
+	//Thus, here;
+	//	1 EXTRACT SUBSTRING BETWEEN LIMIT_EXCEPT AND { 
+	//	2 PARSE THE GET|POST|DELETE BIT SEPARATELY
+	//to specify which methods are present after matching
+	//then get to the 'body' of the limit_except.
+	while (iss >> method) { //stream words to string with space delimiter
+		if (method == "GET")
+			except_allow[GET] = true; //flip switches based on string
+		else if (method == "POST")
+			except_allow[POST] = true;
+		else if (method == "DELETE")
+			except_allow[DELETE] = true;
+	}
+	while (std::getline(*instream_, line_)) {
+		if (isCommentOrWhitespace())
+			continue;
+		if (count == 0 && std::regex_match(line_, lexblock_engine_)) {
+			count = 1; //TODO: assign TRUE to a deny_all variable in ConfigObject
+			continue;
+		}
+		else if (line_.back() == '}')
+			return blockEnd();
+		else
+			throw ContentException(ERR_LEX);
+	}
+}
+
+void	ConfigParser::matchSimpleDirective(std::regex& engine) {
+	if (std::regex_match(line_, engine, matches_)) {
+
+	} //save the identifier (str) of match somewhere in this func
 }
 
 void	ConfigParser::structPutValue() {
@@ -139,7 +184,7 @@ void	ConfigParser::openBracket() {
 		open_brackets_ += 1;
 		return;
 	}
-	throw ContentException("Error: ConfigParser File Content: Too many opening brackets\n");
+	throw ContentException(ERR_N_OBRC);
 }
 
 void	ConfigParser::closeBracket() {
@@ -147,12 +192,12 @@ void	ConfigParser::closeBracket() {
 		open_brackets_ -= 1;
 		return;
 	}
-	throw ContentException("Error: ConfigParser File Content: Too many closing brackets\n");
+	throw ContentException(ERR_N_CBRC);
 }
 
 int		ConfigParser::blockEnd() {
 	if (line_.front() != line_.back())
-		throw ContentException(ERR_BRACKET_CL);
+		throw ContentException(ERR_BRACK_CL);
 	closeBracket();
 }
 //---------------------------------------------------------------------------------------

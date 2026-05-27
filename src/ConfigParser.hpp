@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/26 17:21:34 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/05/27 13:50:21 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,9 +18,15 @@
 #include <vector>
 #include <map>
 
-#define ERR_BRACKET_CL		"Error: Config File Format: Closing brackets need their own lines\n"
-#define ERR_TERMINATOR		"Error: Config File Format: Incorrect statement line terminator\n"
-#define ERR_IO				"Error: ConfigParser System Call: I/O system error\n"
+#define ERR_N_OBRC		"Error: ConfigParser File Content: Too many opening brackets\n"
+#define ERR_N_CBRC		"Error: ConfigParser File Content: Too many closing brackets\n"
+#define ERR_BRACK_CL	"Error: Config File Format: Closing brackets need their own lines\n"
+#define ERR_TERM		"Error: Config File Format: Incorrect statement line terminator\n"
+#define ERR_IO			"Error: ConfigParser System Call: I/O system error\n"
+#define ERR_LEX			"Error: Config File: Invalid limit_except directive\n"
+#define ERR_HTTP_DIR	"Error: Config File: Invalid top level directive\n"
+#define ERR_LOCB_DIR	"Error: Config File: Invalid location block directive\n"
+#define ERR_SRVB_DIR	"Error: Config File: Invalid server block directive\n"
 
 #define C_RST		"\033[0m"
 #define C_RED		"\033[31m"
@@ -33,26 +39,49 @@
 //linked-list type, server->next
 //		- then top level would be the generic, applicable to all
 
+using ConfigVec	= std::vector<ServerConfig>;
+
+typedef enum e_allowed {
+	GET,
+	POST,
+	DELETE
+}	t_allowed;
+
+
+struct Methods {
+	bool	deny_all;
+	bool	except_allow[3];
+}
+
 class ServerConfig {
 	private:
 		std::string		ip;
 		unsigned		port;
 		unsigned		cl_max_bodysize;
 		bool			autoindex;
+		Methods			methods;
 	public:
+		ServerConfig();
+		ServerConfig(const ServerConfig& other);
+		~ServerConfig();
+		ServerConfig&	operator=(const ServerConfig& other);
+
 		void	setIP(std::string);
 		void	setPort(unsigned); //a setter for all values
 		void	setBodySize(unsigned);
 		void	setAutoindex(bool);
+		void	setMethods(Methods);
 		//etc
 		void	setData();
 
-		void	getIP(std::string);
-		void	getPort(unsigned); //a setter for all values
-		void	getBodySize(unsigned);
-		void	getAutoindex(bool);
+		std::string	getIP();
+		unsigned	getPort(); //a getter for all values
+		unsigned	getBodySize();
+		bool		getAutoindex();
+		Methods		getMethods();
 		//etc
-		void	getData();
+		void		getData();
+
 };
 
 class ConfigParser {
@@ -63,10 +92,8 @@ class ConfigParser {
 		~ConfigParser() = delete;
 		ConfigParser&	operator=(const ConfigParser& other) = delete;
 	public:
-		using ConfigCont	= std::vector<ServerConfig>;
-
 		//INTERFACE
-		ConfigCont	parseFile(std::string conf_fname);
+		static ConfigVec	parse(std::string conf_fname);
 
 		//CUSTOM EXCEPTION
 		class ContentException : public std::exception {
@@ -79,27 +106,32 @@ class ConfigParser {
 	private:
 		// const RegexCont 	patterns_;
 
-		ConfigCont		server_configs_;
-		std::size_t		open_brackets_;
-		InStreamPtr		instream_;
-		std::string		line_;
-		std::smatch		matches_;
-		std::regex		shead_engine_;
-		std::regex		lhead_engine_;
-		std::regex		sblock_engine_;
-		std::regex		lblock_engine_;
+		static ConfigVec		server_configs_;
+		static std::size_t		open_brackets_;
+		static InStreamPtr		instream_;
+		static std::string		line_;
+		static std::smatch		matches_;
+		static std::regex		shead_engine_;
+		static std::regex		lhead_engine_;
+		static std::regex		lexhead_engine_;
+		static std::regex		sblock_engine_;
+		static std::regex		lblock_engine_;
+		static std::regex		lexblock_engine_;
 
-		//PRIVATE HELPERS
-		void	parseServerBlocks();
-		void	parseVirtualHostBlock();
-		void	parseLocationBlock();
+		//CRITICAL PATH FUNCS
+		static void	parseFile();
+		static oid	parseVirtualHostBlock();
+		static void	parseLocationBlock();
+		static void	parseLimitExcept();
+		static bool	matchSimpleDirective(std::regex& engine);
 
-		bool	matchPattern(const std::string_view& line, const std::string_view& pattern_name);
-		void	parseBlock(std::regex& engine);
-		bool	isCommentOrWhitespace();
-		int		trimPrecedingWS(std::string& str);
-		void	openBracket();
-		void	closeBracket();
+		//HELPERS
+		static void	parseBlock(std::regex& engine);
+		static bool	isCommentOrWhitespace();
+		static int	trimPrecedingWS(std::string& str);
+		static void	openBracket();
+		static void	closeBracket();
+		static int	blockEnd();
 
 		
 
