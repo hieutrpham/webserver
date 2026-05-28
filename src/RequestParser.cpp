@@ -23,6 +23,7 @@ ParseStatus RequestParser::parseRequest(const std::string& rawBuffer, Request& r
 }
 
 ParseStatus RequestParser::parseRequestLine(const std::string& rawBuffer, Request& request) {
+	// RFC 7230 (3.1.1) - Request-line is terminated by CRLF.
 	size_t lineEnd = rawBuffer.find("\r\n");
 	if (lineEnd == std::string::npos)
 		return (PARSE_INCOMPLETE);
@@ -35,18 +36,24 @@ ParseStatus RequestParser::parseRequestLine(const std::string& rawBuffer, Reques
 	std::string target;
 	std::string version;
 
+	// RFC 7230 (3.1.1) - Request-line format:
+	// method SP request-target SP HTTP-version CRLF.
 	if (!(iss >> method >> target >> version))
 		return (PARSE_BAD_REQUEST);
 
-	// Check if anything after METHOD, TARGET, VERSION.
 	std::string extra;
 	if (iss >> extra)
 		return (PARSE_BAD_REQUEST);
 
+	// Project scope - Only support GET, POST and DELETE methods.
 	if (method != "GET" && method != "POST" && method != "DELETE")
 		return (PARSE_BAD_REQUEST);
+
+	// RFC 7230 (5.3.1) - Origin-form request-target begins with '/'.
 	if (target.empty() || target[0] != '/')
 		return (PARSE_BAD_REQUEST);
+
+	// Projet scope - Only accepts HTTP/1.1 requests.
 	if (version != "HTTP/1.1")
 		return (PARSE_BAD_REQUEST);
 
@@ -63,6 +70,7 @@ ParseStatus RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 		return (PARSE_INCOMPLETE);
 	size_t headersStart = lineEnd + 2;
 
+	// RFC 7230 (3) - Header section ends with an empty line: CRLF CRLF.
 	size_t headersEnd = rawBuffer.find("\r\n\r\n");
 	if (headersEnd == std::string::npos)
 		return (PARSE_INCOMPLETE);
@@ -75,7 +83,9 @@ ParseStatus RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 		// Erase \r from line
 		if (!line.empty() && line[line.length() -1] == '\r')
 			line.erase(line.length() - 1);
-		
+
+		// RFC 7230 (3.2) - Header-field format:
+		// field-name ":" OWS field-value OWS.
 		size_t colon = line.find(':');
 		if (colon == std::string::npos)
 			return (PARSE_BAD_REQUEST);
@@ -83,6 +93,7 @@ ParseStatus RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 		std::string key = line.substr(0, colon);
 		std::string value = line.substr(colon + 1);
 
+		// RFC 7230 (3.2) - Header field-name cannot be empty.
 		if (key.empty())
 			return (PARSE_BAD_REQUEST);
 	
@@ -92,7 +103,7 @@ ParseStatus RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 		while (!value.empty() && (value[value.length() - 1] == ' ' || value[value.length() - 1] == '\t'))
 			value.erase(value.length() - 1);
 
-		// Reject multiple 'Content-Length' headers with differing values (RFC 7230)
+		// RFC 7230 (3.3.2) - Reject multiple Content-Length headers with differing values.
 		if (key == "Content-Length") {
 			std::string existing = request.getHeader("Content-Length");
 			if (!existing.empty() && existing != value)
@@ -102,11 +113,11 @@ ParseStatus RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 		request.setHeader(key, value);
 	}
 	
-	// Validate that Host header exists and value is not empty
+	// RFC 7230 (5.4) - HTTP/1.1 requests must include a Host header.
 	if (request.getHeader("Host").empty())
 		return (PARSE_BAD_REQUEST);
 
-	// Content-Length value is numeric validation
+	// RFC 7230 (3.3.2) - Content-Length value must be a valid decimal number.
 	std::string contentLength = request.getHeader("Content-Length");
 	if (!contentLength.empty()) {
 		for (size_t i = 0; i < contentLength.length(); i++) {
