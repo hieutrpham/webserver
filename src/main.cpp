@@ -9,15 +9,10 @@ void handler_sig_int(int sig) {
 int main() {
 	std::unique_ptr<Server> s;
 
-	try {
-		ConfigParser config;
-		config.m_ip = "127.0.0.2";
-		config.m_port = PORT;
-		s = std::make_unique<Server>(config);
-	} catch (std::exception & e) {
-		std::cout << e.what() << std::endl;
-		return 1;
-	}
+	ServerConfig config = ConfigParser::parse("server.conf");
+	LOG(config.ip); //the config object is now populated by parse() from server.conf
+	LOG(config.port);
+	s = std::make_unique<Server>(config);
 
 	std::cout << "Listening on: " << s->get_ip() << ":" << s->get_port() << std::endl;
 

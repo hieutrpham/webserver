@@ -10,7 +10,7 @@ private:
 	uint m_port;
 public:
 	Server();
-	Server(ConfigParser &);
+	Server(ServerConfig &);
 	~Server();
 	Server(const Server&);
 	Server& operator=(const Server&);

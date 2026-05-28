@@ -1,11 +1,11 @@
 CC = c++ -std=c++20
 NAME = webserv
-CFLAGS = -Wall -Werror -Wextra -O3
+CFLAGS = -Wall -Werror -Wextra -O3 -g
 DFLAGS = -MMD -MP
 
 # sources
 SRC_PATH = src/
-SRC = main.cpp Server.cpp Request.cpp RequestParser.cpp
+SRC = main.cpp Server.cpp Request.cpp RequestParser.cpp ConfigParser.cpp
 
 #include
 INCLUDE = -I./src/
