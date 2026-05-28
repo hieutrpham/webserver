@@ -7,14 +7,14 @@
 
 Server::Server() {}
 
-Server::Server(ConfigParser &config)
+Server::Server(ServerConfig &config)
 {
 #ifdef DEBUG
 	LOG("server constructed");
 #endif //  DEBUG
 
-	m_ip = config.m_ip;
-	m_port = config.m_port;
+	m_ip = config.ip;
+	m_port = config.port;
 	m_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (m_fd < 0)
 		throw std::runtime_error("ERR: socket creation failed\n");

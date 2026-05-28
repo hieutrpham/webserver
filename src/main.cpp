@@ -9,13 +9,13 @@ void handler_sig_int(int sig) {
 int main() {
 	std::unique_ptr<Server> s;
 
+	ServerConfig config = ConfigParser::parse("server.conf");
+	if (config.empty())
+
 	try {
-		ConfigParser config;
-		config.m_ip = "127.0.0.2";
-		config.m_port = PORT;
 		s = std::make_unique<Server>(config);
-	} catch (std::exception & e) {
-		std::cout << e.what() << std::endl;
+	}catch (std::exception& e) {
+		ERR(e.what());
 		return 1;
 	}
 
