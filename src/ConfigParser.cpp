@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/28 14:35:10 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/05/28 14:36:48 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -145,6 +145,11 @@ const char*		ConfigParser::ContentException::what() const noexcept {
 
 
 //STATIC MEMBER INITS-------------------
+ConfigVec		ConfigParser::server_configs_;
+std::size_t		ConfigParser::open_brackets_;
+std::ifstream	ConfigParser::instream_;
+std::string		ConfigParser::line_;
+std::smatch		ConfigParser::matches_;
 std::regex		ConfigParser::shead_engine_;
 std::regex		ConfigParser::sblock_engine_;
 //--------------------------------------

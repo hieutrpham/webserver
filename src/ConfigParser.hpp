@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/28 14:34:49 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/05/28 14:37:05 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,13 +57,13 @@ class ConfigParser {
 		};
 	
 	private:
-		ConfigVec		server_configs_;
-		std::size_t		open_brackets_;
-		std::ifstream	instream_;
-		std::string		line_;
+		static ConfigVec		server_configs_;
+		static std::size_t		open_brackets_;
+		static std::ifstream	instream_;
+		static std::string		line_;
 
 		//REGEX VARIABLES
-		std::smatch				matches_;
+		static std::smatch		matches_;
 		static std::regex		shead_engine_;
 		static std::regex		sblock_engine_;
 
