@@ -3,10 +3,10 @@
 #include <sstream> //istringstream
 #include <cctype> //isdigit
 
-bool RequestParser::parseRequestLine(const std::string& rawBuffer, Request& request) {
+ParseStatus RequestParser::parseRequestLine(const std::string& rawBuffer, Request& request) {
 	size_t lineEnd = rawBuffer.find("\r\n");
 	if (lineEnd == std::string::npos)
-		return (false);
+		return (PARSE_INCOMPLETE);
 
 	std::string line = rawBuffer.substr(0, lineEnd);
 
@@ -17,36 +17,36 @@ bool RequestParser::parseRequestLine(const std::string& rawBuffer, Request& requ
 	std::string version;
 
 	if (!(iss >> method >> target >> version))
-		return (false);
-
-	if (method != "GET" && method != "POST" && method != "DELETE")
-		return (false);
-	if (target.empty() || target[0] != '/')
-		return (false);
-	if (version != "HTTP/1.1")
-		return (false);
+		return (PARSE_BAD_REQUEST);
 
 	// Check if anything after METHOD, TARGET, VERSION.
 	std::string extra;
 	if (iss >> extra)
-		return (false);
+		return (PARSE_BAD_REQUEST);
+
+	if (method != "GET" && method != "POST" && method != "DELETE")
+		return (PARSE_BAD_REQUEST);
+	if (target.empty() || target[0] != '/')
+		return (PARSE_BAD_REQUEST);
+	if (version != "HTTP/1.1")
+		return (PARSE_BAD_REQUEST);
 
 	request.setMethod(method);
 	request.setTarget(target);
 	request.setVersion(version);
 
-	return (true);
+	return (PARSE_COMPLETE);
 }
 
-bool RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& request) {
+ParseStatus RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& request) {
 	size_t lineEnd = rawBuffer.find("\r\n");
 	if (lineEnd == std::string::npos)
-		return (false);
+		return (PARSE_INCOMPLETE);
 	size_t headersStart = lineEnd + 2;
 
 	size_t headersEnd = rawBuffer.find("\r\n\r\n");
 	if (headersEnd == std::string::npos)
-		return (false);
+		return (PARSE_INCOMPLETE);
 	
 	std::string headersStr = rawBuffer.substr(headersStart, (headersEnd - headersStart));
 	std::istringstream stream(headersStr);
@@ -59,13 +59,13 @@ bool RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& r
 		
 		size_t colon = line.find(':');
 		if (colon == std::string::npos)
-			return (false);
+			return (PARSE_BAD_REQUEST);
 		
 		std::string key = line.substr(0, colon);
 		std::string value = line.substr(colon + 1);
 
 		if (key.empty())
-			return (false);
+			return (PARSE_BAD_REQUEST);
 	
 		// Erase leading and trailing whitespace from value
 		while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
@@ -77,7 +77,7 @@ bool RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& r
 		if (key == "Content-Length") {
 			std::string existing = request.getHeader("Content-Length");
 			if (!existing.empty() && existing != value)
-				return (false);
+				return (PARSE_BAD_REQUEST);
 		}
 		
 		request.setHeader(key, value);
@@ -85,17 +85,17 @@ bool RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& r
 	
 	// Validate that Host header exists and value is not empty
 	if (request.getHeader("Host").empty())
-		return (false);
+		return (PARSE_BAD_REQUEST);
 
 	// Content-Length value is numeric validation
 	std::string contentLength = request.getHeader("Content-Length");
 	if (!contentLength.empty()) {
 		for (size_t i = 0; i < contentLength.length(); i++) {
 			if (!std::isdigit(contentLength[i]))
-				return (false);
+				return (PARSE_BAD_REQUEST);
 		}
 	}
-	return (true);
+	return (PARSE_COMPLETE);
 }
 
 ParseStatus RequestParser::parseRequestBody(const std::string& rawBuffer, Request& request) {
@@ -105,7 +105,7 @@ ParseStatus RequestParser::parseRequestBody(const std::string& rawBuffer, Reques
 	size_t bodyStart = headersEnd + 4;
 
 	std::string lenStr = request.getHeader("Content-Length");
-	
+
 	// If no Content-Length header, body is empty.
 	if (lenStr.empty())
 		return (PARSE_COMPLETE);

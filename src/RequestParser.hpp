@@ -12,8 +12,8 @@ enum ParseStatus {
 
 class RequestParser {
 	public:
-		static bool parseRequestLine(const std::string& rawBuffer, Request& request);
-		static bool parseRequestHeaders(const std::string& rawBuffer, Request& request);
+		static ParseStatus parseRequestLine(const std::string& rawBuffer, Request& request);
+		static ParseStatus parseRequestHeaders(const std::string& rawBuffer, Request& request);
 		static ParseStatus parseRequestBody(const std::string& rawBuffer, Request& request);
 
 };
