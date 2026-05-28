@@ -18,6 +18,10 @@ void Request::setHeader(const std::string& key, const std::string& value) {
 	_headers[key] = value;
 }
 
+void Request::setBody(const std::string& body) {
+	_body = body;
+}
+
 const std::string& Request::getMethod() const {
 	return (_method);
 }
@@ -44,4 +48,8 @@ std::string Request::getHeader(const std::string& key) const {
 
 const std::map<std::string, std::string>& Request::getHeaders() const {
 	return (_headers);
+}
+
+const std::string& Request::getBody() const {
+	return (_body);
 }
