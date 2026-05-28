@@ -1,6 +1,7 @@
 #pragma once
 #include "ConfigParser.hpp"
 #include "main.hpp"
+#include <map>
 
 class Server {
 private:
@@ -8,6 +9,7 @@ private:
 	struct sockaddr_in m_address;
 	std::string m_ip;
 	uint m_port;
+	std::map<int, std::string> m_clientBuffers; // Per-client buffer
 public:
 	Server();
 	Server(ConfigParser &);

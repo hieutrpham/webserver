@@ -2,6 +2,7 @@
 #include "RequestParser.hpp"
 #include <sstream> //istringstream
 #include <cctype> //isdigit
+#include <iostream>
 
 ParseStatus RequestParser::parseRequest(const std::string& rawBuffer, Request& request) {
 	ParseStatus status;
@@ -130,6 +131,9 @@ ParseStatus RequestParser::parseRequestBody(const std::string& rawBuffer, Reques
 	
 	u_long contentLength = std::atol(lenStr.c_str());
 	std::string body = rawBuffer.substr(bodyStart);
+
+	std::cout << "BODY RECEIVED: " << body.size()
+          << " EXPECTED: " << contentLength << std::endl;
 
 	// Missing content
 	if (body.size() < contentLength)
