@@ -1,6 +1,6 @@
 CC = c++ -std=c++20
 NAME = webserv
-CFLAGS = -Wall -Werror -Wextra -O3 -g
+CFLAGS = -Wall -Werror -Wextra -O3
 DFLAGS = -MMD -MP
 
 # sources

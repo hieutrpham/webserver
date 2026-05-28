@@ -10,9 +10,14 @@ int main() {
 	std::unique_ptr<Server> s;
 
 	ServerConfig config = ConfigParser::parse("server.conf");
-	LOG(config.ip); //the config object is now populated by parse() from server.conf
-	LOG(config.port);
-	s = std::make_unique<Server>(config);
+	if (config.empty())
+
+	try {
+		s = std::make_unique<Server>(config);
+	}catch (std::exception& e) {
+		ERR(e.what());
+		return 1;
+	}
 
 	std::cout << "Listening on: " << s->get_ip() << ":" << s->get_port() << std::endl;
 
