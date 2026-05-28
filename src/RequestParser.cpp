@@ -97,3 +97,26 @@ bool RequestParser::parseRequestHeaders(const std::string& rawBuffer, Request& r
 	}
 	return (true);
 }
+
+bool RequestParser::parseRequestBody(const std::string& rawBuffer, Request& request) {
+	size_t headersEnd = rawBuffer.find("\r\n\r\n");
+	if (headersEnd == std::string::npos)
+		return (false);
+	size_t bodyStart = headersEnd + 4;
+
+	std::string lenStr = request.getHeader("Content-Length");
+	// If no Content-Length header, body is empty.
+	if (lenStr.empty())
+		return (true);
+	
+	u_long contentLength = std::atol(lenStr.c_str());
+	std::string body = rawBuffer.substr(bodyStart);
+	
+	if (body.size() < contentLength)
+		return (false); // Later INCOMPLETE (missing bytes)
+	if (body.size() > contentLength)
+		return (false); // Later COMPLETE + leftover request data
+	
+	request.setBody(body.substr(0, contentLength));
+	return (true); // Later COMPLETE
+}

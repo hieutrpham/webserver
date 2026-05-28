@@ -7,7 +7,8 @@
 class RequestParser {
 	public:
 		static bool parseRequestLine(const std::string& rawBuffer, Request& request);
-		static bool parseRequestHeaders(const std::string& raBuffer, Request& request);
+		static bool parseRequestHeaders(const std::string& rawBuffer, Request& request);
+		static bool parseRequestBody(const std::string& rawBuffer, Request& request);
 
 };
 
