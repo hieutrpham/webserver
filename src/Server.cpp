@@ -1,5 +1,6 @@
 #include "Server.hpp"
 #include "ConfigParser.hpp"
+#include "Request.hpp"
 #include "main.hpp"
 #include "RequestParser.hpp"
 
@@ -78,7 +79,7 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds) {
 }
 
 void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
-	char buf[1<<12] = {0}; // storing the client request data.
+	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
 	int bytes = recv(fd, buf, sizeof(buf), 0);
 	if (bytes <= 0) { // no data or error
@@ -89,42 +90,55 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 		close(fd);
 		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
 	} else { // we got data
-
 		Request request;
-		RequestParser::parseRequestLine(buf, request);
-		RequestParser::parseRequestHeaders(buf, request);
+		parseRequest(buf, request);
 
-		std::cout << "METHOD: " << request.getMethod() << std::endl;
-		std::cout << "TARGET: " << request.getTarget() << std::endl;
-		std::cout << "VERSION: " << request.getVersion() << std::endl;
-		
-		std::cout << "HEADERS:" << std::endl;
-		for (const auto& header : request.getHeaders()) {
-			std::cout << header.first
-					<< ": "
-					<< header.second
-					<< std::endl;
-		}
-
-		// example response
-		std::filesystem::path path("html/index.html");
-		std::fstream index_html(path);
-
-		if (!index_html.is_open()) {
-			ERR(strerror(errno));
-		}
-
-		const auto file_size = std::filesystem::file_size(path);
-		std::string response_body(file_size, 0);
-		index_html.read(response_body.data(), file_size);
-
-		std::string response = "HTTP/1.1 200 OK\n"
-			"Content-Type: html\n"
-			"Content-Length: " +
-			std::to_string(response_body.length()) +
-			"\n\n" +
-			response_body;
+		std::string response = build_response(request);
 		if (send(fd, response.c_str(), response.length(), 0) < 0)
 			ERR(strerror(errno));
+	}
+}
+
+std::string Server::build_response(const Request& request)
+{
+	std::filesystem::path path("html/index.html");
+	std::fstream index_html(path);
+
+	if (!index_html.is_open()) {
+		ERR(strerror(errno));
+	}
+
+	const auto file_size = std::filesystem::file_size(path);
+	std::string response_body(file_size, 0);
+	index_html.read(response_body.data(), file_size);
+
+	const int response_code = 200;
+	std::string response = request.getVersion() +
+		" " +
+		std::to_string(response_code) +
+		" OK\n"
+		"Content-Type: html\n"
+		"Content-Length: " +
+		std::to_string(response_body.length()) +
+		"\n\n" +
+		response_body;
+	return response;
+}
+
+void Server::parseRequest(const std::string& buf, Request& request)
+{
+	RequestParser::parseRequestLine(buf, request);
+	RequestParser::parseRequestHeaders(buf, request);
+
+	std::cout << "METHOD: " << request.getMethod() << std::endl;
+	std::cout << "TARGET: " << request.getTarget() << std::endl;
+	std::cout << "VERSION: " << request.getVersion() << std::endl;
+
+	std::cout << "HEADERS:" << std::endl;
+	for (const auto& header : request.getHeaders()) {
+		std::cout << header.first
+			<< ": "
+			<< header.second
+			<< std::endl;
 	}
 }
