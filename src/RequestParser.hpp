@@ -15,7 +15,7 @@ class RequestParser {
 		static ParseStatus parseRequestLine(const std::string& rawBuffer, Request& request);
 		static ParseStatus parseRequestHeaders(const std::string& rawBuffer, Request& request);
 		static ParseStatus parseRequestBody(const std::string& rawBuffer, Request& request);
-
+		static ParseStatus parseRequest(const std::string& rawBuffer, Request& request);
 };
 
 #endif

@@ -3,6 +3,24 @@
 #include <sstream> //istringstream
 #include <cctype> //isdigit
 
+ParseStatus RequestParser::parseRequest(const std::string& rawBuffer, Request& request) {
+	ParseStatus status;
+
+	status = parseRequestLine(rawBuffer, request);
+	if (status != PARSE_COMPLETE)
+		return (status);
+
+	status = parseRequestHeaders(rawBuffer, request);
+	if (status != PARSE_COMPLETE)
+		return (status);
+
+	status = parseRequestBody(rawBuffer, request);
+	if (status != PARSE_COMPLETE)
+		return (status);
+
+	return (PARSE_COMPLETE);
+}
+
 ParseStatus RequestParser::parseRequestLine(const std::string& rawBuffer, Request& request) {
 	size_t lineEnd = rawBuffer.find("\r\n");
 	if (lineEnd == std::string::npos)

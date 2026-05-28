@@ -94,9 +94,7 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 		// std::cout << buf << std::endl;
 
 		Request request;
-		RequestParser::parseRequestLine(buf, request);
-		RequestParser::parseRequestHeaders(buf, request);
-		RequestParser::parseRequestBody(buf, request);
+		RequestParser::parseRequest(buf, request);
 
 		std::cout << "METHOD: " << request.getMethod() << std::endl;
 		std::cout << "TARGET: " << request.getTarget() << std::endl;
