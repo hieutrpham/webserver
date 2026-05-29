@@ -6,10 +6,15 @@ void handler_sig_int(int sig) {
 	(void)sig;
 }
 
-int main() {
+int main(int ac, char **av) {
 	std::unique_ptr<Server> s;
 
-	ServerConfig config = ConfigParser::parse("server.conf");
+	if (ac != 2) {
+		ERR("Usage: ./webserv [config_file]");
+		return 1;
+	}
+
+	ServerConfig config = ConfigParser::parse(av[1]);
 
 	try {
 		s = std::make_unique<Server>(config);
