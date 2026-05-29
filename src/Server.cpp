@@ -1,9 +1,9 @@
 #include "Server.hpp"
 #include "ConfigParser.hpp"
+#include "Request.hpp"
 #include "main.hpp"
-#include <cstring>
-#include <iostream>
 #include "RequestParser.hpp"
+#include <stdexcept>
 
 Server::Server() {}
 
@@ -80,7 +80,7 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds) {
 }
 
 void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
-	char buf[1<<12] = {0}; // storing the client request data.
+	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
 	int bytes = recv(fd, buf, sizeof(buf), 0);
 	if (bytes <= 0) { // no data or error
@@ -88,14 +88,32 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 			ERR(strerror(errno));
 		if (bytes == 0)
 			LOG("connection close");
+		m_clientBuffers.erase(fd);
 		close(fd);
 		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
 	} else { // we got data
-		// std::cout << buf << std::endl;
+		m_clientBuffers[fd].append(buf, bytes);
+		std::cout << "BUFFER SIZE: " << m_clientBuffers[fd].size() << std::endl;
+		std::cout << "CLIENT: " << fd << std::endl;
 
 		Request request;
-		RequestParser::parseRequestLine(buf, request);
-		RequestParser::parseRequestHeaders(buf, request);
+		ParseStatus status = RequestParser::parseRequest(m_clientBuffers[fd], request);
+
+		if (status == PARSE_INCOMPLETE) {
+			std::cout << "Parse incomplete..." << std::endl;
+			return ;
+		}
+
+		if (status == PARSE_BAD_REQUEST) {
+			std::cout << "PARSE_BAD_REQUEST" << std::endl;
+			m_clientBuffers.erase(fd);
+			close(fd);
+			std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
+			return;
+		}
+
+		// Parse complete
+		m_clientBuffers.erase(fd); // Remove once Keep-Alive / leftovers implemented
 
 		std::cout << "METHOD: " << request.getMethod() << std::endl;
 		std::cout << "TARGET: " << request.getTarget() << std::endl;
@@ -109,9 +127,52 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 					<< std::endl;
 		}
 
-		// example response
-		std::string hello = "HTTP/1.1 413 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
-		if (send(fd, hello.c_str(), hello.length(), 0) < 0)
+		std::cout << "BODY: " << request.getBody() << std::endl;
+
+		std::string response;
+		try {
+			response = build_response(request);
+		} catch (std::exception& e) {
+			ERR(e.what());
+			return;
+		}
+
+		if (send(fd, response.c_str(), response.length(), 0) < 0)
 			ERR(strerror(errno));
 	}
+}
+
+std::string Server::build_response(const Request& request)
+{
+	std::string target = request.getTarget();
+	std::filesystem::path path;
+
+	if (target == "/")
+		path = "html/index.html";
+	else
+		path = "html/error.html";
+
+	std::fstream file_stream(path);
+
+	if (!file_stream.is_open()) {
+		ERR(strerror(errno));
+		throw std::runtime_error("ERROR: filed to open file");
+	}
+
+	const auto file_size = std::filesystem::file_size(path);
+	std::string response_body(file_size, 0);
+	file_stream.read(response_body.data(), file_size);
+
+	const int response_code = 200; // TODO:
+
+	std::string response = request.getVersion() + " " +
+		std::to_string(response_code) + " " +
+		"OK\n" // TODO:
+		"Content-Type: html\n"
+		"Content-Length: " +
+		std::to_string(response_body.length()) +
+		"\n\n" +
+		response_body;
+
+	return response;
 }
