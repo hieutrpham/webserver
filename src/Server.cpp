@@ -88,11 +88,46 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 			ERR(strerror(errno));
 		if (bytes == 0)
 			LOG("connection close");
+		m_clientBuffers.erase(fd);
 		close(fd);
 		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
 	} else { // we got data
+		m_clientBuffers[fd].append(buf, bytes);
+		std::cout << "BUFFER SIZE: " << m_clientBuffers[fd].size() << std::endl;
+		std::cout << "CLIENT: " << fd << std::endl;
+
 		Request request;
-		parse_request(buf, request);
+		ParseStatus status = RequestParser::parseRequest(m_clientBuffers[fd], request);
+
+		if (status == PARSE_INCOMPLETE) {
+			std::cout << "Parse incomplete..." << std::endl;
+			return ;
+		}
+
+		if (status == PARSE_BAD_REQUEST) {
+			std::cout << "PARSE_BAD_REQUEST" << std::endl;
+			m_clientBuffers.erase(fd);
+			close(fd);
+			std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
+			return;
+		}
+
+		// Parse complete
+		m_clientBuffers.erase(fd); // Remove once Keep-Alive / leftovers implemented
+
+		std::cout << "METHOD: " << request.getMethod() << std::endl;
+		std::cout << "TARGET: " << request.getTarget() << std::endl;
+		std::cout << "VERSION: " << request.getVersion() << std::endl;
+		
+		std::cout << "HEADERS:" << std::endl;
+		for (const auto& header : request.getHeaders()) {
+			std::cout << header.first
+					<< ": "
+					<< header.second
+					<< std::endl;
+		}
+
+		std::cout << "BODY: " << request.getBody() << std::endl;
 
 		std::string response;
 		try {
@@ -140,22 +175,4 @@ std::string Server::build_response(const Request& request)
 		response_body;
 
 	return response;
-}
-
-void Server::parse_request(const std::string& buf, Request& request)
-{
-	RequestParser::parseRequestLine(buf, request);
-	RequestParser::parseRequestHeaders(buf, request);
-
-	std::cout << "METHOD: " << request.getMethod() << std::endl;
-	std::cout << "TARGET: " << request.getTarget() << std::endl;
-	std::cout << "VERSION: " << request.getVersion() << std::endl;
-
-	std::cout << "HEADERS:" << std::endl;
-	for (const auto& header : request.getHeaders()) {
-		std::cout << header.first
-			<< ": "
-			<< header.second
-			<< std::endl;
-	}
 }

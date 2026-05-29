@@ -1,6 +1,7 @@
 #pragma once
 #include "ConfigParser.hpp"
 #include "main.hpp"
+#include <map>
 #include "Request.hpp"
 
 #define CLIENT_DATA_MAX 4096
@@ -11,6 +12,7 @@ private:
 	struct sockaddr_in m_address;
 	std::string m_ip;
 	uint m_port;
+	std::map<int, std::string> m_clientBuffers; // Per-client buffer
 public:
 	Server();
 	Server(ServerConfig &);
@@ -22,6 +24,5 @@ public:
 	uint get_port() const;
 	void handle_new_connection(std::vector<struct pollfd>&);
 	void handle_client_data(std::vector<struct pollfd>&, int);
-	void parse_request(const std::string&, Request&);
 	std::string build_response(const Request& request);
 };
