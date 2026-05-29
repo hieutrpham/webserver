@@ -40,7 +40,6 @@ int main() {
 		LOG("about to poll");
 		ready = poll(poll_fds.data(), poll_fds.size(), -1);
 		if (ready < 0) {
-			ERR(strerror(errno));
 			break;
 		}
 		LOG("got something new to read");
