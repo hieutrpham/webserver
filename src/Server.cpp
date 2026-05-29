@@ -1,20 +1,20 @@
 #include "Server.hpp"
 #include "ConfigParser.hpp"
+#include "Request.hpp"
 #include "main.hpp"
-#include <cstring>
-#include <iostream>
 #include "RequestParser.hpp"
+#include <stdexcept>
 
 Server::Server() {}
 
-Server::Server(ConfigParser &config)
+Server::Server(ServerConfig &config)
 {
 #ifdef DEBUG
 	LOG("server constructed");
 #endif //  DEBUG
 
-	m_ip = config.m_ip;
-	m_port = config.m_port;
+	m_ip = config.ip;
+	m_port = config.port;
 	m_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (m_fd < 0)
 		throw std::runtime_error("ERR: socket creation failed\n");
@@ -80,7 +80,7 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds) {
 }
 
 void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
-	char buf[1<<12] = {0}; // storing the client request data.
+	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
 	int bytes = recv(fd, buf, sizeof(buf), 0);
 	if (bytes <= 0) { // no data or error
@@ -129,9 +129,50 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 
 		std::cout << "BODY: " << request.getBody() << std::endl;
 
-		// example response
-		std::string hello = "HTTP/1.1 413 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
-		if (send(fd, hello.c_str(), hello.length(), 0) < 0)
+		std::string response;
+		try {
+			response = build_response(request);
+		} catch (std::exception& e) {
+			ERR(e.what());
+			return;
+		}
+
+		if (send(fd, response.c_str(), response.length(), 0) < 0)
 			ERR(strerror(errno));
 	}
+}
+
+std::string Server::build_response(const Request& request)
+{
+	std::string target = request.getTarget();
+	std::filesystem::path path;
+
+	if (target == "/")
+		path = "html/index.html";
+	else
+		path = "html/error.html";
+
+	std::fstream file_stream(path);
+
+	if (!file_stream.is_open()) {
+		ERR(strerror(errno));
+		throw std::runtime_error("ERROR: filed to open file");
+	}
+
+	const auto file_size = std::filesystem::file_size(path);
+	std::string response_body(file_size, 0);
+	file_stream.read(response_body.data(), file_size);
+
+	const int response_code = 200; // TODO:
+
+	std::string response = request.getVersion() + " " +
+		std::to_string(response_code) + " " +
+		"OK\n" // TODO:
+		"Content-Type: html\n"
+		"Content-Length: " +
+		std::to_string(response_body.length()) +
+		"\n\n" +
+		response_body;
+
+	return response;
 }

@@ -3,6 +3,7 @@
 
 # whitelist directory
 !*/
+!html/*
 
 # whitelist hpp, cpp
 !*.*pp
@@ -13,3 +14,4 @@
 # others
 !.gitignore
 !*.md
+!server.conf

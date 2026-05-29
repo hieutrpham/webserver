@@ -6,16 +6,20 @@ void handler_sig_int(int sig) {
 	(void)sig;
 }
 
-int main() {
+int main(int ac, char **av) {
 	std::unique_ptr<Server> s;
 
+	if (ac != 2) {
+		ERR("Usage: ./webserv [config_file]");
+		return 1;
+	}
+
+	ServerConfig config = ConfigParser::parse(av[1]);
+
 	try {
-		ConfigParser config;
-		config.m_ip = "127.0.0.2";
-		config.m_port = PORT;
 		s = std::make_unique<Server>(config);
-	} catch (std::exception & e) {
-		std::cout << e.what() << std::endl;
+	}catch (std::exception& e) {
+		ERR(e.what());
 		return 1;
 	}
 
@@ -41,7 +45,6 @@ int main() {
 		LOG("about to poll");
 		ready = poll(poll_fds.data(), poll_fds.size(), -1);
 		if (ready < 0) {
-			ERR(strerror(errno));
 			break;
 		}
 		LOG("got something new to read");

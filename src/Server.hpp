@@ -2,6 +2,9 @@
 #include "ConfigParser.hpp"
 #include "main.hpp"
 #include <map>
+#include "Request.hpp"
+
+#define CLIENT_DATA_MAX 4096
 
 class Server {
 private:
@@ -12,13 +15,14 @@ private:
 	std::map<int, std::string> m_clientBuffers; // Per-client buffer
 public:
 	Server();
-	Server(ConfigParser &);
+	Server(ServerConfig &);
 	~Server();
 	Server(const Server&);
 	Server& operator=(const Server&);
 	int get_fd() const;
 	const std::string& get_ip() const;
 	uint get_port() const;
-	void handle_new_connection(std::vector<struct pollfd>& poll_fds);
-	void handle_client_data(std::vector<struct pollfd>& poll_fds, int fd);
+	void handle_new_connection(std::vector<struct pollfd>&);
+	void handle_client_data(std::vector<struct pollfd>&, int);
+	std::string build_response(const Request& request);
 };
