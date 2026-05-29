@@ -3,6 +3,7 @@
 #include "Request.hpp"
 #include "main.hpp"
 #include "RequestParser.hpp"
+#include <stdexcept>
 
 Server::Server() {}
 
@@ -91,9 +92,16 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
 	} else { // we got data
 		Request request;
-		parseRequest(buf, request);
+		parse_request(buf, request);
 
-		std::string response = build_response(request);
+		std::string response;
+		try {
+			response = build_response(request);
+		} catch (std::exception& e) {
+			ERR(e.what());
+			return;
+		}
+
 		if (send(fd, response.c_str(), response.length(), 0) < 0)
 			ERR(strerror(errno));
 	}
@@ -101,31 +109,40 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 
 std::string Server::build_response(const Request& request)
 {
-	std::filesystem::path path("html/index.html");
-	std::fstream index_html(path);
+	std::string target = request.getTarget();
+	std::filesystem::path path;
 
-	if (!index_html.is_open()) {
+	if (target == "/")
+		path = "html/index.html";
+	else
+		path = "html/error.html";
+
+	std::fstream file_stream(path);
+
+	if (!file_stream.is_open()) {
 		ERR(strerror(errno));
+		throw std::runtime_error("ERROR: filed to open file");
 	}
 
 	const auto file_size = std::filesystem::file_size(path);
 	std::string response_body(file_size, 0);
-	index_html.read(response_body.data(), file_size);
+	file_stream.read(response_body.data(), file_size);
 
-	const int response_code = 200;
-	std::string response = request.getVersion() +
-		" " +
-		std::to_string(response_code) +
-		" OK\n"
+	const int response_code = 200; // TODO:
+
+	std::string response = request.getVersion() + " " +
+		std::to_string(response_code) + " " +
+		"OK\n" // TODO:
 		"Content-Type: html\n"
 		"Content-Length: " +
 		std::to_string(response_body.length()) +
 		"\n\n" +
 		response_body;
+
 	return response;
 }
 
-void Server::parseRequest(const std::string& buf, Request& request)
+void Server::parse_request(const std::string& buf, Request& request)
 {
 	RequestParser::parseRequestLine(buf, request);
 	RequestParser::parseRequestHeaders(buf, request);
