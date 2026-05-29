@@ -1,8 +1,6 @@
 #include "Server.hpp"
 #include "ConfigParser.hpp"
 #include "main.hpp"
-#include <cstring>
-#include <iostream>
 #include "RequestParser.hpp"
 
 Server::Server() {}
@@ -91,7 +89,6 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 		close(fd);
 		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
 	} else { // we got data
-		// std::cout << buf << std::endl;
 
 		Request request;
 		RequestParser::parseRequestLine(buf, request);
@@ -110,8 +107,24 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 		}
 
 		// example response
-		std::string hello = "HTTP/1.1 413 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
-		if (send(fd, hello.c_str(), hello.length(), 0) < 0)
+		std::filesystem::path path("html/index.html");
+		std::fstream index_html(path);
+
+		if (!index_html.is_open()) {
+			ERR(strerror(errno));
+		}
+
+		const auto file_size = std::filesystem::file_size(path);
+		std::string response_body(file_size, 0);
+		index_html.read(response_body.data(), file_size);
+
+		std::string response = "HTTP/1.1 200 OK\n"
+			"Content-Type: html\n"
+			"Content-Length: " +
+			std::to_string(response_body.length()) +
+			"\n\n" +
+			response_body;
+		if (send(fd, response.c_str(), response.length(), 0) < 0)
 			ERR(strerror(errno));
 	}
 }

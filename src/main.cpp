@@ -10,7 +10,6 @@ int main() {
 	std::unique_ptr<Server> s;
 
 	ServerConfig config = ConfigParser::parse("server.conf");
-	if (config.empty())
 
 	try {
 		s = std::make_unique<Server>(config);

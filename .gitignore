@@ -3,6 +3,7 @@
 
 # whitelist directory
 !*/
+!html/*
 
 # whitelist hpp, cpp
 !*.*pp
