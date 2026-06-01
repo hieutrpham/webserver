@@ -4,6 +4,7 @@
 #include "main.hpp"
 #include "RequestParser.hpp"
 #include <stdexcept>
+#include <cmath>
 
 Server::Server() {}
 
@@ -79,6 +80,24 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds) {
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
 }
 
+static void requestDebugPrint(Request& request) {
+
+	std::cout << "\nMETHOD: " << request.getMethod() << std::endl;
+	std::cout << "TARGET: " << request.getTarget() << std::endl;
+	std::cout << "VERSION: " << request.getVersion() << std::endl;
+	
+	std::cout << "HEADERS:" << std::endl;
+	for (const auto& header : request.getHeaders()) {
+		std::cout << header.first
+				<< ": "
+				<< header.second
+				<< std::endl;
+	}
+
+	std::cout << "BODY: " << request.getBody() << std::endl;
+	std::cout << std::endl;
+} 
+
 void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
@@ -97,37 +116,26 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 		std::cout << "CLIENT: " << fd << std::endl;
 
 		Request request;
-		ParseStatus status = RequestParser::parseRequest(m_clientBuffers[fd], request);
+		ParseResult result = RequestParser::parseRequest(m_clientBuffers[fd], request);
 
-		if (status == PARSE_INCOMPLETE) {
-			std::cout << "Parse incomplete..." << std::endl;
+		if (result.status == PARSE_INCOMPLETE) {
+			LOG("Request parse incomplete...");
 			return ;
 		}
-
-		if (status == PARSE_BAD_REQUEST) {
-			std::cout << "PARSE_BAD_REQUEST" << std::endl;
+	
+		if (result.status == PARSE_BAD_REQUEST) {
+			LOG("Bad request");
 			m_clientBuffers.erase(fd);
 			close(fd);
 			std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
 			return;
 		}
-
+	
 		// Parse complete
+		LOG("Request succesfully parsed.");
+		std::cout << "PARSING RESULT: " << result.httpStatus << std::endl;
 		m_clientBuffers.erase(fd); // Remove once Keep-Alive / leftovers implemented
-
-		std::cout << "METHOD: " << request.getMethod() << std::endl;
-		std::cout << "TARGET: " << request.getTarget() << std::endl;
-		std::cout << "VERSION: " << request.getVersion() << std::endl;
-		
-		std::cout << "HEADERS:" << std::endl;
-		for (const auto& header : request.getHeaders()) {
-			std::cout << header.first
-					<< ": "
-					<< header.second
-					<< std::endl;
-		}
-
-		std::cout << "BODY: " << request.getBody() << std::endl;
+		requestDebugPrint(request);
 
 		std::string response;
 		try {
