@@ -17,6 +17,11 @@ struct ParseResult {
 };
 
 class RequestParser {
+	private:
+		// Temporary hardcoded values (Will be replaced by config input)
+		static const size_t MAX_REQUEST_LINE_SIZE	= 8192;		// 8 KB
+		static const size_t MAX_HEADER_SIZE			= 32768;	// 32 KB
+		static const size_t MAX_BODY_SIZE			= 1048576;	// 1 MiB
 	public:
 		static ParseResult parseRequestLine(const std::string& rawBuffer, Request& request);
 		static ParseResult parseRequestHeaders(const std::string& rawBuffer, Request& request);

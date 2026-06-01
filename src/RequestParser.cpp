@@ -27,6 +27,8 @@ ParseResult RequestParser::parseRequestLine(const std::string& rawBuffer, Reques
 	size_t lineEnd = rawBuffer.find("\r\n");
 	if (lineEnd == std::string::npos)
 		return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE});
+	if (lineEnd > MAX_REQUEST_LINE_SIZE)
+		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_URI_TOO_LONG});
 
 	std::string line = rawBuffer.substr(0, lineEnd);
 
@@ -73,8 +75,10 @@ ParseResult RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 	// RFC 7230 (3) - Header section ends with an empty line: CRLF CRLF.
 	size_t headersEnd = rawBuffer.find("\r\n\r\n");
 	if (headersEnd == std::string::npos)
-	return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE});
-	
+		return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE});
+	if ((headersEnd - headersStart) > MAX_HEADER_SIZE)
+		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
+
 	std::string headersStr = rawBuffer.substr(headersStart, (headersEnd - headersStart));
 	std::istringstream stream(headersStr);
 	
@@ -141,6 +145,9 @@ ParseResult RequestParser::parseRequestBody(const std::string& rawBuffer, Reques
 		return ((ParseResult){PARSE_COMPLETE, HTTP_OK});
 	
 	u_long contentLength = std::atol(lenStr.c_str());
+	if (contentLength > MAX_BODY_SIZE)
+		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_PAYLOAD_TOO_LARGE});
+	
 	std::string body = rawBuffer.substr(bodyStart);
 
 	std::cout << "BODY RECEIVED: " << body.size()
