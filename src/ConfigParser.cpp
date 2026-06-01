@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/29 16:16:09 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/01 15:13:06 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -64,8 +64,9 @@ void	ConfigParser::parseVirtualHostBlock() {
 		if (isCommentOrWhitespace())
 			continue;
 		if (line_.back() == ';') { 
-			if (!matchSimpleDirective(sblock_engine_))
+			if (!matchSimpleDirective(sblock_engine_)) {
 				throw ContentException(ERR_SERV_DIR);
+			}
 			configPutValue();
 			continue;
 		}
@@ -78,8 +79,15 @@ void	ConfigParser::parseVirtualHostBlock() {
 
 bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
 	if (std::regex_match(line_, matches_, engine)) {
-		if (matches_.size() > 1)
+		if (matches_[1].matched) {
 			directive_name_ = matches_[1];
+		}
+		else if (matches_[4].matched)  {
+			directive_name_ = matches_[4];
+		}
+		else if (matches_[7].matched) {
+			directive_name_ = matches_[7];
+		}
 		return true;
 	}
 	return false;
@@ -118,15 +126,16 @@ void	ConfigParser::configPutListen() {
 
 void	ConfigParser::configPutClmaxbs() {
 	ServerConfig&	server = server_configs_.back();
-	int multiplier{};
+	int 			multiplier{};
 
-	if (matches_.size() == 3) {
-		if (matches_[2] == "k")
-			multiplier = 1000;
-		else if (matches_[2] == "m")
-			multiplier = 1000000;
+	if (matches_[6].matched) {
+		std::string specifier = matches_[6];
+		if (specifier == "k" || specifier == "K")
+			multiplier = KB_MULTIP;
+		else if (specifier == "m" || specifier == "M")
+			multiplier = MB_MULTIP;
 	}
-	uint64_t bytes = intConverter(matches_[2]) * multiplier;
+	uint64_t bytes = intConverter(matches_[5]) * multiplier;
 	if (bytes > MAX_CLBSIZE)
 		throw ContentException(ERR_MAX_CLBS);
 	server.client_max_bodysize = bytes;
@@ -136,13 +145,13 @@ void	ConfigParser::configPutClmaxbs() {
 void	ConfigParser::configPutErrpage() {
 	ServerConfig&		server = server_configs_.back();
 	ErrorPage			err_page;
-	std::stringstream	ss{matches_[2]};
+	std::stringstream	ss{matches_[8]};
 	std::string			code_str{};
 	
 	while (ss >> code_str) {
 		err_page.error_codes.push_back(intConverter(code_str));
 	}
-	err_page.error_page_path = matches_[2];
+	err_page.error_page_path = matches_[9];
 	server.error_pages.push_back(err_page);
 	server.is_filled = true;
 }
@@ -203,14 +212,17 @@ unsigned	ConfigParser::intConverter(std::string str) {
 	return static_cast<unsigned int>(buffer);
 }
 
+// Metacharacters (like ., *, +, ?, ^, $) are born special. Their default state is to act as commands (e.g., . means "match any character").
+// 	backslash  \  is the invert switch!
+// Alphanumeric characters (like b, A, 5) are born literal. Their default state is just to match themselves
 void	ConfigParser::buildRegexEngines() {
 	constexpr std::string_view	servh_pattern{R"(server \{\s*)"};
 	constexpr std::string_view	servb_pattern
-		{R"(
-			(listen) (\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}):(\d+);\s*
-			|(client_max_body_size) (\d{1,7})([km])?;\s*
-			|(error_page) ([45]\d{2}\s+)+ (/[45]\d{2}|[45]\dx\.html);\s*
-		)"};
+	{
+		R"((listen) (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+);\s*)"
+		R"(|(client_max_body_size) (\d{1,7})([kmKM])?;\s*)"
+		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/[45]\d{2}\.html|/[45]\dx\.html);\s*)"
+	};
 	shead_engine_ = std::regex(servh_pattern.data());
 	sblock_engine_ = std::regex(servb_pattern.data());
 }

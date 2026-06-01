@@ -1,5 +1,6 @@
 #include "main.hpp"
 #include "ConfigParser.hpp"
+#include "ServerConfig.hpp"
 #include "Server.hpp"
 
 void handler_sig_int(int sig) {
@@ -15,7 +16,17 @@ int main(int ac, char **av) {
 	}
 
 	ServerConfig config = ConfigParser::parse(av[1]);
-
+	if (config.is_empty()) {
+		ERR("Empty config! Configuration file not parsed correctly.\n\n");
+		return 1;
+	}
+	LOG(config.ip);
+	LOG(config.port);
+	LOG(config.client_max_bodysize);
+	LOG(config.error_pages[0].error_codes[0]);
+	LOG(config.error_pages[0].error_codes[1]);
+	LOG(config.error_pages[0].error_page_path);
+		
 	try {
 		s = std::make_unique<Server>(config);
 	}catch (std::exception& e) {

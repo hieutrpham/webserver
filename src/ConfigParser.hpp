@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/29 16:14:47 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/01 12:07:19 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,8 @@
 #include <fstream>
 
 #define MAX_CLBSIZE		1000000
+#define MB_MULTIP		1000000
+#define KB_MULTIP		1000
 
 #define ERR_N_OBRC		"Error: Config File Format: Too many opening brackets\n"
 #define ERR_N_CBRC		"Error: Config File Format: Too many closing brackets\n"
