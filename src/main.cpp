@@ -25,6 +25,7 @@ int main(int ac, char **av) {
 	LOG(config.client_max_bodysize);
 	LOG(config.error_pages[0].error_codes[0]);
 	LOG(config.error_pages[0].error_codes[1]);
+	LOG(config.error_pages[0].error_codes[2]);
 	LOG(config.error_pages[0].error_page_path);
 		
 	try {

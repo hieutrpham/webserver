@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/01 15:13:06 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/01 15:43:41 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -221,7 +221,7 @@ void	ConfigParser::buildRegexEngines() {
 	{
 		R"((listen) (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+);\s*)"
 		R"(|(client_max_body_size) (\d{1,7})([kmKM])?;\s*)"
-		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/[45]\d{2}\.html|/[45]\dx\.html);\s*)"
+		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/[45][\dx]{2}\.html);\s*)"
 	};
 	shead_engine_ = std::regex(servh_pattern.data());
 	sblock_engine_ = std::regex(servb_pattern.data());
