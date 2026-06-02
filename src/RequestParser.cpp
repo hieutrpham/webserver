@@ -19,7 +19,7 @@ ParseResult RequestParser::parseRequest(const std::string& rawBuffer, Request& r
 	if (result.status != PARSE_COMPLETE)
 		return (result);
 
-	return ((ParseResult){PARSE_COMPLETE, HTTP_OK});
+	return ((ParseResult){PARSE_COMPLETE, HTTP_OK, result.bytesConsumed});
 }
 
 ParseResult RequestParser::parseRequestLine(const std::string& rawBuffer, Request& request) {
@@ -141,31 +141,24 @@ ParseResult RequestParser::parseRequestBody(const std::string& rawBuffer, Reques
 	std::string lenStr = request.getHeader("Content-Length");
 
 	// If no Content-Length header, body is empty.
+	size_t bytesConsumed = bodyStart;
 	if (lenStr.empty())
-		return ((ParseResult){PARSE_COMPLETE, HTTP_OK});
+		return ((ParseResult){PARSE_COMPLETE, HTTP_OK, bytesConsumed});
 	
 	u_long contentLength = std::atol(lenStr.c_str());
+	
+	// Body too large error.
 	if (contentLength > MAX_BODY_SIZE)
-		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_PAYLOAD_TOO_LARGE});
+		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_PAYLOAD_TOO_LARGE, 0});
 	
 	std::string body = rawBuffer.substr(bodyStart);
 
-	std::cout << "BODY RECEIVED: " << body.size()
-          << " EXPECTED: " << contentLength << std::endl;
-
 	// Missing content
 	if (body.size() < contentLength)
-		return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE});
-
-	// Extra content after body
-	if (body.size() > contentLength) {
-		request.setBody(body.substr(0, contentLength));
-		// handle leftover request data
-		return ((ParseResult){PARSE_COMPLETE, HTTP_OK});
-	}
+		return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE, 0});
 	
 	// Body fully parsed
 	request.setBody(body.substr(0, contentLength));
-
-	return ((ParseResult){PARSE_COMPLETE, HTTP_OK});
+	bytesConsumed = bodyStart + contentLength;
+	return ((ParseResult){PARSE_COMPLETE, HTTP_OK, bytesConsumed});
 }

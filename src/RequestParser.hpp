@@ -14,6 +14,7 @@ enum ParseStatus {
 struct ParseResult {
 	ParseStatus	status;
 	HttpStatus	httpStatus;
+	size_t		bytesConsumed = 0;
 };
 
 class RequestParser {

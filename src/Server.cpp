@@ -80,12 +80,12 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds) {
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
 }
 
-static void requestDebugPrint(Request& request) {
+static void requestDebugPrint(Request& request, ParseResult& result) {
 
-	std::cout << "\nMETHOD: " << request.getMethod() << std::endl;
+	std::cout << "\nHTTP RESULT: " << result.httpStatus << std::endl;
+	std::cout << "METHOD: " << request.getMethod() << std::endl;
 	std::cout << "TARGET: " << request.getTarget() << std::endl;
 	std::cout << "VERSION: " << request.getVersion() << std::endl;
-	
 	std::cout << "HEADERS:" << std::endl;
 	for (const auto& header : request.getHeaders()) {
 		std::cout << header.first
@@ -102,7 +102,7 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
 	int bytes = recv(fd, buf, sizeof(buf), 0);
-	if (bytes <= 0) { // no data or error
+	if (bytes <= 0) {	// No data or error
 		if (bytes < 0)
 			ERR(strerror(errno));
 		if (bytes == 0)
@@ -110,43 +110,49 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 		m_clientBuffers.erase(fd);
 		close(fd);
 		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
-	} else { // we got data
+	} else {	// Data received
+		// Append bytes from recv() to clients request buffer.
 		m_clientBuffers[fd].append(buf, bytes);
-		std::cout << "BUFFER SIZE: " << m_clientBuffers[fd].size() << std::endl;
-		std::cout << "CLIENT: " << fd << std::endl;
+		
+		// A single recv() may contain multiple HTTP requests.
+		// Keep parsing until the buffer is empty or the next request is incomplete.
+		while (!m_clientBuffers[fd].empty()) {
+			Request request;
+			ParseResult result = RequestParser::parseRequest(m_clientBuffers[fd], request);
 
-		Request request;
-		ParseResult result = RequestParser::parseRequest(m_clientBuffers[fd], request);
+			// Valid request so far, bytes missing.
+			if (result.status == PARSE_INCOMPLETE) {
+				LOG("Request parse incomplete...");
+				return ;
+			}
+		
+			// Malformed request, clear buffer and close connection.
+			if (result.status == PARSE_BAD_REQUEST) {
+				LOG("Bad request");
+				m_clientBuffers.erase(fd);
+				close(fd);
+				std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
+				return ;
+			}
 
-		if (result.status == PARSE_INCOMPLETE) {
-			LOG("Request parse incomplete...");
-			return ;
-		}
+			// Request parsing complete.
+			LOG("Request succesfully parsed.");
+			// Remove only the bytes that belonged to the parsed requeest.
+			m_clientBuffers[fd].erase(0, result.bytesConsumed);		
+			
+			requestDebugPrint(request, result);
+			
+			std::string response;
+			try {
+				response = build_response(request);
+			} catch (std::exception& e) {
+				ERR(e.what());
+				return;
+			}
 	
-		if (result.status == PARSE_BAD_REQUEST) {
-			LOG("Bad request");
-			m_clientBuffers.erase(fd);
-			close(fd);
-			std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
-			return;
+			if (send(fd, response.c_str(), response.length(), 0) < 0)
+				ERR(strerror(errno));
 		}
-	
-		// Parse complete
-		LOG("Request succesfully parsed.");
-		std::cout << "PARSING RESULT: " << result.httpStatus << std::endl;
-		m_clientBuffers.erase(fd); // Remove once Keep-Alive / leftovers implemented
-		requestDebugPrint(request);
-
-		std::string response;
-		try {
-			response = build_response(request);
-		} catch (std::exception& e) {
-			ERR(e.what());
-			return;
-		}
-
-		if (send(fd, response.c_str(), response.length(), 0) < 0)
-			ERR(strerror(errno));
 	}
 }
 
