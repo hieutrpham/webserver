@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/01 15:43:41 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/02 11:18:31 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,6 +63,14 @@ void	ConfigParser::parseVirtualHostBlock() {
 	while (std::getline(instream_, line_)) {
 		if (isCommentOrWhitespace())
 			continue;
+		std::cerr << "different cycle?: \n";
+		std::cerr << line_;
+		if (std::regex_match(line_, lhead_engine_)) {
+			std::cerr << "here1\n";
+			openBracket();
+			parseLocationBlock();
+			continue;
+		}
 		if (line_.back() == ';') { 
 			if (!matchSimpleDirective(sblock_engine_)) {
 				throw ContentException(ERR_SERV_DIR);
@@ -75,6 +83,24 @@ void	ConfigParser::parseVirtualHostBlock() {
 		}
 		throw ContentException(ERR_SERV_DIR);
 	}
+}
+
+void	ConfigParser::parseLocationBlock() {
+	std::cerr << "here2\n";
+	while (std::getline(instream_, line_)) {
+		if (isCommentOrWhitespace())
+			continue;
+		if (line_.back() == ';') {
+			if (!matchSimpleDirective(lblock_engine_))
+				throw ContentException(ERR_LOCB_DIR);
+			configPutValue();
+			continue;
+		}
+		if (line_.back() == '}') {
+			return blockEnd();
+		}
+	}
+	throw ContentException(ERR_LOCB_DIR);
 }
 
 bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
@@ -98,7 +124,7 @@ bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
 //HELPER FUNCTIONS TO ASSIGN DIRECTIVE VALUES INTO CONFIG STRUCT------------------------------
 void	ConfigParser::configPutValue() {
 	static constexpr std::string_view	directive_names[DIR_COUNT] 
-		= {"listen", "client_max_body_size", "error_page"};
+		= {"listen", "client_max_body_size", "error_page", "root", "index", "autoindex"};
 	t_dir_names		dir_name = DIR_COUNT;
 
 	for (std::size_t i{0}; i < DIR_COUNT; ++i) {
@@ -112,6 +138,12 @@ void	ConfigParser::configPutValue() {
 			return configPutClmaxbs();
 		case ERRPAGE:
 			return configPutErrpage();
+		case ROOT:
+			return configPutRoot();
+		case INDEX:
+			return configPutIndex();
+		case AUINDEX:
+			return configPutAuindex();
 		default:
 			throw ContentException(ERR_DIR);
 	}
@@ -154,6 +186,24 @@ void	ConfigParser::configPutErrpage() {
 	err_page.error_page_path = matches_[9];
 	server.error_pages.push_back(err_page);
 	server.is_filled = true;
+}
+
+void	ConfigParser::configPutRoot() {
+	ServerConfig&	server = server_configs_.back();
+	server.root = matches_[2];
+}
+
+void	ConfigParser::configPutIndex() {
+	ServerConfig&		server = server_configs_.back();
+	server.index = matches_[5];
+}
+
+void	ConfigParser::configPutAuindex() {
+	ServerConfig&	server = server_configs_.back();
+	if (matches_[8] == "on")
+		server.autoindex = true;
+	if (matches_[8] == "off")
+		server.autoindex = false;
 }
 //----------------------------------------------------------------------------------
 
@@ -211,22 +261,40 @@ unsigned	ConfigParser::intConverter(std::string str) {
 		throw ContentException(ERR_NUM_VAL);
 	return static_cast<unsigned int>(buffer);
 }
+//----------------------------------------------------------------
 
-// Metacharacters (like ., *, +, ?, ^, $) are born special. Their default state is to act as commands (e.g., . means "match any character").
-// 	backslash  \  is the invert switch!
-// Alphanumeric characters (like b, A, 5) are born literal. Their default state is just to match themselves
+
+
+//REGEX INITS---------------------------------------------------------
 void	ConfigParser::buildRegexEngines() {
+	buildServerBEngine();
+	buildLocationBEngine();
+}
+
+void	ConfigParser::buildServerBEngine() {
 	constexpr std::string_view	servh_pattern{R"(server \{\s*)"};
 	constexpr std::string_view	servb_pattern
 	{
-		R"((listen) (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+);\s*)"
-		R"(|(client_max_body_size) (\d{1,7})([kmKM])?;\s*)"
+		R"((listen)\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+);\s*)"
+		R"(|(client_max_body_size)\s+(\d{1,7})([kmKM])?;\s*)"
 		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/[45][\dx]{2}\.html);\s*)"
 	};
 	shead_engine_ = std::regex(servh_pattern.data());
 	sblock_engine_ = std::regex(servb_pattern.data());
 }
-//---------------------------------------------------------------------------------------
+
+void	ConfigParser::buildLocationBEngine() {
+	constexpr std::string_view	locah_pattern{R"(location\s+(/[^{ \t]*)\s*\{\s*)"};
+	constexpr std::string_view	locab_pattern
+	{
+		R"((root)\s+(/[^;]+);\s*())"
+		R"(|(index)\s+(index\.html?);\s*())"
+		R"(|(autoindex)\s+(on|off);\s*())"
+	};
+	lhead_engine_ = std::regex(locah_pattern.data());
+	lblock_engine_ = std::regex(locab_pattern.data());
+}
+//--------------------------------------------------------------------------
 
 
 
@@ -249,4 +317,6 @@ std::smatch		ConfigParser::matches_;
 std::string 	ConfigParser::directive_name_;
 std::regex		ConfigParser::shead_engine_;
 std::regex		ConfigParser::sblock_engine_;
+std::regex		ConfigParser::lhead_engine_;
+std::regex		ConfigParser::lblock_engine_;
 //--------------------------------------

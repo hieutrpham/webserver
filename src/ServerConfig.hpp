@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/29 16:02:15 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/01 13:58:17 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/02 10:46:14 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,9 +23,12 @@ struct ErrorPage {
 struct ServerConfig {
 	std::string				ip;
 	unsigned				port;
-	unsigned				client_max_bodysize; //stored in bytes
+	unsigned				client_max_bodysize = 4000;
 	std::vector<ErrorPage>	error_pages;
-	bool					is_filled;
+	std::string				root;
+	std::string				index;
+	bool					autoindex;
 	
-	bool	is_empty();
+	bool		is_filled;
+	bool		is_empty();
 };

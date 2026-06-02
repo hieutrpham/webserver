@@ -27,6 +27,9 @@ int main(int ac, char **av) {
 	LOG(config.error_pages[0].error_codes[1]);
 	LOG(config.error_pages[0].error_codes[2]);
 	LOG(config.error_pages[0].error_page_path);
+	LOG(config.root);
+	LOG(config.index);
+	LOG(config.autoindex);
 		
 	try {
 		s = std::make_unique<Server>(config);

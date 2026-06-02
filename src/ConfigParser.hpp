@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/01 12:07:19 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/02 11:18:32 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,6 +29,7 @@
 #define ERR_BRACK		"Error: Config File Format: Mismatched brackets\n"
 #define ERR_HTTP_DIR	"Error: Config File: Invalid top level directive\n"
 #define ERR_SERV_DIR	"Error: Config File: Invalid server block directive\n"
+#define ERR_LOCB_DIR	"Error: Config File: Invalid location block directive\n"
 #define ERR_NUM_VAL		"Error: Config File: Number value too large for unsigned int\n"
 #define ERR_MAX_CLBS	"Error: Config File: Client max body size is too large\n"
 #define ERR_DIR			"Error: Config File: Invalid directive\n"
@@ -42,6 +43,9 @@ typedef enum e_dir_names {
 	LISTEN,
 	CLMAXBS,
 	ERRPAGE,
+	ROOT,
+	INDEX,
+	AUINDEX,
 	DIR_COUNT
 }	t_dir_names;
 
@@ -70,10 +74,13 @@ class ConfigParser {
 		static std::smatch		matches_;
 		static std::regex		shead_engine_;
 		static std::regex		sblock_engine_;
+		static std::regex		lhead_engine_;
+		static std::regex		lblock_engine_;
 
 		//CRITICAL PATH FUNCTIONS
 		static void		parseFile();
 		static void		parseVirtualHostBlock();
+		static void		parseLocationBlock();
 		static bool		matchSimpleDirective(std::regex& engine);
 		
 		//CONFIG STRUCT ASSIGNMENT
@@ -81,6 +88,9 @@ class ConfigParser {
 		static void		configPutListen();
 		static void		configPutClmaxbs();
 		static void		configPutErrpage();
+		static void		configPutRoot();
+		static void		configPutIndex();
+		static void		configPutAuindex();
 		
 		//HELPER FUNCTIONS
 		static void		initConfigObj();
@@ -90,7 +100,12 @@ class ConfigParser {
 		static void		closeBracket();
 		static void		blockEnd();
 		static unsigned	intConverter(std::string str);
+
+		//REGEX INITS
 		static void		buildRegexEngines();
+		static void		buildServerBEngine();
+		static void		buildLocationBEngine();
+		static void		buildLimexBEngine();
 
 		//CUSTOM EXCEPTION
 		class ContentException : public std::exception {
