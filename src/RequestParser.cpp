@@ -129,6 +129,11 @@ ParseResult RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 				return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
 		}
 	}
+
+	// REMOVE ONCE CHUNKED TRANSFER ENCODING IMPLEMENTED
+	if (request.getHeader("Transfer-Encoding") == "chunked")
+		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_NOT_IMPLEMENTED, 0});
+
 	return ((ParseResult){PARSE_COMPLETE, HTTP_OK});
 }
 

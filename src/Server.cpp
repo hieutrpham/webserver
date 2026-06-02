@@ -129,6 +129,7 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 			// Malformed request, clear buffer and close connection.
 			if (result.status == PARSE_BAD_REQUEST) {
 				LOG("Bad request");
+				std::cout << "Reason: " << result.httpStatus << std::endl;
 				m_clientBuffers.erase(fd);
 				close(fd);
 				std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
