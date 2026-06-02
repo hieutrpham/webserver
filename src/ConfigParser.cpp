@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/02 11:18:31 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/02 11:33:49 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,10 +63,7 @@ void	ConfigParser::parseVirtualHostBlock() {
 	while (std::getline(instream_, line_)) {
 		if (isCommentOrWhitespace())
 			continue;
-		std::cerr << "different cycle?: \n";
-		std::cerr << line_;
 		if (std::regex_match(line_, lhead_engine_)) {
-			std::cerr << "here1\n";
 			openBracket();
 			parseLocationBlock();
 			continue;
@@ -86,7 +83,6 @@ void	ConfigParser::parseVirtualHostBlock() {
 }
 
 void	ConfigParser::parseLocationBlock() {
-	std::cerr << "here2\n";
 	while (std::getline(instream_, line_)) {
 		if (isCommentOrWhitespace())
 			continue;
