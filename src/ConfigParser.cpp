@@ -6,11 +6,12 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/28 14:55:34 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/02 11:33:49 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ConfigParser.hpp"
+#include "ServerConfig.hpp"
 #include <limits>
 #include <string>
 #include <sstream>
@@ -18,20 +19,22 @@
 #include <fstream>
 #include <stdexcept>
 
-//PARSER ------------------------------------------------------------------------------
+//PARSER MAIN FLOW-------------------------------------------------------------------
 ServerConfig	ConfigParser::parse(std::string conf_fname) {
+	static bool		is_regex_built_{false};
 	instream_.open(conf_fname);
 
-	constexpr std::string_view	servh_pattern{R"(server \{)"};
-	constexpr std::string_view	servb_pattern{R"(listen (\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}):(\d+);s*)"};
-	shead_engine_ = std::regex(servh_pattern.data());
-	sblock_engine_ = std::regex(servb_pattern.data());
+	if (!is_regex_built_) {
+		buildRegexEngines();
+		is_regex_built_ = true;
+	}
 
 	try {
 		parseFile();
 	} catch (std::exception& e) {
 		std::cerr << C_RED << e.what() << C_RST;
-		return ServerConfig();
+		ServerConfig empty_config{};
+		return empty_config;
 	}
 	return server_configs_.front();
 }
@@ -60,13 +63,16 @@ void	ConfigParser::parseVirtualHostBlock() {
 	while (std::getline(instream_, line_)) {
 		if (isCommentOrWhitespace())
 			continue;
+		if (std::regex_match(line_, lhead_engine_)) {
+			openBracket();
+			parseLocationBlock();
+			continue;
+		}
 		if (line_.back() == ';') { 
-			if (std::regex_match(line_, matches_, sblock_engine_)) {
-				if (matches_.size() == 3) {	//HELPER FUNCTION FOR THIS NEXT
-					server_configs_[0].ip = matches_[1];
-					server_configs_[0].port = intConverter(matches_[2]);
-				}
+			if (!matchSimpleDirective(sblock_engine_)) {
+				throw ContentException(ERR_SERV_DIR);
 			}
+			configPutValue();
 			continue;
 		}
 		if (line_.back() == '}') {
@@ -74,6 +80,126 @@ void	ConfigParser::parseVirtualHostBlock() {
 		}
 		throw ContentException(ERR_SERV_DIR);
 	}
+}
+
+void	ConfigParser::parseLocationBlock() {
+	while (std::getline(instream_, line_)) {
+		if (isCommentOrWhitespace())
+			continue;
+		if (line_.back() == ';') {
+			if (!matchSimpleDirective(lblock_engine_))
+				throw ContentException(ERR_LOCB_DIR);
+			configPutValue();
+			continue;
+		}
+		if (line_.back() == '}') {
+			return blockEnd();
+		}
+	}
+	throw ContentException(ERR_LOCB_DIR);
+}
+
+bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
+	if (std::regex_match(line_, matches_, engine)) {
+		if (matches_[1].matched) {
+			directive_name_ = matches_[1];
+		}
+		else if (matches_[4].matched)  {
+			directive_name_ = matches_[4];
+		}
+		else if (matches_[7].matched) {
+			directive_name_ = matches_[7];
+		}
+		return true;
+	}
+	return false;
+}
+//----------------------------------------------------------------------------------
+
+
+//HELPER FUNCTIONS TO ASSIGN DIRECTIVE VALUES INTO CONFIG STRUCT------------------------------
+void	ConfigParser::configPutValue() {
+	static constexpr std::string_view	directive_names[DIR_COUNT] 
+		= {"listen", "client_max_body_size", "error_page", "root", "index", "autoindex"};
+	t_dir_names		dir_name = DIR_COUNT;
+
+	for (std::size_t i{0}; i < DIR_COUNT; ++i) {
+		if (directive_name_ == directive_names[i])
+			dir_name = static_cast<t_dir_names>(i);
+	}
+	switch (dir_name) {
+		case LISTEN:
+			return configPutListen();
+		case CLMAXBS:
+			return configPutClmaxbs();
+		case ERRPAGE:
+			return configPutErrpage();
+		case ROOT:
+			return configPutRoot();
+		case INDEX:
+			return configPutIndex();
+		case AUINDEX:
+			return configPutAuindex();
+		default:
+			throw ContentException(ERR_DIR);
+	}
+}
+
+void	ConfigParser::configPutListen() {
+	ServerConfig&	server = server_configs_.back();
+	server.ip = matches_[2];
+	server.port = intConverter(matches_[3]);
+	server.is_filled = true;
+}
+
+void	ConfigParser::configPutClmaxbs() {
+	ServerConfig&	server = server_configs_.back();
+	int 			multiplier{};
+
+	if (matches_[6].matched) {
+		std::string specifier = matches_[6];
+		if (specifier == "k" || specifier == "K")
+			multiplier = KB_MULTIP;
+		else if (specifier == "m" || specifier == "M")
+			multiplier = MB_MULTIP;
+	}
+	uint64_t bytes = intConverter(matches_[5]) * multiplier;
+	if (bytes > MAX_CLBSIZE)
+		throw ContentException(ERR_MAX_CLBS);
+	server.client_max_bodysize = bytes;
+	server.is_filled = true;
+}
+
+void	ConfigParser::configPutErrpage() {
+	ServerConfig&		server = server_configs_.back();
+	ErrorPage			err_page;
+	std::stringstream	ss{matches_[8]};
+	std::string			code_str{};
+	
+	while (ss >> code_str) {
+		err_page.error_codes.push_back(intConverter(code_str));
+	}
+	err_page.error_page_path = matches_[9];
+	server.error_pages.push_back(err_page);
+	server.is_filled = true;
+}
+
+void	ConfigParser::configPutRoot() {
+	ServerConfig&	server = server_configs_.back();
+	server.root = matches_[2];
+}
+
+void	ConfigParser::configPutIndex() {
+	ServerConfig&		server = server_configs_.back();
+	server.index = matches_[5];
+}
+
+void	ConfigParser::configPutAuindex() {
+	ServerConfig&	server = server_configs_.back();
+	if (matches_[8] == "on")
+		server.autoindex = true;
+	if (matches_[8] == "off")
+		server.autoindex = false;
 }
 //----------------------------------------------------------------------------------
 
@@ -131,7 +257,40 @@ unsigned	ConfigParser::intConverter(std::string str) {
 		throw ContentException(ERR_NUM_VAL);
 	return static_cast<unsigned int>(buffer);
 }
-//---------------------------------------------------------------------------------------
+//----------------------------------------------------------------
+
+
+
+//REGEX INITS---------------------------------------------------------
+void	ConfigParser::buildRegexEngines() {
+	buildServerBEngine();
+	buildLocationBEngine();
+}
+
+void	ConfigParser::buildServerBEngine() {
+	constexpr std::string_view	servh_pattern{R"(server \{\s*)"};
+	constexpr std::string_view	servb_pattern
+	{
+		R"((listen)\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+);\s*)"
+		R"(|(client_max_body_size)\s+(\d{1,7})([kmKM])?;\s*)"
+		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/[45][\dx]{2}\.html);\s*)"
+	};
+	shead_engine_ = std::regex(servh_pattern.data());
+	sblock_engine_ = std::regex(servb_pattern.data());
+}
+
+void	ConfigParser::buildLocationBEngine() {
+	constexpr std::string_view	locah_pattern{R"(location\s+(/[^{ \t]*)\s*\{\s*)"};
+	constexpr std::string_view	locab_pattern
+	{
+		R"((root)\s+(/[^;]+);\s*())"
+		R"(|(index)\s+(index\.html?);\s*())"
+		R"(|(autoindex)\s+(on|off);\s*())"
+	};
+	lhead_engine_ = std::regex(locah_pattern.data());
+	lblock_engine_ = std::regex(locab_pattern.data());
+}
+//--------------------------------------------------------------------------
 
 
 
@@ -144,12 +303,16 @@ const char*		ConfigParser::ContentException::what() const noexcept {
 //-------------------------------------------------------------------------------
 
 
+
 //STATIC MEMBER INITS-------------------
 ConfigVec		ConfigParser::server_configs_;
 std::size_t		ConfigParser::open_brackets_;
 std::ifstream	ConfigParser::instream_;
 std::string		ConfigParser::line_;
 std::smatch		ConfigParser::matches_;
+std::string 	ConfigParser::directive_name_;
 std::regex		ConfigParser::shead_engine_;
 std::regex		ConfigParser::sblock_engine_;
+std::regex		ConfigParser::lhead_engine_;
+std::regex		ConfigParser::lblock_engine_;
 //--------------------------------------
