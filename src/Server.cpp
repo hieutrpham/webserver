@@ -1,8 +1,10 @@
 #include "Server.hpp"
 #include "ConfigParser.hpp"
 #include "Request.hpp"
+#include "Response.hpp"
 #include "main.hpp"
 #include "RequestParser.hpp"
+#include <iostream>
 #include <stdexcept>
 #include <cmath>
 
@@ -113,7 +115,7 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 	} else {	// Data received
 		// Append bytes from recv() to clients request buffer.
 		m_clientBuffers[fd].append(buf, bytes);
-		
+	
 		// A single recv() may contain multiple HTTP requests.
 		// Keep parsing until the buffer is empty or the next request is incomplete.
 		while (!m_clientBuffers[fd].empty()) {
@@ -142,52 +144,12 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 			m_clientBuffers[fd].erase(0, result.bytesConsumed);		
 			
 			requestDebugPrint(request, result);
-			
-			std::string response;
-			try {
-				response = build_response(request);
-			} catch (std::exception& e) {
-				ERR(e.what());
-				return;
-			}
 	
-			if (send(fd, response.c_str(), response.length(), 0) < 0)
-				ERR(strerror(errno));
+      Response response(request);
+	  	std::string response_body = response.getResponseBody();
+
+		  if (send(fd, response_body.c_str(), response_body.length(), 0) < 0)
+			  ERR(strerror(errno));
 		}
 	}
-}
-
-std::string Server::build_response(const Request& request)
-{
-	std::string target = request.getTarget();
-	std::filesystem::path path;
-
-	if (target == "/")
-		path = "html/index.html";
-	else
-		path = "html/error.html";
-
-	std::fstream file_stream(path);
-
-	if (!file_stream.is_open()) {
-		ERR(strerror(errno));
-		throw std::runtime_error("ERROR: filed to open file");
-	}
-
-	const auto file_size = std::filesystem::file_size(path);
-	std::string response_body(file_size, 0);
-	file_stream.read(response_body.data(), file_size);
-
-	const int response_code = 200; // TODO:
-
-	std::string response = request.getVersion() + " " +
-		std::to_string(response_code) + " " +
-		"OK\n" // TODO:
-		"Content-Type: html\n"
-		"Content-Length: " +
-		std::to_string(response_body.length()) +
-		"\n\n" +
-		response_body;
-
-	return response;
 }
