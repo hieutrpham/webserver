@@ -24,5 +24,4 @@ public:
 	uint get_port() const;
 	void handle_new_connection(std::vector<struct pollfd>&);
 	void handle_client_data(std::vector<struct pollfd>&, int);
-	std::string build_response(const Request& request);
 };

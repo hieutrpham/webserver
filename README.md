@@ -1,10 +1,17 @@
+# Web Server in C++
+
+* [Janne](https://github.com/cubicajupiter): config file parsing
+* [Walteri](https://github.com/Waltsuuuu): requests handling
+* [Hieu](https://github.com/hieutrpham): main server loop and response handling
+
 # Compile and execute
 
 ```bash
-./webserv [configuration file]
+$ make
+$ ./webserv [configuration file]
 ```
 
-# Requirements
+# Project Requirements
 
 * Use only 1 `poll()` (`select` or `epoll` is ok too) for all I/O between clients and server
 * `poll` must monitor both reading and writing simultaneously
