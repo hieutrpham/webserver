@@ -27,6 +27,7 @@ class RequestParser {
 		static ParseResult parseRequestLine(const std::string& rawBuffer, Request& request);
 		static ParseResult parseRequestHeaders(const std::string& rawBuffer, Request& request);
 		static ParseResult parseRequestBody(const std::string& rawBuffer, Request& request);
+		static ParseResult parseRequestBodyChunked(const std::string& rawBuffer, Request& request);
 		static ParseResult parseRequest(const std::string& rawBuffer, Request& request);
 };
 
