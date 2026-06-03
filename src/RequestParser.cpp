@@ -107,9 +107,13 @@ ParseResult RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 		while (!value.empty() && (value[value.length() - 1] == ' ' || value[value.length() - 1] == '\t'))
 			value.erase(value.length() - 1);
 
+		// Convert header key to lowercase.
+		for (size_t i = 0; i < key.size(); i++)
+			key[i] = std::tolower(static_cast<unsigned char>(key[i]));
+
 		// RFC 7230 (3.3.2) - Reject multiple Content-Length headers with differing values.
-		if (key == "Content-Length") {
-			std::string existing = request.getHeader("Content-Length");
+		if (key == "content-length") {
+			std::string existing = request.getHeader("content-length");
 			if (!existing.empty() && existing != value)
 				return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
 		}
@@ -118,11 +122,11 @@ ParseResult RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 	}
 	
 	// RFC 7230 (5.4) - HTTP/1.1 requests must include a Host header.
-	if (request.getHeader("Host").empty())
+	if (request.getHeader("host").empty())
 		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
 
 	// RFC 7230 (3.3.2) - Content-Length value must be a valid decimal number.
-	std::string contentLength = request.getHeader("Content-Length");
+	std::string contentLength = request.getHeader("content-length");
 	if (!contentLength.empty()) {
 		for (size_t i = 0; i < contentLength.length(); i++) {
 			if (!std::isdigit(contentLength[i]))
@@ -131,7 +135,7 @@ ParseResult RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 	}
 
 	// REMOVE ONCE CHUNKED TRANSFER ENCODING IMPLEMENTED
-	if (request.getHeader("Transfer-Encoding") == "chunked")
+	if (request.getHeader("transfer-encoding") == "chunked")
 		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_NOT_IMPLEMENTED, 0});
 
 	return ((ParseResult){PARSE_COMPLETE, HTTP_OK});
@@ -143,7 +147,7 @@ ParseResult RequestParser::parseRequestBody(const std::string& rawBuffer, Reques
 		return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE});
 	size_t bodyStart = headersEnd + 4;
 
-	std::string lenStr = request.getHeader("Content-Length");
+	std::string lenStr = request.getHeader("content-length");
 
 	// If no Content-Length header, body is empty.
 	size_t bytesConsumed = bodyStart;
