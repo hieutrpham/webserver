@@ -6,7 +6,8 @@ DFLAGS = -MMD -MP
 # sources
 SRC_PATH = src/
 SRC = main.cpp Server.cpp Request.cpp RequestParser.cpp \
-	  ConfigParser.cpp ServerConfig.cpp Response.cpp
+	  ConfigParser.cpp ServerConfig.cpp Response.cpp \
+	  FileOperation.cpp
 
 #include
 INCLUDE = -I./src/
