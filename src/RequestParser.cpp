@@ -53,8 +53,8 @@ ParseResult RequestParser::parseRequestLine(const std::string& rawBuffer, Reques
 	if (iss >> extra)
 		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
 
-	// Project scope - Only support GET, POST and DELETE methods.
-	if (method != "GET" && method != "POST" && method != "DELETE")
+	// Project scope - Only support GET, POST, DELETE and PUT methods.
+	if (method != "GET" && method != "POST" && method != "DELETE" && method != "PUT")
 		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_NOT_IMPLEMENTED});
 
 	// RFC 7230 (5.3.1) - Origin-form request-target begins with '/'.
