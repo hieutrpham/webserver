@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/25 15:16:02 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/25 16:31:01 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/04 10:54:11 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,31 +15,18 @@
 #include <sstream>
 
 //FILE OPERATION INTERFACE-------------------------
-InStreamPtr   FileOperation::openInFStream(std::string in_fname) {
-    InStreamPtr in_stream = std::make_unique<std::ifstream>(in_fname);
-    if (!in_stream->is_open()) {
+void   FileOperation::openInFStream(std::ifstream& in, std::string in_fname) {
+	in.open(in_fname);
+    if (!in.is_open()) {
         throw FileException("Error: Could not open input file " + in_fname);
 	}
-	return in_stream;
 }
 
-OutStreamPtr   FileOperation::openOutFStream(std::string out_fname) {
-	OutStreamPtr out_stream = std::make_unique<std::ofstream>(out_fname);
-    if (!out_stream->is_open()) {
+void   FileOperation::openOutFStream(std::ofstream& out, std::string out_fname) {
+	out.open(out_fname);
+    if (!out.is_open()) {
         throw FileException("Error: Could not open output file " + out_fname);
     }
-	return out_stream;
-}
-
-std::string    FileOperation::getFileContent(std::ifstream& in_stream) {
-    std::ostringstream  buffer;
-
-    buffer << in_stream.rdbuf();
-	if (in_stream.bad())
-		throw FileException("Error: I/O error in reading file content");
-    if (buffer.str().empty())
-        throw FileException("Error: File is empty"); //not necessarily a problem.
-    return buffer.str();
 }
 //--------------------------------------------------
 

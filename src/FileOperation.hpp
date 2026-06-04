@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/25 15:14:46 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/05/25 16:14:53 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/04 10:54:17 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,9 +26,8 @@ class FileOperation {
 		FileOperation&	operator=(const FileOperation& other) = delete;
 
 	public:
-		static InStreamPtr	openInFStream(std::string in_fname);
-		static OutStreamPtr	openOutFStream(std::string out_fname);
-		static std::string	getFileContent(std::ifstream& in_stream);
+		static void	openInFStream(std::ifstream& instream, std::string in_fname);
+		static void	openOutFStream(std::ofstream& out, std::string out_fname);
 
 	class FileException : public std::exception {
 			std::string		msg_;

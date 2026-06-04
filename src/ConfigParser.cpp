@@ -6,12 +6,13 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/02 11:33:49 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/04 10:56:42 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ConfigParser.hpp"
 #include "ServerConfig.hpp"
+#include "FileOperation.hpp"
 #include <limits>
 #include <string>
 #include <sstream>
@@ -22,14 +23,13 @@
 //PARSER MAIN FLOW-------------------------------------------------------------------
 ServerConfig	ConfigParser::parse(std::string conf_fname) {
 	static bool		is_regex_built_{false};
-	instream_.open(conf_fname);
 
 	if (!is_regex_built_) {
 		buildRegexEngines();
 		is_regex_built_ = true;
 	}
-
 	try {
+		FileOperation::openInFStream(instream_, conf_fname);
 		parseFile();
 	} catch (std::exception& e) {
 		std::cerr << C_RED << e.what() << C_RST;
