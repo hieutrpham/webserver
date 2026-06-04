@@ -20,23 +20,34 @@ int main(int ac, char **av) {
 		ERR("Empty config! Configuration file not parsed correctly.\n\n");
 		return 1;
 	}
+	std::cout << "IP: ";
 	LOG(config.ip);
+	std::cout << "Port: ";
 	LOG(config.port);
+	std::cout << "Client max body size (bytes): ";
 	LOG(config.client_max_bodysize);
 	auto it = config.locations.find("/");
 	Location route = it->second;
+	std::cout << "Root path: ";
 	LOG(route.root);
+	std::cout << "Index path: ";
 	LOG(route.index);
+	std::cout << "Autoindex (bool): ";
 	LOG(route.autoindex);
-	//TODO: MAKE A PR FOR THE FILEOPS OBJECT
-	//TODO: TEST LIMEX IN .CONF
-	// LOG();
+	std::cout << "Deny all (bool): ";
+	LOG(route.methods.deny_all);
+	std::cout << "Except GET (bool): ";
+	LOG(route.methods.except_allow[GET]);
+	std::cout << "Except POST (bool): ";
+	LOG(route.methods.except_allow[POST]);
+	std::cout << "Except DELETE (bool): ";
+	LOG(route.methods.except_allow[DELETE]);
 	// LOG();
 	// LOG();
 		
 	try {
 		s = std::make_unique<Server>(config);
-	}catch (std::exception& e) {
+	} catch (std::exception& e) {
 		ERR(e.what());
 		return 1;
 	}

@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/03 11:36:15 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/04 13:04:46 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,6 +23,7 @@
 #define MB_MULTIP		1000000
 #define KB_MULTIP		1000
 
+#define ERR_IO			"Error: InFile Stream SysCall: I/O system error\n"
 #define ERR_N_OBRC		"Error: Config File Format: Too many opening brackets\n"
 #define ERR_N_CBRC		"Error: Config File Format: Too many closing brackets\n"
 #define ERR_BRACK_CL	"Error: Config File Format: Closing brackets need their own lines\n"
@@ -40,6 +41,8 @@
 #define SUCCESS		0
 #define BLANK		1
 
+//TODO: ADD NEW DIRECtIVES IN ENUM AND IN COrRESPONDING METHODS.
+//		CREATE THE CONFIGPUT METHODS FOR THE DIRECTIVES.
 typedef enum e_dir_names {
 	LISTEN,
 	CLMAXBS,
@@ -83,7 +86,7 @@ class ConfigParser {
 
 		//CRITICAL PATH FUNCTIONS
 		static void		parseFile();
-		static void		parseVirtualHostBlock();
+		static void		parseServerBlock();
 		static void		parseLocationBlock();
 		static bool		matchSimpleDirective(std::regex& engine);
 		static void		parseLimex();

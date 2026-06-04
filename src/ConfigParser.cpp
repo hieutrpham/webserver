@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/04 11:04:04 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/04 13:13:38 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,13 +25,14 @@ ServerConfig	ConfigParser::parse(std::string conf_fname) {
 	static bool		is_regex_built_{false};
 
 	if (!is_regex_built_) {
-		
 		buildRegexEngines();
 		is_regex_built_ = true;
 	}
 	try {
 		FileOperation::openInFStream(instream_, conf_fname);
 		parseFile();
+		if (instream_.bad())
+			throw FileOperation::FileException(ERR_IO);
 	} catch (std::exception& e) {
 		std::cerr << C_RED << e.what() << C_RST;
 		ServerConfig empty_config{};
@@ -47,7 +48,7 @@ void	ConfigParser::parseFile() {
 		if (std::regex_match(line_, shead_engine_)) {
 			openBracket();
 			initConfigObj();
-			parseVirtualHostBlock();
+			parseServerBlock();
 			continue;
 		}
 		if (line_.back() == '}') {
@@ -60,7 +61,7 @@ void	ConfigParser::parseFile() {
 		throw ContentException(ERR_BRACK);
 }
 
-void	ConfigParser::parseVirtualHostBlock() {
+void	ConfigParser::parseServerBlock() {
 	while (std::getline(instream_, line_)) {
 		if (isCommentOrWhitespace())
 			continue;
@@ -117,8 +118,7 @@ void	ConfigParser::parseLimex() {
 		}
 		else if (line_.back() == '}')
 			return blockEnd();
-		else
-			throw ContentException(ERR_LEX);
+		throw ContentException(ERR_LEX);
 	}
 }
 
@@ -212,7 +212,6 @@ void	ConfigParser::configPutRoot() {
 	auto 			it = server.locations.find(current_location_);
 	Location&		location = it->second;
 
-	std::cout << "root: " << matches_[2] << "\n";
 	location.root = matches_[2];
 }
 
@@ -243,6 +242,7 @@ void	ConfigParser::configPutMethods() {
 	std::string			method;
 
 	while (iss >> method) {
+		std::cerr << "Here method: " << method << "\n";
 		if (method == "GET")
 			location.methods.except_allow[GET] = true;
 		else if (method == "POST")
@@ -337,24 +337,34 @@ void	ConfigParser::buildRegexEngines() {
 }
 
 void	ConfigParser::buildServerBEngine() {
-	constexpr std::string_view	servh_pattern{R"(server \{\s*)"};
+	constexpr std::string_view	servh_pattern
+	{
+		R"(server \{\s*)"
+	};
 	constexpr std::string_view	servb_pattern
 	{
 		R"((listen)\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+);\s*)"
 		R"(|(client_max_body_size)\s+(\d{1,7})([kmKM])?;\s*)"
 		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/[45][\dx]{2}\.html);\s*)"
+		R"(|(server_name)\s+([^;]+);\s*)"
+		R"(|()())"
 	};
 	shead_engine_ = std::regex(servh_pattern.data());
 	sblock_engine_ = std::regex(servb_pattern.data());
 }
 
 void	ConfigParser::buildLocationBEngine() {
-	constexpr std::string_view	locah_pattern{R"(location\s+(/[^{ \t]*)\s*\{\s*)"};
+	constexpr std::string_view	locah_pattern
+	{
+		R"(location\s+(/[^{ \t]*)\s*\{\s*)"
+	};
 	constexpr std::string_view	locab_pattern
 	{
 		R"((root)\s+(/[^;]+);\s*())"
 		R"(|(index)\s+(index\.html?);\s*())"
 		R"(|(autoindex)\s+(on|off);\s*())"
+		R"(|(file_uploads)\s+(yes|no);\s*)"
+		R"(|(client_body_temp_path)\s+(/[^;]+);\s*)"
 	};
 	lhead_engine_ = std::regex(locah_pattern.data());
 	lblock_engine_ = std::regex(locab_pattern.data());
@@ -363,7 +373,7 @@ void	ConfigParser::buildLocationBEngine() {
 void	ConfigParser::buildLimexEngine() {
 	constexpr std::string_view	limeh_pattern
 	{
-		R"(limit_except\s*((?:GET|POST|DELETE)(?: +(?:GET|POST|DELETE))*)\s*\{\s*)"
+		R"(limit_except\s+((?:GET|POST|DELETE)*(?: +(?:GET|POST|DELETE))*)\s*\{\s*)"
 	};
 	constexpr std::string_view	limex_pattern{R"(deny all;\s*)"};
 	lexhead_engine_ = std::regex(limeh_pattern.data());
