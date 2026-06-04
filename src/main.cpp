@@ -1,21 +1,40 @@
 #include "main.hpp"
 #include "ConfigParser.hpp"
+#include "ServerConfig.hpp"
 #include "Server.hpp"
 
 void handler_sig_int(int sig) {
 	(void)sig;
 }
 
-int main() {
+int main(int ac, char **av) {
 	std::unique_ptr<Server> s;
 
+	if (ac != 2) {
+		ERR("Usage: ./webserv [config_file]");
+		return 1;
+	}
+
+	ServerConfig config = ConfigParser::parse(av[1]);
+	if (config.is_empty()) {
+		ERR("Empty config! Configuration file not parsed correctly.\n\n");
+		return 1;
+	}
+	LOG(config.ip);
+	LOG(config.port);
+	LOG(config.client_max_bodysize);
+	LOG(config.error_pages[0].error_codes[0]);
+	LOG(config.error_pages[0].error_codes[1]);
+	LOG(config.error_pages[0].error_codes[2]);
+	LOG(config.error_pages[0].error_page_path);
+	LOG(config.root);
+	LOG(config.index);
+	LOG(config.autoindex);
+		
 	try {
-		ConfigParser config;
-		config.m_ip = "127.0.0.2";
-		config.m_port = PORT;
 		s = std::make_unique<Server>(config);
-	} catch (std::exception & e) {
-		std::cout << e.what() << std::endl;
+	}catch (std::exception& e) {
+		ERR(e.what());
 		return 1;
 	}
 
@@ -41,7 +60,6 @@ int main() {
 		LOG("about to poll");
 		ready = poll(poll_fds.data(), poll_fds.size(), -1);
 		if (ready < 0) {
-			ERR(strerror(errno));
 			break;
 		}
 		LOG("got something new to read");
