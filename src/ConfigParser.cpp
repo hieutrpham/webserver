@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/02 11:33:49 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/03 11:52:23 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,8 +63,9 @@ void	ConfigParser::parseVirtualHostBlock() {
 	while (std::getline(instream_, line_)) {
 		if (isCommentOrWhitespace())
 			continue;
-		if (std::regex_match(line_, lhead_engine_)) {
+		if (std::regex_match(line_, matches_, lhead_engine_)) {
 			openBracket();
+			mapLocation();
 			parseLocationBlock();
 			continue;
 		}
@@ -86,6 +87,11 @@ void	ConfigParser::parseLocationBlock() {
 	while (std::getline(instream_, line_)) {
 		if (isCommentOrWhitespace())
 			continue;
+		if (std::regex_match(line_, matches_, lexhead_engine_)) {
+			openBracket();
+			parseLimex();
+			continue;
+		}
 		if (line_.back() == ';') {
 			if (!matchSimpleDirective(lblock_engine_))
 				throw ContentException(ERR_LOCB_DIR);
@@ -97,6 +103,22 @@ void	ConfigParser::parseLocationBlock() {
 		}
 	}
 	throw ContentException(ERR_LOCB_DIR);
+}
+
+void	ConfigParser::parseLimex() {
+	configPutMethods();
+	while (std::getline(instream_, line_)) {
+		if (isCommentOrWhitespace())
+			continue;
+		if (std::regex_match(line_, lexblock_engine_)) {
+			configPutLex();
+			continue;
+		}
+		else if (line_.back() == '}')
+			return blockEnd();
+		else
+			throw ContentException(ERR_LEX);
+	}
 }
 
 bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
@@ -115,6 +137,7 @@ bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
 	return false;
 }
 //----------------------------------------------------------------------------------
+
 
 
 //HELPER FUNCTIONS TO ASSIGN DIRECTIVE VALUES INTO CONFIG STRUCT------------------------------
@@ -148,7 +171,7 @@ void	ConfigParser::configPutValue() {
 void	ConfigParser::configPutListen() {
 	ServerConfig&	server = server_configs_.back();
 	server.ip = matches_[2];
-	server.port = intConverter(matches_[3]);
+	server.port = uintConverter(matches_[3]);
 	server.is_filled = true;
 }
 
@@ -163,7 +186,7 @@ void	ConfigParser::configPutClmaxbs() {
 		else if (specifier == "m" || specifier == "M")
 			multiplier = MB_MULTIP;
 	}
-	uint64_t bytes = intConverter(matches_[5]) * multiplier;
+	uint64_t bytes = uintConverter(matches_[5]) * multiplier;
 	if (bytes > MAX_CLBSIZE)
 		throw ContentException(ERR_MAX_CLBS);
 	server.client_max_bodysize = bytes;
@@ -172,34 +195,68 @@ void	ConfigParser::configPutClmaxbs() {
 
 void	ConfigParser::configPutErrpage() {
 	ServerConfig&		server = server_configs_.back();
-	ErrorPage			err_page;
+	ErrPageMap&			errpage_map = server.error_pages;
 	std::stringstream	ss{matches_[8]};
 	std::string			code_str{};
+	std::string			path{matches_[9]};
 	
 	while (ss >> code_str) {
-		err_page.error_codes.push_back(intConverter(code_str));
+		errpage_map[uintConverter(code_str)] = path;
 	}
-	err_page.error_page_path = matches_[9];
-	server.error_pages.push_back(err_page);
 	server.is_filled = true;
 }
 
 void	ConfigParser::configPutRoot() {
 	ServerConfig&	server = server_configs_.back();
-	server.root = matches_[2];
+	auto 			it = server.locations.find(current_location_);
+	Location&		location = it->second;
+
+	std::cout << "root: " << matches_[2] << "\n";
+	location.root = matches_[2];
 }
 
 void	ConfigParser::configPutIndex() {
-	ServerConfig&		server = server_configs_.back();
-	server.index = matches_[5];
+	ServerConfig&	server = server_configs_.back();
+	auto 			it = server.locations.find(current_location_);
+	Location&		location = it->second;
+
+	location.index = matches_[5];
 }
 
 void	ConfigParser::configPutAuindex() {
 	ServerConfig&	server = server_configs_.back();
+	auto 			it = server.locations.find(current_location_);
+	Location&		location = it->second;
+
 	if (matches_[8] == "on")
-		server.autoindex = true;
+		location.autoindex = true;
 	if (matches_[8] == "off")
-		server.autoindex = false;
+		location.autoindex = false;
+}
+
+void	ConfigParser::configPutMethods() {
+	ServerConfig&		server = server_configs_.back();
+	auto 				it = server.locations.find(current_location_);
+	Location&			location = it->second;
+	std::istringstream	iss(matches_[1]);
+	std::string			method;
+
+	while (iss >> method) {
+		if (method == "GET")
+			location.methods.except_allow[GET] = true;
+		else if (method == "POST")
+			location.methods.except_allow[POST] = true;
+		else if (method == "DELETE")
+			location.methods.except_allow[DELETE] = true;
+	}
+}
+
+void	ConfigParser::configPutLex() {
+	ServerConfig&		server = server_configs_.back();
+	auto 				it = server.locations.find(current_location_);
+	Location&			location = it->second;
+
+	location.methods.deny_all = true;
 }
 //----------------------------------------------------------------------------------
 
@@ -209,6 +266,13 @@ void	ConfigParser::configPutAuindex() {
 void	ConfigParser::initConfigObj() {
 	ServerConfig	config;
 	server_configs_.push_back(config);
+}
+
+void	ConfigParser::mapLocation() {
+	ServerConfig&	config = server_configs_.back();
+	
+	current_location_ = matches_[1];
+	config.locations.emplace(current_location_, Location{});
 }
 
 bool	ConfigParser::isCommentOrWhitespace() {
@@ -229,7 +293,7 @@ int	ConfigParser::trimPrecedingWS(std::string& str) {
 }
 
 void	ConfigParser::openBracket() {
-	if (open_brackets_ < std::numeric_limits<size_t>::max()) {
+	if (open_brackets_ < std::numeric_limits<uint8_t>::max()) {
 		open_brackets_ += 1;
 		return;
 	}
@@ -250,7 +314,7 @@ void	ConfigParser::blockEnd() {
 	closeBracket();
 }
 
-unsigned	ConfigParser::intConverter(std::string str) {
+unsigned	ConfigParser::uintConverter(std::string str) {
 	unsigned long	buffer = std::stoul(str);
 
 	if (buffer > std::numeric_limits<unsigned int>::max())
@@ -265,6 +329,10 @@ unsigned	ConfigParser::intConverter(std::string str) {
 void	ConfigParser::buildRegexEngines() {
 	buildServerBEngine();
 	buildLocationBEngine();
+	buildLimexEngine();
+	//TODO: buildCGIEngine();
+	//TODO: redirs
+	//TODO: uploads
 }
 
 void	ConfigParser::buildServerBEngine() {
@@ -290,6 +358,16 @@ void	ConfigParser::buildLocationBEngine() {
 	lhead_engine_ = std::regex(locah_pattern.data());
 	lblock_engine_ = std::regex(locab_pattern.data());
 }
+
+void	ConfigParser::buildLimexEngine() {
+	constexpr std::string_view	limeh_pattern
+	{
+		R"(limit_except\s*((?:GET|POST|DELETE)(?: +(?:GET|POST|DELETE))*)\s*\{\s*)"
+	};
+	constexpr std::string_view	limex_pattern{R"(deny all;\s*)"};
+	lexhead_engine_ = std::regex(limeh_pattern.data());
+	lexblock_engine_ = std::regex(limex_pattern.data());
+}
 //--------------------------------------------------------------------------
 
 
@@ -306,13 +384,16 @@ const char*		ConfigParser::ContentException::what() const noexcept {
 
 //STATIC MEMBER INITS-------------------
 ConfigVec		ConfigParser::server_configs_;
-std::size_t		ConfigParser::open_brackets_;
+std::uint8_t	ConfigParser::open_brackets_;
 std::ifstream	ConfigParser::instream_;
 std::string		ConfigParser::line_;
 std::smatch		ConfigParser::matches_;
 std::string 	ConfigParser::directive_name_;
+std::string		ConfigParser::current_location_;
 std::regex		ConfigParser::shead_engine_;
 std::regex		ConfigParser::sblock_engine_;
 std::regex		ConfigParser::lhead_engine_;
 std::regex		ConfigParser::lblock_engine_;
+std::regex		ConfigParser::lexhead_engine_;
+std::regex		ConfigParser::lexblock_engine_;
 //--------------------------------------

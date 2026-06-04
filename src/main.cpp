@@ -23,13 +23,16 @@ int main(int ac, char **av) {
 	LOG(config.ip);
 	LOG(config.port);
 	LOG(config.client_max_bodysize);
-	LOG(config.error_pages[0].error_codes[0]);
-	LOG(config.error_pages[0].error_codes[1]);
-	LOG(config.error_pages[0].error_codes[2]);
-	LOG(config.error_pages[0].error_page_path);
-	LOG(config.root);
-	LOG(config.index);
-	LOG(config.autoindex);
+	auto it = config.locations.find("/");
+	Location route = it->second;
+	LOG(route.root);
+	LOG(route.index);
+	LOG(route.autoindex);
+	//TODO: MAKE A PR FOR THE FILEOPS OBJECT
+	//TODO: TEST LIMEX IN .CONF
+	// LOG();
+	// LOG();
+	// LOG();
 		
 	try {
 		s = std::make_unique<Server>(config);

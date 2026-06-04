@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/02 11:18:32 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/03 11:36:15 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,7 @@
 #define ERR_NUM_VAL		"Error: Config File: Number value too large for unsigned int\n"
 #define ERR_MAX_CLBS	"Error: Config File: Client max body size is too large\n"
 #define ERR_DIR			"Error: Config File: Invalid directive\n"
+#define ERR_LEX			"Error: Config File: Invalid limit_except directive\n"
 
 #define C_RST		"\033[0m"
 #define C_RED		"\033[31m"
@@ -65,10 +66,11 @@ class ConfigParser {
 
 	private:
 		static ConfigVec		server_configs_;
-		static std::size_t		open_brackets_;
+		static std::uint8_t		open_brackets_;
 		static std::ifstream	instream_;
 		static std::string		line_;
 		static std::string 		directive_name_;
+		static std::string		current_location_;
 
 		//REGEX VARIABLES
 		static std::smatch		matches_;
@@ -76,12 +78,15 @@ class ConfigParser {
 		static std::regex		sblock_engine_;
 		static std::regex		lhead_engine_;
 		static std::regex		lblock_engine_;
+		static std::regex		lexhead_engine_;
+		static std::regex		lexblock_engine_;
 
 		//CRITICAL PATH FUNCTIONS
 		static void		parseFile();
 		static void		parseVirtualHostBlock();
 		static void		parseLocationBlock();
 		static bool		matchSimpleDirective(std::regex& engine);
+		static void		parseLimex();
 		
 		//CONFIG STRUCT ASSIGNMENT
 		static void		configPutValue();
@@ -91,21 +96,24 @@ class ConfigParser {
 		static void		configPutRoot();
 		static void		configPutIndex();
 		static void		configPutAuindex();
+		static void		configPutMethods();
+		static void		configPutLex();
 		
 		//HELPER FUNCTIONS
 		static void		initConfigObj();
+		static void		mapLocation();
 		static bool		isCommentOrWhitespace();
 		static int		trimPrecedingWS(std::string& str);
 		static void		openBracket();
 		static void		closeBracket();
 		static void		blockEnd();
-		static unsigned	intConverter(std::string str);
+		static unsigned	uintConverter(std::string str);
 
 		//REGEX INITS
 		static void		buildRegexEngines();
 		static void		buildServerBEngine();
 		static void		buildLocationBEngine();
-		static void		buildLimexBEngine();
+		static void		buildLimexEngine();
 
 		//CUSTOM EXCEPTION
 		class ContentException : public std::exception {
