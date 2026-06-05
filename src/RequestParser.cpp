@@ -15,7 +15,13 @@ ParseResult RequestParser::parseRequest(const std::string& rawBuffer, Request& r
 	if (result.status != PARSE_COMPLETE)
 		return (result);
 
-	result = parseRequestBody(rawBuffer, request);
+	if (request.getHeader("transfer-encoding") == "chunked") {
+		result = parseRequestBodyChunked(rawBuffer, request);
+	}
+	else {
+		result = parseRequestBody(rawBuffer, request);
+	}
+
 	if (result.status != PARSE_COMPLETE)
 		return (result);
 
@@ -107,9 +113,13 @@ ParseResult RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 		while (!value.empty() && (value[value.length() - 1] == ' ' || value[value.length() - 1] == '\t'))
 			value.erase(value.length() - 1);
 
+		// Convert header key to lowercase.
+		for (size_t i = 0; i < key.size(); i++)
+			key[i] = std::tolower(static_cast<unsigned char>(key[i]));
+
 		// RFC 7230 (3.3.2) - Reject multiple Content-Length headers with differing values.
-		if (key == "Content-Length") {
-			std::string existing = request.getHeader("Content-Length");
+		if (key == "content-length") {
+			std::string existing = request.getHeader("content-length");
 			if (!existing.empty() && existing != value)
 				return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
 		}
@@ -118,21 +128,17 @@ ParseResult RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 	}
 	
 	// RFC 7230 (5.4) - HTTP/1.1 requests must include a Host header.
-	if (request.getHeader("Host").empty())
+	if (request.getHeader("host").empty())
 		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
 
 	// RFC 7230 (3.3.2) - Content-Length value must be a valid decimal number.
-	std::string contentLength = request.getHeader("Content-Length");
+	std::string contentLength = request.getHeader("content-length");
 	if (!contentLength.empty()) {
 		for (size_t i = 0; i < contentLength.length(); i++) {
 			if (!std::isdigit(contentLength[i]))
 				return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
 		}
 	}
-
-	// REMOVE ONCE CHUNKED TRANSFER ENCODING IMPLEMENTED
-	if (request.getHeader("Transfer-Encoding") == "chunked")
-		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_NOT_IMPLEMENTED, 0});
 
 	return ((ParseResult){PARSE_COMPLETE, HTTP_OK});
 }
@@ -143,7 +149,7 @@ ParseResult RequestParser::parseRequestBody(const std::string& rawBuffer, Reques
 		return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE});
 	size_t bodyStart = headersEnd + 4;
 
-	std::string lenStr = request.getHeader("Content-Length");
+	std::string lenStr = request.getHeader("content-length");
 
 	// If no Content-Length header, body is empty.
 	size_t bytesConsumed = bodyStart;
@@ -166,4 +172,71 @@ ParseResult RequestParser::parseRequestBody(const std::string& rawBuffer, Reques
 	request.setBody(body.substr(0, contentLength));
 	bytesConsumed = bodyStart + contentLength;
 	return ((ParseResult){PARSE_COMPLETE, HTTP_OK, bytesConsumed});
+}
+
+// Chunked means the body is split into pieces. 
+// Each piece starts with its size in hexadecimal, then \r\n, then that many bytes of data, then another \r\n.
+// Example body:
+// 		5\r\n
+// 		hello\r\n
+// 		6\r\n
+// 		world\r\n
+// 		0\r\n
+// 		\r\n
+// Zero chunk marks the end of the body.
+ParseResult RequestParser::parseRequestBodyChunked(const std::string& rawBuffer, Request& request) {
+	size_t headersEnd = rawBuffer.find("\r\n\r\n");
+	if (headersEnd == std::string::npos)
+		return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE});
+	size_t bodyStart = headersEnd + 4;
+
+	std::string body;
+	size_t pos = bodyStart;
+	while (true) {
+		// Read chunk size
+		size_t chunkSizeEnd = rawBuffer.find("\r\n", pos);
+		if (chunkSizeEnd == std::string::npos)
+			return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE});
+		
+		// Extract size string
+		std::string sizeStr = rawBuffer.substr(pos, chunkSizeEnd - pos);
+
+		// Validate and convert sizeStr to hexadecimal
+		char *end = NULL;
+		unsigned long chunkSize = std::strtoul(sizeStr.c_str(), &end, 16); // strtoul(input_str, end_pointer, base);
+		if (*end != '\0')
+			return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
+		
+		// Advance pos past chunkSizeEnd
+		pos = chunkSizeEnd + 2;
+
+		// RFC 7230 (4.1) - A zero-sized chunk marks the end of the body.
+		if (chunkSize == 0) {
+			// Missing content
+			if (rawBuffer.size() < pos + 2)
+				return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE});
+			// Invalid format
+			if (rawBuffer.substr(pos, 2) != "\r\n")
+				return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
+			
+			// Success
+			request.setBody(body);
+			size_t bytesConsumed = pos + 2;
+			return ((ParseResult){PARSE_COMPLETE, HTTP_OK, bytesConsumed});
+		}
+
+		// Missing content
+		if (rawBuffer.size() < pos + chunkSize + 2)
+			return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE});
+		
+		body.append(rawBuffer, pos, chunkSize);
+
+		if (rawBuffer.substr(pos + chunkSize, 2) != "\r\n")
+			return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
+
+		pos += chunkSize + 2;
+
+		if (body.size() > MAX_BODY_SIZE)
+			return ((ParseResult){PARSE_BAD_REQUEST, HTTP_PAYLOAD_TOO_LARGE});
+	}
 }
