@@ -8,14 +8,25 @@
 
 class Response
 {
-private:
-	std::string m_response_body;
-	std::unordered_map<std::string, std::string> m_response_src = {
-		{"/", HTML_SRC"index.html"},
-		{"error", HTML_SRC"error.html"},
-	};
+	private:
+		std::string m_version;		// Http version
 
-public:
-	Response(const Request&);
-	std::string getResponseBody();
+		int			m_status_code;	// Http status code: 200, 404, etc.
+		std::string	m_reason;		// OK, Not found, etc.
+
+		std::string m_response_body;
+
+		std::map<std::string, std::string>	headers;
+
+		// std::unordered_map<std::string, std::string> m_response_src = {
+		// 	{"/", HTML_SRC"index.html"},
+		// 	{"error", HTML_SRC"error.html"},
+		// };
+
+	public:
+		std::string getResponseBody();
+
+		void setVersion(const std::string& version);
+		void setStatus(int statusCode, const std::string& reason);
+		void setBody(const std::string& body);
 };

@@ -69,7 +69,7 @@ int main(int ac, char **av) {
 						break;
 					}
 				} else {// handle client data
-					s->handle_client_data(poll_fds, pfd.fd);
+					s->handle_client_data(poll_fds, pfd.fd, config);
 				}
 			}
 		}

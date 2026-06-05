@@ -48,5 +48,5 @@ public:
 	const std::string& get_ip() const;
 	uint get_port() const;
 	void handle_new_connection(std::vector<struct pollfd>&);
-	void handle_client_data(std::vector<struct pollfd>&, int);
+	void handle_client_data(std::vector<struct pollfd>&, int, ServerConfig&);
 };
