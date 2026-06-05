@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/29 16:02:15 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/02 10:46:14 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/05 10:48:29 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,20 +14,39 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
-struct ErrorPage {
-	std::vector<int>	error_codes;
-	std::string			error_page_path;
+typedef enum e_allowed {
+	GET,
+	POST,
+	DELETE,
+	MET_COUNT
+}	t_allowed;
+
+struct Methods {
+	bool	deny_all;
+	bool	except_allow[MET_COUNT];
 };
 
+struct Location {
+	std::string		root;
+	std::string		index;
+	bool			autoindex;
+	Methods			methods;
+	bool			allow_file_uploads;
+	std::string		upload_store;
+};
+
+using LocationMap = std::unordered_map<std::string, Location>;
+using ErrPageMap = std::unordered_map<unsigned, std::string>;
+
 struct ServerConfig {
-	std::string				ip;
-	unsigned				port;
-	unsigned				client_max_bodysize = 4000;
-	std::vector<ErrorPage>	error_pages;
-	std::string				root;
-	std::string				index;
-	bool					autoindex;
+	std::string		ip;
+	unsigned		port;
+	std::string		server_name;
+	unsigned		client_max_bodysize = 4000;
+	ErrPageMap		error_pages;
+	LocationMap		locations;
 	
 	bool		is_filled;
 	bool		is_empty();
