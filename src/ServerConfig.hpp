@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/29 16:02:15 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/03 11:41:14 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/05 10:48:29 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,8 @@ struct Location {
 	std::string		index;
 	bool			autoindex;
 	Methods			methods;
+	bool			allow_file_uploads;
+	std::string		upload_store;
 };
 
 using LocationMap = std::unordered_map<std::string, Location>;
@@ -41,6 +43,7 @@ using ErrPageMap = std::unordered_map<unsigned, std::string>;
 struct ServerConfig {
 	std::string		ip;
 	unsigned		port;
+	std::string		server_name;
 	unsigned		client_max_bodysize = 4000;
 	ErrPageMap		error_pages;
 	LocationMap		locations;

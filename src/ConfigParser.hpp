@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/04 13:04:46 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/05 11:13:55 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,11 +45,14 @@
 //		CREATE THE CONFIGPUT METHODS FOR THE DIRECTIVES.
 typedef enum e_dir_names {
 	LISTEN,
-	CLMAXBS,
+	CLMAXBSIZE,
 	ERRPAGE,
+	SERVNAME,
 	ROOT,
 	INDEX,
 	AUINDEX,
+	FILEUPLOADS,
+	UPLOADPATH,
 	DIR_COUNT
 }	t_dir_names;
 
@@ -68,21 +71,21 @@ class ConfigParser {
 		//------------------------------------------------!!!
 
 	private:
-		static ConfigVec		server_configs_;
-		static std::uint8_t		open_brackets_;
-		static std::ifstream	instream_;
-		static std::string		line_;
-		static std::string 		directive_name_;
-		static std::string		current_location_;
+		static inline ConfigVec			server_configs_;
+		static inline std::uint8_t		open_brackets_;
+		static inline std::ifstream		instream_;
+		static inline std::string		line_;
+		static inline std::string 		directive_name_;
+		static inline std::string		current_location_;
 
 		//REGEX VARIABLES
-		static std::smatch		matches_;
-		static std::regex		shead_engine_;
-		static std::regex		sblock_engine_;
-		static std::regex		lhead_engine_;
-		static std::regex		lblock_engine_;
-		static std::regex		lexhead_engine_;
-		static std::regex		lexblock_engine_;
+		static inline std::smatch		matches_;
+		static inline std::regex		shead_engine_;
+		static inline std::regex		sblock_engine_;
+		static inline std::regex		lhead_engine_;
+		static inline std::regex		lblock_engine_;
+		static inline std::regex		lexhead_engine_;
+		static inline std::regex		lexblock_engine_;
 
 		//CRITICAL PATH FUNCTIONS
 		static void		parseFile();
@@ -96,9 +99,13 @@ class ConfigParser {
 		static void		configPutListen();
 		static void		configPutClmaxbs();
 		static void		configPutErrpage();
+		static void		configPutServerName();
 		static void		configPutRoot();
 		static void		configPutIndex();
 		static void		configPutAuindex();
+		static void		configPutFileUploads();
+		static void		configPutUploadStore();
+
 		static void		configPutMethods();
 		static void		configPutLex();
 		

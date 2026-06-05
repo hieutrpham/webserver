@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/04 13:13:38 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/05 11:14:20 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -133,6 +133,12 @@ bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
 		else if (matches_[7].matched) {
 			directive_name_ = matches_[7];
 		}
+		else if (matches_[10].matched) {
+			directive_name_ = matches_[10];
+		}
+		else if (matches_[12].matched) {
+			directive_name_ = matches_[12];
+		}
 		return true;
 	}
 	return false;
@@ -143,8 +149,11 @@ bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
 
 //HELPER FUNCTIONS TO ASSIGN DIRECTIVE VALUES INTO CONFIG STRUCT------------------------------
 void	ConfigParser::configPutValue() {
-	static constexpr std::string_view	directive_names[DIR_COUNT] 
-		= {"listen", "client_max_body_size", "error_page", "root", "index", "autoindex"};
+	static constexpr std::string_view	directive_names[DIR_COUNT] = {
+		"listen", "client_max_body_size", "error_page", 
+		"server_name", "root", "index", "autoindex",
+		"file_uploads", "upload_store"
+	};
 	t_dir_names		dir_name = DIR_COUNT;
 
 	for (std::size_t i{0}; i < DIR_COUNT; ++i) {
@@ -154,16 +163,22 @@ void	ConfigParser::configPutValue() {
 	switch (dir_name) {
 		case LISTEN:
 			return configPutListen();
-		case CLMAXBS:
+		case CLMAXBSIZE:
 			return configPutClmaxbs();
 		case ERRPAGE:
 			return configPutErrpage();
+		case SERVNAME:
+			return configPutServerName();
 		case ROOT:
 			return configPutRoot();
 		case INDEX:
 			return configPutIndex();
 		case AUINDEX:
 			return configPutAuindex();
+		case FILEUPLOADS:
+			return configPutFileUploads();
+		case UPLOADPATH:
+			return configPutUploadStore();
 		default:
 			throw ContentException(ERR_DIR);
 	}
@@ -207,6 +222,12 @@ void	ConfigParser::configPutErrpage() {
 	server.is_filled = true;
 }
 
+void	ConfigParser::configPutServerName() {
+	ServerConfig&	server = server_configs_.back();
+
+	server.server_name = matches_[11];
+}
+
 void	ConfigParser::configPutRoot() {
 	ServerConfig&	server = server_configs_.back();
 	auto 			it = server.locations.find(current_location_);
@@ -234,6 +255,27 @@ void	ConfigParser::configPutAuindex() {
 		location.autoindex = false;
 }
 
+void	ConfigParser::configPutFileUploads() {
+	ServerConfig&	server = server_configs_.back();
+	auto 			it = server.locations.find(current_location_);
+	Location&		location = it->second;
+
+	if (matches_[11] == "yes")
+		location.allow_file_uploads = true;
+	if (matches_[11] == "no")
+		location.allow_file_uploads = false;
+}
+
+void	ConfigParser::configPutUploadStore() {
+	ServerConfig&	server = server_configs_.back();
+	auto 			it = server.locations.find(current_location_);
+	Location&		location = it->second;
+
+	location.upload_store = matches_[13];
+}
+
+
+//not called from configPutValue()
 void	ConfigParser::configPutMethods() {
 	ServerConfig&		server = server_configs_.back();
 	auto 				it = server.locations.find(current_location_);
@@ -242,7 +284,6 @@ void	ConfigParser::configPutMethods() {
 	std::string			method;
 
 	while (iss >> method) {
-		std::cerr << "Here method: " << method << "\n";
 		if (method == "GET")
 			location.methods.except_allow[GET] = true;
 		else if (method == "POST")
@@ -252,6 +293,7 @@ void	ConfigParser::configPutMethods() {
 	}
 }
 
+//not called from configPutValue()
 void	ConfigParser::configPutLex() {
 	ServerConfig&		server = server_configs_.back();
 	auto 				it = server.locations.find(current_location_);
@@ -331,9 +373,8 @@ void	ConfigParser::buildRegexEngines() {
 	buildServerBEngine();
 	buildLocationBEngine();
 	buildLimexEngine();
-	//TODO: buildCGIEngine();
+	//TODO: CGI
 	//TODO: redirs
-	//TODO: uploads
 }
 
 void	ConfigParser::buildServerBEngine() {
@@ -345,7 +386,7 @@ void	ConfigParser::buildServerBEngine() {
 	{
 		R"((listen)\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+);\s*)"
 		R"(|(client_max_body_size)\s+(\d{1,7})([kmKM])?;\s*)"
-		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/[45][\dx]{2}\.html);\s*)"
+		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/\w{1,13}\.html);\s*)"
 		R"(|(server_name)\s+([^;]+);\s*)"
 		R"(|()())"
 	};
@@ -364,7 +405,7 @@ void	ConfigParser::buildLocationBEngine() {
 		R"(|(index)\s+(index\.html?);\s*())"
 		R"(|(autoindex)\s+(on|off);\s*())"
 		R"(|(file_uploads)\s+(yes|no);\s*)"
-		R"(|(client_body_temp_path)\s+(/[^;]+);\s*)"
+		R"(|(upload_store)\s+(/[^;]+);\s*)"
 	};
 	lhead_engine_ = std::regex(locah_pattern.data());
 	lblock_engine_ = std::regex(locab_pattern.data());
@@ -390,21 +431,3 @@ const char*		ConfigParser::ContentException::what() const noexcept {
 	return this->msg_.c_str();
 }
 //-------------------------------------------------------------------------------
-
-
-
-//STATIC MEMBER INITS-------------------
-ConfigVec		ConfigParser::server_configs_;
-std::uint8_t	ConfigParser::open_brackets_;
-std::ifstream	ConfigParser::instream_;
-std::string		ConfigParser::line_;
-std::smatch		ConfigParser::matches_;
-std::string 	ConfigParser::directive_name_;
-std::string		ConfigParser::current_location_;
-std::regex		ConfigParser::shead_engine_;
-std::regex		ConfigParser::sblock_engine_;
-std::regex		ConfigParser::lhead_engine_;
-std::regex		ConfigParser::lblock_engine_;
-std::regex		ConfigParser::lexhead_engine_;
-std::regex		ConfigParser::lexblock_engine_;
-//--------------------------------------
