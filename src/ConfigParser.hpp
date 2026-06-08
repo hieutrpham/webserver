@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/02 11:18:32 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/08 10:37:30 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,7 +60,7 @@ class ConfigParser {
 
 	public:
 		//USER INTERFACE----------------------------------!!!
-		static ServerConfig	parse(std::string conf_fname);//!
+		static ConfigVec	parse(std::string conf_fname);//!
 		//------------------------------------------------!!!
 
 	private:
