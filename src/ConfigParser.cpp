@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/05 11:14:20 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/05 12:58:15 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -139,6 +139,9 @@ bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
 		else if (matches_[12].matched) {
 			directive_name_ = matches_[12];
 		}
+		else if (matches_[14].matched) {
+			directive_name_ = matches_[14];
+		}
 		return true;
 	}
 	return false;
@@ -151,8 +154,8 @@ bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
 void	ConfigParser::configPutValue() {
 	static constexpr std::string_view	directive_names[DIR_COUNT] = {
 		"listen", "client_max_body_size", "error_page", 
-		"server_name", "root", "index", "autoindex",
-		"file_uploads", "upload_store"
+		"server_name", "root", "index", "alias",
+		"autoindex", "file_uploads", "upload_store"
 	};
 	t_dir_names		dir_name = DIR_COUNT;
 
@@ -173,6 +176,8 @@ void	ConfigParser::configPutValue() {
 			return configPutRoot();
 		case INDEX:
 			return configPutIndex();
+		case ALIAS:
+			return configPutAlias();
 		case AUINDEX:
 			return configPutAuindex();
 		case FILEUPLOADS:
@@ -242,6 +247,14 @@ void	ConfigParser::configPutIndex() {
 	Location&		location = it->second;
 
 	location.index = matches_[5];
+}
+
+void	ConfigParser::configPutAlias() {
+	ServerConfig&	server = server_configs_.back();
+	auto 			it = server.locations.find(current_location_);
+	Location&		location = it->second;
+
+	location.alias = matches_[15];
 }
 
 void	ConfigParser::configPutAuindex() {
@@ -315,7 +328,7 @@ void	ConfigParser::mapLocation() {
 	ServerConfig&	config = server_configs_.back();
 	
 	current_location_ = matches_[1];
-	config.locations.emplace(current_location_, Location{});
+	config.locations.emplace(current_location_, Location{.uri = current_location_});
 }
 
 bool	ConfigParser::isCommentOrWhitespace() {
@@ -389,6 +402,7 @@ void	ConfigParser::buildServerBEngine() {
 		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/\w{1,13}\.html);\s*)"
 		R"(|(server_name)\s+([^;]+);\s*)"
 		R"(|()())"
+		R"(|()())"
 	};
 	shead_engine_ = std::regex(servh_pattern.data());
 	sblock_engine_ = std::regex(servb_pattern.data());
@@ -406,6 +420,7 @@ void	ConfigParser::buildLocationBEngine() {
 		R"(|(autoindex)\s+(on|off);\s*())"
 		R"(|(file_uploads)\s+(yes|no);\s*)"
 		R"(|(upload_store)\s+(/[^;]+);\s*)"
+		R"(|(alias)\s+(/[^;]+);\s*)"
 	};
 	lhead_engine_ = std::regex(locah_pattern.data());
 	lblock_engine_ = std::regex(locab_pattern.data());

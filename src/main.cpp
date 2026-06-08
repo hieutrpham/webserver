@@ -20,22 +20,6 @@ int main(int ac, char **av) {
 		ERR("Empty config! Configuration file not parsed correctly.\n\n");
 		return 1;
 	}
-	LOG(config.ip);
-	LOG(config.port);
-	LOG(config.server_name);
-	LOG(config.client_max_bodysize);
-	std::string	route_path = "/";
-	auto it = config.locations.find(route_path);
-	Location route = it->second;
-	LOG(route.root);
-	LOG(route.index);
-	LOG(route.autoindex);
-	LOG(route.methods.deny_all);
-	LOG(route.methods.except_allow[GET]);
-	LOG(route.methods.except_allow[POST]);
-	LOG(route.methods.except_allow[DELETE]);
-	LOG(route.allow_file_uploads);
-	LOG(route.upload_store);
 		
 	try {
 		s = std::make_unique<Server>(config);

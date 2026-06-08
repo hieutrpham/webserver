@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/29 16:02:15 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/05 10:48:29 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/05 12:52:21 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,8 +29,10 @@ struct Methods {
 };
 
 struct Location {
+	std::string		uri;
 	std::string		root;
 	std::string		index;
+	std::string		alias;
 	bool			autoindex;
 	Methods			methods;
 	bool			allow_file_uploads;
