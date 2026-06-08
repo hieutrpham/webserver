@@ -1,4 +1,5 @@
 #include "ResponseBuilder.hpp"
+#include "CGIHandler.hpp"
 
 Response ResponseBuilder::buildResponse(Request& request, ServerConfig& config) {
 	
@@ -28,7 +29,7 @@ Response ResponseBuilder::buildResponse(Request& request, ServerConfig& config) 
 bool ResponseBuilder::isCgi(Request& request, ServerConfig& config) {
     (void)request;
     (void)config;
-
+	CGIHandler::handleCGI();
     return false;
 }
 
