@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/05 12:58:15 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/08 16:10:14 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,7 @@
 #include <stdexcept>
 
 //PARSER MAIN FLOW-------------------------------------------------------------------
-ServerConfig	ConfigParser::parse(std::string conf_fname) {
+ConfigVec	ConfigParser::parse(std::string conf_fname) {
 	static bool		is_regex_built_{false};
 
 	if (!is_regex_built_) {
@@ -35,10 +35,9 @@ ServerConfig	ConfigParser::parse(std::string conf_fname) {
 			throw FileOperation::FileException(ERR_IO);
 	} catch (std::exception& e) {
 		std::cerr << C_RED << e.what() << C_RST;
-		ServerConfig empty_config{};
-		return empty_config;
+		return std::vector<ServerConfig>();
 	}
-	return server_configs_.front();
+	return server_configs_;
 }
 
 void	ConfigParser::parseFile() {
