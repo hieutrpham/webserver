@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/08 10:37:30 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/09 11:51:54 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,6 +23,7 @@
 #define MB_MULTIP		1000000
 #define KB_MULTIP		1000
 
+#define ERR_IO			"Error: InFile Stream SysCall: I/O system error\n"
 #define ERR_N_OBRC		"Error: Config File Format: Too many opening brackets\n"
 #define ERR_N_CBRC		"Error: Config File Format: Too many closing brackets\n"
 #define ERR_BRACK_CL	"Error: Config File Format: Closing brackets need their own lines\n"
@@ -33,19 +34,25 @@
 #define ERR_NUM_VAL		"Error: Config File: Number value too large for unsigned int\n"
 #define ERR_MAX_CLBS	"Error: Config File: Client max body size is too large\n"
 #define ERR_DIR			"Error: Config File: Invalid directive\n"
+#define ERR_LEX			"Error: Config File: Invalid limit_except directive\n"
 
 #define C_RST		"\033[0m"
 #define C_RED		"\033[31m"
 #define SUCCESS		0
 #define BLANK		1
 
+//TODO: ADD NEW DIRECtIVES IN ENUM AND IN COrRESPONDING METHODS.
+//		CREATE THE CONFIGPUT METHODS FOR THE DIRECTIVES.
 typedef enum e_dir_names {
 	LISTEN,
-	CLMAXBS,
+	CLMAXBSIZE,
 	ERRPAGE,
+	SERVNAME,
 	ROOT,
 	INDEX,
 	AUINDEX,
+	FILEUPLOADS,
+	UPLOADPATH,
 	DIR_COUNT
 }	t_dir_names;
 
@@ -64,48 +71,59 @@ class ConfigParser {
 		//------------------------------------------------!!!
 
 	private:
-		static ConfigVec		server_configs_;
-		static std::size_t		open_brackets_;
-		static std::ifstream	instream_;
-		static std::string		line_;
-		static std::string 		directive_name_;
+		static inline ConfigVec			server_configs_;
+		static inline std::uint8_t		open_brackets_;
+		static inline std::ifstream		instream_;
+		static inline std::string		line_;
+		static inline std::string 		directive_name_;
+		static inline std::string		current_location_;
 
 		//REGEX VARIABLES
-		static std::smatch		matches_;
-		static std::regex		shead_engine_;
-		static std::regex		sblock_engine_;
-		static std::regex		lhead_engine_;
-		static std::regex		lblock_engine_;
+		static inline std::smatch		matches_;
+		static inline std::regex		shead_engine_;
+		static inline std::regex		sblock_engine_;
+		static inline std::regex		lhead_engine_;
+		static inline std::regex		lblock_engine_;
+		static inline std::regex		lexhead_engine_;
+		static inline std::regex		lexblock_engine_;
 
 		//CRITICAL PATH FUNCTIONS
 		static void		parseFile();
-		static void		parseVirtualHostBlock();
+		static void		parseServerBlock();
 		static void		parseLocationBlock();
 		static bool		matchSimpleDirective(std::regex& engine);
+		static void		parseLimex();
 		
 		//CONFIG STRUCT ASSIGNMENT
 		static void		configPutValue();
 		static void		configPutListen();
 		static void		configPutClmaxbs();
 		static void		configPutErrpage();
+		static void		configPutServerName();
 		static void		configPutRoot();
 		static void		configPutIndex();
 		static void		configPutAuindex();
+		static void		configPutFileUploads();
+		static void		configPutUploadStore();
+
+		static void		configPutMethods();
+		static void		configPutLex();
 		
 		//HELPER FUNCTIONS
 		static void		initConfigObj();
+		static void		mapLocation();
 		static bool		isCommentOrWhitespace();
 		static int		trimPrecedingWS(std::string& str);
 		static void		openBracket();
 		static void		closeBracket();
 		static void		blockEnd();
-		static unsigned	intConverter(std::string str);
+		static unsigned	uintConverter(std::string str);
 
 		//REGEX INITS
 		static void		buildRegexEngines();
 		static void		buildServerBEngine();
 		static void		buildLocationBEngine();
-		static void		buildLimexBEngine();
+		static void		buildLimexEngine();
 
 		//CUSTOM EXCEPTION
 		class ContentException : public std::exception {

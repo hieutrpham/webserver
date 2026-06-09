@@ -1,6 +1,6 @@
 # Web Server in C++
 
-* [Janne](https://github.com/cubicajupiter): config file parsing
+* [Janne](https://github.com/cubicajupiter): config file parsing and CGI handling
 * [Walteri](https://github.com/Waltsuuuu): requests handling
 * [Hieu](https://github.com/hieutrpham): main server loop and response handling
 

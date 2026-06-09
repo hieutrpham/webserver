@@ -22,18 +22,24 @@ int main(int ac, char **av) {
 	}
 	LOG(config.ip);
 	LOG(config.port);
+	LOG(config.server_name);
 	LOG(config.client_max_bodysize);
-	LOG(config.error_pages[0].error_codes[0]);
-	LOG(config.error_pages[0].error_codes[1]);
-	LOG(config.error_pages[0].error_codes[2]);
-	LOG(config.error_pages[0].error_page_path);
-	LOG(config.root);
-	LOG(config.index);
-	LOG(config.autoindex);
+	std::string	route_path = "/";
+	auto it = config.locations.find(route_path);
+	Location route = it->second;
+	LOG(route.root);
+	LOG(route.index);
+	LOG(route.autoindex);
+	LOG(route.methods.deny_all);
+	LOG(route.methods.except_allow[GET]);
+	LOG(route.methods.except_allow[POST]);
+	LOG(route.methods.except_allow[DELETE]);
+	LOG(route.allow_file_uploads);
+	LOG(route.upload_store);
 		
 	try {
 		s = std::make_unique<Server>(config);
-	}catch (std::exception& e) {
+	} catch (std::exception& e) {
 		ERR(e.what());
 		return 1;
 	}
