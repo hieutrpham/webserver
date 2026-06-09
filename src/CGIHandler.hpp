@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/05 15:40:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/08 15:13:22 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/09 15:30:05 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,16 @@
 
 #define SUCCESS		0
 #define ERROR		1
+
+enum e_param_keys {
+	SCRIPT_FILENAME,
+	QUERY_STRING,
+	REQUEST_METHOD,
+	CONTENT_TYPE,
+	CONTENT_LENGTH,
+	PATH_INFO,
+	KEY_COUNT
+};
 
 //RAII wrapper for pipes
 class Pipe {
@@ -45,7 +55,15 @@ class Pipe {
 
 class CGIHandler {
 	private:
+		using StringVec = std::vector<std::string>;
+		using CStringVec = std::vector<const char*>;
+
 		ServerConfig	config_;
+
+		void	execSubProcess(Request& req, Pipe& pipe);
+		void	waitSubProcess(pid_t pid);
+		void	buildEnvVariables(Request& req, StringVec& env_vec, CStringVec& c_env_vec);
+		
 	public:
 		CGIHandler() = delete;
 		CGIHandler(ServerConfig& config);
@@ -53,13 +71,13 @@ class CGIHandler {
 		~CGIHandler();
 		CGIHandler&	operator=(const CGIHandler& other);
 
-		std::string	executeCGI(Request& req);
-		void		subProcessHandler(Pipe& pipe);
-		void		waitSubProcess(pid_t pid);
+		//INTERFACE--------------------------//
+		std::string	executeCGI(Request& req);//
+		//-----------------------------------//
 
 		ServerConfig	getConfig();
 
-		
+		//EXCEPTION SUB CLASSES
 		class Dup2Exception : public std::exception {
 				std::string		msg_;
 			public:

@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/05 15:40:06 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/09 11:43:52 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/09 15:30:03 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,7 +41,7 @@ std::string	CGIHandler::executeCGI(Request& req) {
 	if (pid == -1)
 		throw ForkException("forkexception");
 	if (pid == 0)
-		subProcessHandler(pipe);
+		execSubProcess(req, pipe);
 	pipe.closeWrite();
 	waitSubProcess(pid);
 	return;
@@ -54,16 +54,68 @@ std::string	CGIHandler::executeCGI(Request& req) {
 		// cgi_param CONTENT_TYPE
 		// cgi_param CONTENT_LENGTH
 		// cgi_param PATH_INFO
-void	CGIHandler::subProcessHandler(Pipe& pipe) {
-	std::vector<char*>	c_env_vec(env_vars.size());
-	std::transform(env_vars.begin(), env_vars.end(), c_env_vec.begin(), 
-		[](std::string& s) { return s.c_str(); }
-	);
-	
+		
+//env_cont: Environment container keeps the data in the correct stack scope,
+// so that the c-style pointers are not left dangling.
+void	CGIHandler::execSubProcess(Request& req, Pipe& pipe) {
+	StringVec		env_vec{};
+	CStringVec		c_env_vec{};
+
+	buildEnvVariables(req, env_vec, c_env_vec);
 	pipe.closeRead();
 	if (dup2(pipe[1], STDOUT_FILENO) == -1)
 		throw Dup2Exception("dup2exception");
-	execve("test.php", args, env_vec.data());	//TODO
+	execve("test.php", nullptr, c_env_vec.data());
+}
+
+void	CGIHandler::buildEnvVariables(Request& req, StringVec& env_vec, CStringVec& c_env_vec) {
+	static constexpr const char*	env_keys[] = {
+		"SCRIPT_FILENAME=",
+		"QUERY_STRING=",
+		"REQUEST_METHOD=",
+		"CONTENT_TYPE=",
+		"CONTENT_LENGTH=",
+		"PATH_INFO="
+	};	
+	
+	std::string value = req.get(); //TODO
+	if (value != ""){
+		std::string var = env_keys[SCRIPT_FILENAME] + value;
+		env_vec.push_back(var);
+		c_env_vec.push_back(var.c_str());}
+		
+	std::string value = req.get(); //TODO
+	if (value != ""){
+		std::string var = env_keys[QUERY_STRING] + value;
+		env_vec.push_back(var);
+		c_env_vec.push_back(var.c_str());}
+		
+	std::string value = req.getMethod(); //TODO
+	if (value != ""){
+		std::string var = env_keys[REQUEST_METHOD] + value;
+		env_vec.push_back(var);
+		c_env_vec.push_back(var.c_str());}
+		
+	std::string value = req.getHeader("content-type");
+	if (value != ""){
+		std::string var = env_keys[CONTENT_TYPE] + value;
+		env_vec.push_back(var);
+		c_env_vec.push_back(var.c_str());}
+		
+	std::string value = req.getHeader("content-type");
+	if (value != ""){
+		std::string var = env_keys[CONTENT_LENGTH] + value;
+		env_vec.push_back(var);
+		c_env_vec.push_back(var.c_str());}
+		
+	std::string value = req.get(); //TODO
+	if (value != ""){
+		std::string var = env_keys[PATH_INFO] + value;
+		env_vec.push_back(var);
+		c_env_vec.push_back(var.c_str());}
+
+
+	c_env_vec.push_back(nullptr);
 }
 
 void	CGIHandler::waitSubProcess(pid_t pid) {
