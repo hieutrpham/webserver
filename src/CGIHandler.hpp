@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/05 15:40:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/09 15:30:05 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/09 15:55:20 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,13 +56,13 @@ class Pipe {
 class CGIHandler {
 	private:
 		using StringVec = std::vector<std::string>;
-		using CStringVec = std::vector<const char*>;
+		using CStringVec = std::vector<char*>;
 
 		ServerConfig	config_;
 
 		void	execSubProcess(Request& req, Pipe& pipe);
 		void	waitSubProcess(pid_t pid);
-		void	buildEnvVariables(Request& req, StringVec& env_vec, CStringVec& c_env_vec);
+		void	buildEnvVariables(Request& req, StringVec& env_vec);
 		
 	public:
 		CGIHandler() = delete;

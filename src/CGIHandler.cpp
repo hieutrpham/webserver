@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/05 15:40:06 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/09 15:30:03 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/09 16:00:02 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -61,14 +61,18 @@ void	CGIHandler::execSubProcess(Request& req, Pipe& pipe) {
 	StringVec		env_vec{};
 	CStringVec		c_env_vec{};
 
-	buildEnvVariables(req, env_vec, c_env_vec);
-	pipe.closeRead();
+	buildEnvVariables(req, env_vec);
+	for (const std::string& s : env_vec)
+		c_env_vec.push_back(const_cast<char*>(s.c_str()));
+	c_env_vec.push_back(nullptr);
+	
 	if (dup2(pipe[1], STDOUT_FILENO) == -1)
 		throw Dup2Exception("dup2exception");
+	pipe.closeRead();
 	execve("test.php", nullptr, c_env_vec.data());
 }
 
-void	CGIHandler::buildEnvVariables(Request& req, StringVec& env_vec, CStringVec& c_env_vec) {
+void	CGIHandler::buildEnvVariables(Request& req, StringVec& env_vec) {
 	static constexpr const char*	env_keys[] = {
 		"SCRIPT_FILENAME=",
 		"QUERY_STRING=",
@@ -76,46 +80,38 @@ void	CGIHandler::buildEnvVariables(Request& req, StringVec& env_vec, CStringVec&
 		"CONTENT_TYPE=",
 		"CONTENT_LENGTH=",
 		"PATH_INFO="
-	};	
-	
+	};
+
 	std::string value = req.get(); //TODO
 	if (value != ""){
 		std::string var = env_keys[SCRIPT_FILENAME] + value;
 		env_vec.push_back(var);
-		c_env_vec.push_back(var.c_str());}
-		
+	}
 	std::string value = req.get(); //TODO
 	if (value != ""){
 		std::string var = env_keys[QUERY_STRING] + value;
 		env_vec.push_back(var);
-		c_env_vec.push_back(var.c_str());}
-		
+	}
 	std::string value = req.getMethod(); //TODO
 	if (value != ""){
 		std::string var = env_keys[REQUEST_METHOD] + value;
 		env_vec.push_back(var);
-		c_env_vec.push_back(var.c_str());}
-		
+	}
 	std::string value = req.getHeader("content-type");
 	if (value != ""){
 		std::string var = env_keys[CONTENT_TYPE] + value;
 		env_vec.push_back(var);
-		c_env_vec.push_back(var.c_str());}
-		
+	}
 	std::string value = req.getHeader("content-type");
 	if (value != ""){
 		std::string var = env_keys[CONTENT_LENGTH] + value;
 		env_vec.push_back(var);
-		c_env_vec.push_back(var.c_str());}
-		
+	}
 	std::string value = req.get(); //TODO
 	if (value != ""){
 		std::string var = env_keys[PATH_INFO] + value;
 		env_vec.push_back(var);
-		c_env_vec.push_back(var.c_str());}
-
-
-	c_env_vec.push_back(nullptr);
+	}
 }
 
 void	CGIHandler::waitSubProcess(pid_t pid) {
