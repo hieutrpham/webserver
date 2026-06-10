@@ -15,30 +15,19 @@ int main(int ac, char **av) {
 		return 1;
 	}
 
-	ServerConfig config = ConfigParser::parse(av[1]);
-	if (config.is_empty()) {
-		ERR("Empty config! Configuration file not parsed correctly.\n\n");
+	ConfigVec config_vector = ConfigParser::parse(av[1]);
+	if (config_vector.empty()) {
+		ERR("Empty config vector! Configuration file not parsed correctly.\n\n");
 		return 1;
 	}
-	LOG(config.ip);
-	LOG(config.port);
-	LOG(config.server_name);
-	LOG(config.client_max_bodysize);
-	std::string	route_path = "/";
-	auto it = config.locations.find(route_path);
-	Location route = it->second;
-	LOG(route.root);
-	LOG(route.index);
-	LOG(route.autoindex);
-	LOG(route.methods.deny_all);
-	LOG(route.methods.except_allow[GET]);
-	LOG(route.methods.except_allow[POST]);
-	LOG(route.methods.except_allow[DELETE]);
-	LOG(route.allow_file_uploads);
-	LOG(route.upload_store);
+	//		EXAMPLE OF GETTING ONE OF THE LOCATIONS ON A SERVER, AND GETTING ITS ALIAS:
+	// ServerConfig first_config = config_vector.front();
+	// auto iterator = first_config.locations.find("/requested/path-uri");
+	// Location route = iterator->second;
+	// LOG(route.alias);
 		
 	try {
-		s = std::make_unique<Server>(config);
+		s = std::make_unique<Server>(config_vector.front());
 	} catch (std::exception& e) {
 		ERR(e.what());
 		return 1;

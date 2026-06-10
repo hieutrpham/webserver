@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/05 11:13:55 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/08 16:07:52 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,6 +50,7 @@ typedef enum e_dir_names {
 	SERVNAME,
 	ROOT,
 	INDEX,
+	ALIAS,
 	AUINDEX,
 	FILEUPLOADS,
 	UPLOADPATH,
@@ -67,7 +68,7 @@ class ConfigParser {
 
 	public:
 		//USER INTERFACE----------------------------------!!!
-		static ServerConfig	parse(std::string conf_fname);//!
+		static ConfigVec	parse(std::string conf_fname);//!
 		//------------------------------------------------!!!
 
 	private:
@@ -102,6 +103,7 @@ class ConfigParser {
 		static void		configPutServerName();
 		static void		configPutRoot();
 		static void		configPutIndex();
+		static void		configPutAlias();
 		static void		configPutAuindex();
 		static void		configPutFileUploads();
 		static void		configPutUploadStore();
