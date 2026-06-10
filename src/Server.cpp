@@ -101,7 +101,7 @@ static void requestDebugPrint(Request& request, ParseResult& result) {
 	std::cout << std::endl;
 } 
 
-void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, ServerConfig& config) {
+void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, ConfigVec& config_vector) {
 	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
 	int bytes = recv(fd, buf, sizeof(buf), 0);
@@ -146,7 +146,7 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Se
 			
 			requestDebugPrint(request, result);
 	
-			Response response = ResponseBuilder::buildResponse(request, config);
+			Response response = ResponseBuilder::buildResponse(request, config_vector);
 
 			// Temporary hardcoded response just to display that everything still works
 			// Remove once buildResponse() is capable of building a response!
