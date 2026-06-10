@@ -10,6 +10,10 @@ void Request::setTarget(const std::string& target) {
 	_target = target;
 }
 
+void Request::setQueryParam(const std::string& key, const std::string& value) {
+	_queryParams[key] = value;
+}
+
 void Request::setVersion(const std::string& version) {
 	_version = version;
 }
@@ -28,6 +32,10 @@ const std::string& Request::getMethod() const {
 
 const std::string& Request::getTarget() const {
 	return (_target);
+}
+
+const std::map<std::string, std::string>& Request::getQueryParams() const {
+	return (_queryParams);
 }
 
 const std::string& Request::getVersion() const {
