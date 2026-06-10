@@ -4,23 +4,7 @@
 #include "Server.hpp"
 #include <iostream>
 
-bool is_server(int fd, std::vector<int>& fds)
-{
-	for (auto i_fd : fds)
-	{
-		if (i_fd == fd)
-			return true;
-	}
-	return false;
-}
-
-void handler_sig_int(int sig) {
-	(void)sig;
-}
-
 int main(int ac, char **av) {
-	std::unique_ptr<Server> s;
-
 	if (ac != 2) {
 		ERR("Usage: ./webserv [config_file]");
 		return 1;
@@ -36,33 +20,21 @@ int main(int ac, char **av) {
 	// auto iterator = first_config.locations.find("/requested/path-uri");
 	// Location route = iterator->second;
 	// LOG(route.alias);
-		
+
+	std::unique_ptr<Server> s;
 	try {
 		s = std::make_unique<Server>(config_vector);
 	} catch (std::exception& e) {
 		ERR(e.what());
 		return 1;
 	}
-
-	for (auto c : s->getConfigs())
-		std::cout << "Listening on: " << c.ip << ":" << c.port << std::endl;
+	s->print_endpoints();
 
 	std::vector<struct pollfd> poll_fds;
 	poll_fds.reserve(16);
+	s->add_serverfds(poll_fds);
 
-	// add the server to the poll fds array
-	for (auto fd : s->getServerFd())
-	{
-		poll_fds.emplace_back((struct pollfd){.fd = fd, .events = POLLIN, .revents = 0});
-	}
-
-	// signal handler
-	struct sigaction sa;
-	sa.sa_flags = SA_SIGINFO;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_handler = handler_sig_int;
-	if (sigaction(SIGINT, &sa, NULL) < 0)
-		ERR("sigaction");
+	struct sigaction sa = signal_handler();
 
 	int ready;
 	while (true) {
@@ -77,7 +49,7 @@ int main(int ac, char **av) {
 		// iterate the poll fds array to check if there are anything new to read
 		for (auto pfd : poll_fds) {
 			if (pfd.revents & (POLLIN | POLLHUP)) {
-				if (is_server(pfd.fd, s->getServerFd())) {// new connection
+				if (s->is_server(pfd.fd)) {// new connection
 					try {
 						s->handle_new_connection(poll_fds, pfd.fd);
 					} catch (std::exception &e) {
@@ -94,4 +66,21 @@ int main(int ac, char **av) {
 		LOG("closing fd");
 		close(pfd.fd);
 	}
+}
+
+struct sigaction signal_handler()
+{
+	// signal handler
+	struct sigaction sa;
+	sa.sa_flags = SA_SIGINFO;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = handler_sig_int;
+	if (sigaction(SIGINT, &sa, NULL) < 0)
+		ERR("sigaction");
+	return sa;
+}
+
+void handler_sig_int(int sig)
+{
+	(void)sig;
 }

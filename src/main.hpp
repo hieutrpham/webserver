@@ -36,3 +36,5 @@
 #define ERR(msg) (std::cerr << RED "ERR: " RESET << (msg) \
 	<< "--" << __FILE__ << ":" << __LINE__ << std::endl)
 
+void handler_sig_int(int sig);
+struct sigaction signal_handler();

@@ -9,8 +9,6 @@
 #include <cmath>
 #include "ResponseBuilder.hpp"
 
-Server::Server() {}
-
 Server::Server(ConfigVec &configs) : m_configs(configs)
 {
 #ifdef DEBUG
@@ -23,7 +21,7 @@ Server::Server(ConfigVec &configs) : m_configs(configs)
 		if (config.fd < 0)
 			throw std::runtime_error("ERR: socket creation failed\n");
 
-		m_server_fd.push_back(config.fd);
+		m_server_fds.push_back(config.fd);
 		// configuring the address
 		struct in_addr addr;
 		if (!inet_aton(config.ip.c_str(), &addr))
@@ -49,16 +47,6 @@ Server::Server(ConfigVec &configs) : m_configs(configs)
 		int yes = 1;
 		setsockopt(config.fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(config.address));
 	}
-}
-
-std::vector<int>& Server::getServerFd()
-{
-	return m_server_fd;
-}
-
-ConfigVec& Server::getConfigs()
-{
-	return m_configs;
 }
 
 void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
@@ -154,5 +142,29 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 			if (send(fd, response_body.c_str(), response_body.length(), 0) < 0)
 				ERR(strerror(errno));
 		}
+	}
+}
+
+bool Server::is_server(int fd)
+{
+	for (auto i_fd : m_server_fds)
+	{
+		if (i_fd == fd)
+			return true;
+	}
+	return false;
+}
+
+void Server::print_endpoints()
+{
+	for (auto c : m_configs)
+		std::cout << "Listening on: " << c.ip << ":" << c.port << std::endl;
+}
+
+void Server::add_serverfds(std::vector<struct pollfd>& poll_fds)
+{
+	for (auto fd : m_server_fds)
+	{
+		poll_fds.emplace_back((struct pollfd){.fd = fd, .events = POLLIN, .revents = 0});
 	}
 }

@@ -35,15 +35,13 @@ enum HttpStatus {
 class Server {
 private:
 	ConfigVec m_configs;
-	std::vector<int> m_server_fd;
 	std::map<int, std::string> m_clientBuffers; // Per-client buffer
 public:
-	Server();
+	std::vector<int> m_server_fds;
 	Server(ConfigVec &);
-	Server(const Server&);
-	Server& operator=(const Server&);
 	void handle_client_data(std::vector<struct pollfd>&, int, ConfigVec&);
-	ConfigVec& getConfigs();
 	void handle_new_connection(std::vector<struct pollfd>&, int);
-	std::vector<int>& getServerFd();
+	bool is_server(int fd);
+	void print_endpoints();
+	void add_serverfds(std::vector<struct pollfd>& poll_fds);
 };
