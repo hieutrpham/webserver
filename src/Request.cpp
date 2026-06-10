@@ -10,6 +10,10 @@ void Request::setTarget(const std::string& target) {
 	_target = target;
 }
 
+void Request::setPath(const std::string& path) {
+	_path = path;
+}
+
 void Request::setQueryParam(const std::string& key, const std::string& value) {
 	_queryParams[key] = value;
 }
@@ -32,6 +36,10 @@ const std::string& Request::getMethod() const {
 
 const std::string& Request::getTarget() const {
 	return (_target);
+}
+
+const std::string& Request::getPath() const {
+	return (_path);
 }
 
 const std::map<std::string, std::string>& Request::getQueryParams() const {
