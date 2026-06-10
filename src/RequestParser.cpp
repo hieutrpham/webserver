@@ -65,8 +65,43 @@ ParseResult RequestParser::parseRequestLine(const std::string& rawBuffer, Reques
 	if (version != "HTTP/1.1")
 		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_HTTP_VERSION_NOT_SUPPORTED});
 
+	std::string path = target;
+		
+	// If target includes queries, parse them.
+	size_t queryStart = target.find('?');
+	if (queryStart != std::string::npos) {
+		// Remove query section from path.
+		path = target.substr(0, queryStart);
+
+		std::string queryStr = target.substr(queryStart + 1);
+
+		std::istringstream stream(queryStr);
+		std::string pair;
+		
+		while (std::getline(stream, pair, '&')) {
+			if (pair.empty())
+				continue ;
+
+			size_t equal = pair.find('=');
+
+			// Query param without value
+			if (equal == std::string::npos) {
+				request.setQueryParam(pair, "");
+				continue ; 
+			}
+
+			// Key + value
+			std::string key = pair.substr(0, equal);
+			std::string value = pair.substr(equal + 1);
+
+			if (!key.empty())
+				request.setQueryParam(key, value);
+		}
+	}
+
 	request.setMethod(method);
 	request.setTarget(target);
+	request.setPath(path);
 	request.setVersion(version);
 
 	return ((ParseResult){PARSE_COMPLETE, HTTP_OK});
