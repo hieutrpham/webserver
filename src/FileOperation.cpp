@@ -6,13 +6,15 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/25 15:16:02 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/04 10:54:11 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/08 15:56:06 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "FileOperation.hpp"
+#include "main.hpp"
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 
 //FILE OPERATION INTERFACE-------------------------
 void   FileOperation::openInFStream(std::ifstream& in, std::string in_fname) {
@@ -27,6 +29,10 @@ void   FileOperation::openOutFStream(std::ofstream& out, std::string out_fname) 
     if (!out.is_open()) {
         throw FileException("Error: Could not open output file " + out_fname);
     }
+}
+
+void   FileOperation::changeDir(std::string destination) {
+	std::filesystem::current_path(destination);
 }
 //--------------------------------------------------
 
