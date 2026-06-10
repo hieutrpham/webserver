@@ -11,71 +11,63 @@
 
 Server::Server() {}
 
-Server::Server(ServerConfig &config)
+Server::Server(ConfigVec &configs) : m_configs(configs)
 {
 #ifdef DEBUG
 	LOG("server constructed");
 #endif //  DEBUG
 
-	m_ip = config.ip;
-	m_port = config.port;
-	m_fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (m_fd < 0)
-		throw std::runtime_error("ERR: socket creation failed\n");
+	for (auto config : configs)
+	{
+		config.fd = socket(AF_INET, SOCK_STREAM, 0);
+		if (config.fd < 0)
+			throw std::runtime_error("ERR: socket creation failed\n");
 
-	// configuring the address
-	in_addr_t addr = inet_addr(m_ip.c_str());
-	m_address.sin_family = AF_INET;
-	m_address.sin_addr.s_addr = addr;
-	m_address.sin_port = htons(m_port);
-	memset(m_address.sin_zero, 0, sizeof(m_address.sin_zero));
+		m_server_fd.push_back(config.fd);
+		// configuring the address
+		struct in_addr addr;
+		if (!inet_aton(config.ip.c_str(), &addr))
+			throw std::runtime_error("ERR: inet_aton");
 
-	// bind fd to the address created
-	if (bind(m_fd, (struct sockaddr*)&m_address, sizeof(m_address)) < 0) {
-		close(m_fd);
-		ERR(strerror(errno));
-		throw std::runtime_error("ERR: bind failed\n");
+		config.address.sin_family = AF_INET;
+		config.address.sin_addr.s_addr = addr.s_addr;
+		config.address.sin_port = htons(config.port);
+		memset(config.address.sin_zero, 0, sizeof(config.address.sin_zero));
+
+		// bind fd to the address created
+		if (bind(config.fd, (struct sockaddr*)&config.address, sizeof(config.address)) < 0) {
+			close(config.fd);
+			ERR(strerror(errno));
+			throw std::runtime_error("ERR: bind failed\n");
+		}
+
+		if (listen(config.fd, 69) < 0) {
+			close(config.fd);
+			ERR(strerror(errno));
+			throw std::runtime_error("ERR: listen failed\n");
+		}
+		int yes = 1;
+		setsockopt(config.fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(config.address));
 	}
-
-	if (listen(m_fd, 69) < 0) {
-		close(m_fd);
-		ERR(strerror(errno));
-		throw std::runtime_error("ERR: listen failed\n");
-	}
-
-	int yes = 1;
-	setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(m_address));
 }
 
-Server::~Server()
+std::vector<int>& Server::getServerFd()
 {
-#ifdef DEBUG
-	LOG("server destructed");
-#endif // DEBUG
-	close(m_fd);
+	return m_server_fd;
 }
 
-int Server::get_fd() const
+ConfigVec& Server::getConfigs()
 {
-	return m_fd;
+	return m_configs;
 }
 
-const std::string& Server::get_ip() const
+void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 {
-	return m_ip;
-}
-
-uint Server::get_port() const
-{
-	return m_port;
-}
-
-void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds) {
 	int new_socket;
 	socklen_t addr_len;
 	sockaddr_in addr;
 
-	if ((new_socket = accept(m_fd, (sockaddr *)&addr, &addr_len)) < 0) {
+	if ((new_socket = accept(fd, (sockaddr *)&addr, &addr_len)) < 0) {
 		close(new_socket);
 		ERR(strerror(errno));
 		throw std::runtime_error("ERR: unacceptable\n");
@@ -128,7 +120,7 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 				LOG("Request parse incomplete...");
 				return ;
 			}
-		
+
 			// Malformed request, clear buffer and close connection.
 			if (result.status == PARSE_BAD_REQUEST) {
 				LOG("Bad request");
@@ -143,7 +135,6 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 			LOG("Request succesfully parsed.");
 			// Remove only the bytes that belonged to the parsed requeest.
 			m_clientBuffers[fd].erase(0, result.bytesConsumed);		
-			
 			requestDebugPrint(request, result);
 	
 			Response response = ResponseBuilder::buildResponse(request, config_vector);

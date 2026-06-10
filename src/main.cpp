@@ -2,6 +2,17 @@
 #include "ConfigParser.hpp"
 #include "ServerConfig.hpp"
 #include "Server.hpp"
+#include <iostream>
+
+bool is_server(int fd, std::vector<int>& fds)
+{
+	for (auto i_fd : fds)
+	{
+		if (i_fd == fd)
+			return true;
+	}
+	return false;
+}
 
 void handler_sig_int(int sig) {
 	(void)sig;
@@ -27,20 +38,25 @@ int main(int ac, char **av) {
 	// LOG(route.alias);
 		
 	try {
-		s = std::make_unique<Server>(config_vector.front());
+		s = std::make_unique<Server>(config_vector);
 	} catch (std::exception& e) {
 		ERR(e.what());
 		return 1;
 	}
 
-	std::cout << "Listening on: " << s->get_ip() << ":" << s->get_port() << std::endl;
+	for (auto c : s->getConfigs())
+		std::cout << "Listening on: " << c.ip << ":" << c.port << std::endl;
 
 	std::vector<struct pollfd> poll_fds;
 	poll_fds.reserve(16);
 
 	// add the server to the poll fds array
-	poll_fds.emplace_back((struct pollfd){.fd = s->get_fd(), .events = POLLIN, .revents = 0});
+	for (auto fd : s->getServerFd())
+	{
+		poll_fds.emplace_back((struct pollfd){.fd = fd, .events = POLLIN, .revents = 0});
+	}
 
+	// signal handler
 	struct sigaction sa;
 	sa.sa_flags = SA_SIGINFO;
 	sigemptyset(&sa.sa_mask);
@@ -61,9 +77,9 @@ int main(int ac, char **av) {
 		// iterate the poll fds array to check if there are anything new to read
 		for (auto pfd : poll_fds) {
 			if (pfd.revents & (POLLIN | POLLHUP)) {
-				if (pfd.fd == poll_fds[0].fd) {// new connection
+				if (is_server(pfd.fd, s->getServerFd())) {// new connection
 					try {
-						s->handle_new_connection(poll_fds);
+						s->handle_new_connection(poll_fds, pfd.fd);
 					} catch (std::exception &e) {
 						ERR(e.what());
 						break;
