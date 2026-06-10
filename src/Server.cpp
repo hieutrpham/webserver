@@ -7,6 +7,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <cmath>
+#include "ResponseBuilder.hpp"
 
 Server::Server() {}
 
@@ -100,7 +101,7 @@ static void requestDebugPrint(Request& request, ParseResult& result) {
 	std::cout << std::endl;
 } 
 
-void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
+void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, ConfigVec& config_vector) {
 	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
 	int bytes = recv(fd, buf, sizeof(buf), 0);
@@ -145,11 +146,22 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 			
 			requestDebugPrint(request, result);
 	
-      Response response(request);
-	  	std::string response_body = response.getResponseBody();
+			Response response = ResponseBuilder::buildResponse(request, config_vector);
 
-		  if (send(fd, response_body.c_str(), response_body.length(), 0) < 0)
-			  ERR(strerror(errno));
+			// Temporary hardcoded response just to display that everything still works
+			// Remove once buildResponse() is capable of building a response!
+			response.setStatus(200, "OK");
+			response.setBody(
+				"HTTP/1.1 200 OK\r\n"
+				"Content-Type: text/html\r\n"
+				"Content-Length: 92\r\n"
+				"\r\n"
+				"<html><body><h1>webserv is alive</h1><p>This is a hardcoded response.</p></body></html>"
+			);
+
+			std::string response_body = response.getResponseBody();
+			if (send(fd, response_body.c_str(), response_body.length(), 0) < 0)
+				ERR(strerror(errno));
 		}
 	}
 }
