@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/05 15:40:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/09 15:55:20 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/10 12:25:56 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -62,6 +62,7 @@ class CGIHandler {
 
 		void	execSubProcess(Request& req, Pipe& pipe);
 		void	waitSubProcess(pid_t pid);
+		char**	loadEnvp(Request& req, StringVec& env_vec, CStringVec& c_env_vec);
 		void	buildEnvVariables(Request& req, StringVec& env_vec);
 		
 	public:

@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/05 15:40:06 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/09 16:00:02 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/10 12:25:54 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,19 +57,27 @@ std::string	CGIHandler::executeCGI(Request& req) {
 		
 //env_cont: Environment container keeps the data in the correct stack scope,
 // so that the c-style pointers are not left dangling.
+// GIVES  EXECVE:
+//	the script path: from config_file+request_URI
+//	the arg: request body
+//	the envp: parsed together from request parser
 void	CGIHandler::execSubProcess(Request& req, Pipe& pipe) {
 	StringVec		env_vec{};
 	CStringVec		c_env_vec{};
 
+	char** envp = loadEnvp(req, env_vec, c_env_vec);
+	if (dup2(pipe[1], STDOUT_FILENO) == -1)
+		throw Dup2Exception("dup2exception");
+	pipe.closeRead();
+	execve("test.php", nullptr, envp);
+}
+
+char**	CGIHandler::loadEnvp(Request& req, StringVec& env_vec, CStringVec& c_env_vec) {
 	buildEnvVariables(req, env_vec);
 	for (const std::string& s : env_vec)
 		c_env_vec.push_back(const_cast<char*>(s.c_str()));
 	c_env_vec.push_back(nullptr);
-	
-	if (dup2(pipe[1], STDOUT_FILENO) == -1)
-		throw Dup2Exception("dup2exception");
-	pipe.closeRead();
-	execve("test.php", nullptr, c_env_vec.data());
+	return c_env_vec.data();
 }
 
 void	CGIHandler::buildEnvVariables(Request& req, StringVec& env_vec) {
@@ -82,33 +90,34 @@ void	CGIHandler::buildEnvVariables(Request& req, StringVec& env_vec) {
 		"PATH_INFO="
 	};
 
+	//LOOPIFY ONCE THE GETTER FUNCTIONS ARE KNOWN (if the function signatures support a funptr array)
 	std::string value = req.get(); //TODO
-	if (value != ""){
+	if (value != "") {
 		std::string var = env_keys[SCRIPT_FILENAME] + value;
 		env_vec.push_back(var);
 	}
-	std::string value = req.get(); //TODO
-	if (value != ""){
+	value = req.get(); //TODO
+	if (value != "") {
 		std::string var = env_keys[QUERY_STRING] + value;
 		env_vec.push_back(var);
 	}
-	std::string value = req.getMethod(); //TODO
-	if (value != ""){
+	value = req.getMethod();
+	if (value != "") {
 		std::string var = env_keys[REQUEST_METHOD] + value;
 		env_vec.push_back(var);
 	}
-	std::string value = req.getHeader("content-type");
-	if (value != ""){
+	value = req.getHeader("content-type");
+	if (value != "") {
 		std::string var = env_keys[CONTENT_TYPE] + value;
 		env_vec.push_back(var);
 	}
-	std::string value = req.getHeader("content-type");
-	if (value != ""){
+	value = req.getHeader("content-length");
+	if (value != "") {
 		std::string var = env_keys[CONTENT_LENGTH] + value;
 		env_vec.push_back(var);
 	}
-	std::string value = req.get(); //TODO
-	if (value != ""){
+	value = req.get(); //TODO
+	if (value != "") {
 		std::string var = env_keys[PATH_INFO] + value;
 		env_vec.push_back(var);
 	}
