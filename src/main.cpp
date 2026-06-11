@@ -83,8 +83,11 @@ int main(int ac, char **av) {
 				} else {// handle client data
 					s->handle_client_data(poll_fds, pfd.fd);
 				}
+				//if fd was cgi pipe_out
+					waitSubProcess(); //reap child
+					//handleCgiOuput()  build response object
 			}
-		}waitSubProcess();
+		}
 	}
 	for (auto pfd : poll_fds) {
 		LOG("closing fd");
