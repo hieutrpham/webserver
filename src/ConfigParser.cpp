@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/11 12:41:38 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/11 12:50:52 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -141,6 +141,9 @@ bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
 		else if (matches_[14].matched) {
 			directive_name_ = matches_[14];
 		}
+		else if (matches_[16].matched) {
+			directive_name_ = matches_[16];
+		}
 		return true;
 	}
 	return false;
@@ -154,7 +157,8 @@ void	ConfigParser::configPutValue() {
 	static constexpr std::string_view	directive_names[DIR_COUNT] = {
 		"listen", "client_max_body_size", "error_page", 
 		"server_name", "root", "index", "alias",
-		"autoindex", "file_uploads", "upload_store"
+		"autoindex", "file_uploads", "upload_store",
+		"return", "cgi_script"
 	};
 	t_dir_names		dir_name = DIR_COUNT;
 
@@ -183,6 +187,10 @@ void	ConfigParser::configPutValue() {
 			return configPutFileUploads();
 		case UPLOADPATH:
 			return configPutUploadStore();
+		case RETURN:
+			//return configPutRedirection();
+		case CGISCRIPT:
+			//return configPutCGIPath();
 		default:
 			throw ContentException(ERR_DIR);
 	}

@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/08 16:07:52 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/11 12:48:59 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -54,6 +54,8 @@ typedef enum e_dir_names {
 	AUINDEX,
 	FILEUPLOADS,
 	UPLOADPATH,
+	RETURN,
+	CGISCRIPT,
 	DIR_COUNT
 }	t_dir_names;
 
