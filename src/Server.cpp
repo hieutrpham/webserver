@@ -137,7 +137,7 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 				"Content-Type: text/html\r\n"
 				"Content-Length: 92\r\n"
 				"\r\n"
-				"<html><body><h1>webserv is alive</h1><p>This is a hardcoded response.</p></body></html>"
+				"<html><body><h1>webserv is alive</h1><p>This is a hardcoded response.</p></body></html>\r\n\r\n"
 			);
 
 			std::string response_body = response.getResponseBody();
