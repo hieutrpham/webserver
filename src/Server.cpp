@@ -88,13 +88,7 @@ static void requestDebugPrint(Request& request, ParseResult& result) {
 	std::cout << "METHOD: " << request.getMethod() << std::endl;
 	std::cout << "TARGET: " << request.getTarget() << std::endl;
 	std::cout << "PATH: " << request.getPath() << std::endl;
-	std::cout << "QUERY PARAMS: " << std::endl;
-	for (const auto& query : request.getQueryParams()) {
-		std::cout << query.first
-				<< ": "
-				<< query.second
-				<< std::endl;
-	}
+	std::cout << "QUERY: " << request.getQuery() << std::endl;
 	std::cout << "VERSION: " << request.getVersion() << std::endl;
 	std::cout << "HEADERS:" << std::endl;
 	for (const auto& header : request.getHeaders()) {

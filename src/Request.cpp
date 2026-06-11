@@ -14,8 +14,8 @@ void Request::setPath(const std::string& path) {
 	_path = path;
 }
 
-void Request::setQueryParam(const std::string& key, const std::string& value) {
-	_queryParams[key] = value;
+void Request::setQuery(const std::string& query) {
+	_query = query;
 }
 
 void Request::setVersion(const std::string& version) {
@@ -42,8 +42,8 @@ const std::string& Request::getPath() const {
 	return (_path);
 }
 
-const std::map<std::string, std::string>& Request::getQueryParams() const {
-	return (_queryParams);
+const std::string& Request::getQuery() const {
+	return (_query);
 }
 
 const std::string& Request::getVersion() const {
