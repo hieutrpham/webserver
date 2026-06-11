@@ -10,6 +10,14 @@ void Request::setTarget(const std::string& target) {
 	_target = target;
 }
 
+void Request::setPath(const std::string& path) {
+	_path = path;
+}
+
+void Request::setQuery(const std::string& query) {
+	_query = query;
+}
+
 void Request::setVersion(const std::string& version) {
 	_version = version;
 }
@@ -28,6 +36,14 @@ const std::string& Request::getMethod() const {
 
 const std::string& Request::getTarget() const {
 	return (_target);
+}
+
+const std::string& Request::getPath() const {
+	return (_path);
+}
+
+const std::string& Request::getQuery() const {
+	return (_query);
 }
 
 const std::string& Request::getVersion() const {

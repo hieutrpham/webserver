@@ -7,74 +7,55 @@
 #include <iostream>
 #include <stdexcept>
 #include <cmath>
+#include "ResponseBuilder.hpp"
 
-Server::Server() {}
-
-Server::Server(ServerConfig &config)
+Server::Server(ConfigVec &configs) : m_configs(configs)
 {
 #ifdef DEBUG
 	LOG("server constructed");
 #endif //  DEBUG
 
-	m_ip = config.ip;
-	m_port = config.port;
-	m_fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (m_fd < 0)
-		throw std::runtime_error("ERR: socket creation failed\n");
+	for (auto config : configs)
+	{
+		config.fd = socket(AF_INET, SOCK_STREAM, 0);
+		if (config.fd < 0)
+			throw std::runtime_error("ERR: socket creation failed\n");
 
-	// configuring the address
-	in_addr_t addr = inet_addr(m_ip.c_str());
-	m_address.sin_family = AF_INET;
-	m_address.sin_addr.s_addr = addr;
-	m_address.sin_port = htons(m_port);
-	memset(m_address.sin_zero, 0, sizeof(m_address.sin_zero));
+		m_server_fds.push_back(config.fd);
+		// configuring the address
+		struct in_addr addr;
+		if (!inet_aton(config.ip.c_str(), &addr))
+			throw std::runtime_error("ERR: inet_aton");
 
-	// bind fd to the address created
-	if (bind(m_fd, (struct sockaddr*)&m_address, sizeof(m_address)) < 0) {
-		close(m_fd);
-		ERR(strerror(errno));
-		throw std::runtime_error("ERR: bind failed\n");
+		config.address.sin_family = AF_INET;
+		config.address.sin_addr.s_addr = addr.s_addr;
+		config.address.sin_port = htons(config.port);
+		memset(config.address.sin_zero, 0, sizeof(config.address.sin_zero));
+
+		// bind fd to the address created
+		if (bind(config.fd, (struct sockaddr*)&config.address, sizeof(config.address)) < 0) {
+			close(config.fd);
+			ERR(strerror(errno));
+			throw std::runtime_error("ERR: bind failed\n");
+		}
+
+		if (listen(config.fd, 69) < 0) {
+			close(config.fd);
+			ERR(strerror(errno));
+			throw std::runtime_error("ERR: listen failed\n");
+		}
+		int yes = 1;
+		setsockopt(config.fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(config.address));
 	}
-
-	if (listen(m_fd, 69) < 0) {
-		close(m_fd);
-		ERR(strerror(errno));
-		throw std::runtime_error("ERR: listen failed\n");
-	}
-
-	int yes = 1;
-	setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(m_address));
 }
 
-Server::~Server()
+void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 {
-#ifdef DEBUG
-	LOG("server destructed");
-#endif // DEBUG
-	close(m_fd);
-}
-
-int Server::get_fd() const
-{
-	return m_fd;
-}
-
-const std::string& Server::get_ip() const
-{
-	return m_ip;
-}
-
-uint Server::get_port() const
-{
-	return m_port;
-}
-
-void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds) {
 	int new_socket;
 	socklen_t addr_len;
 	sockaddr_in addr;
 
-	if ((new_socket = accept(m_fd, (sockaddr *)&addr, &addr_len)) < 0) {
+	if ((new_socket = accept(fd, (sockaddr *)&addr, &addr_len)) < 0) {
 		close(new_socket);
 		ERR(strerror(errno));
 		throw std::runtime_error("ERR: unacceptable\n");
@@ -87,6 +68,8 @@ static void requestDebugPrint(Request& request, ParseResult& result) {
 	std::cout << "\nHTTP RESULT: " << result.httpStatus << std::endl;
 	std::cout << "METHOD: " << request.getMethod() << std::endl;
 	std::cout << "TARGET: " << request.getTarget() << std::endl;
+	std::cout << "PATH: " << request.getPath() << std::endl;
+	std::cout << "QUERY: " << request.getQuery() << std::endl;
 	std::cout << "VERSION: " << request.getVersion() << std::endl;
 	std::cout << "HEADERS:" << std::endl;
 	for (const auto& header : request.getHeaders()) {
@@ -100,7 +83,7 @@ static void requestDebugPrint(Request& request, ParseResult& result) {
 	std::cout << std::endl;
 } 
 
-void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
+void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, ConfigVec& config_vector) {
 	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
 	int bytes = recv(fd, buf, sizeof(buf), 0);
@@ -127,7 +110,7 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 				LOG("Request parse incomplete...");
 				return ;
 			}
-		
+
 			// Malformed request, clear buffer and close connection.
 			if (result.status == PARSE_BAD_REQUEST) {
 				LOG("Bad request");
@@ -142,14 +125,48 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd) {
 			LOG("Request succesfully parsed.");
 			// Remove only the bytes that belonged to the parsed requeest.
 			m_clientBuffers[fd].erase(0, result.bytesConsumed);		
-			
 			requestDebugPrint(request, result);
 	
-      Response response(request);
-	  	std::string response_body = response.getResponseBody();
+			Response response = ResponseBuilder::buildResponse(request, config_vector);
 
-		  if (send(fd, response_body.c_str(), response_body.length(), 0) < 0)
-			  ERR(strerror(errno));
+			// Temporary hardcoded response just to display that everything still works
+			// Remove once buildResponse() is capable of building a response!
+			response.setStatus(200, "OK");
+			response.setBody(
+				"HTTP/1.1 200 OK\r\n"
+				"Content-Type: text/html\r\n"
+				"Content-Length: 92\r\n"
+				"\r\n"
+				"<html><body><h1>webserv is alive</h1><p>This is a hardcoded response.</p></body></html>\r\n\r\n"
+			);
+
+			std::string response_body = response.getResponseBody();
+			if (send(fd, response_body.c_str(), response_body.length(), 0) < 0)
+				ERR(strerror(errno));
 		}
+	}
+}
+
+bool Server::is_server(int fd)
+{
+	for (auto i_fd : m_server_fds)
+	{
+		if (i_fd == fd)
+			return true;
+	}
+	return false;
+}
+
+void Server::print_endpoints()
+{
+	for (auto c : m_configs)
+		std::cout << "Listening on: " << c.ip << ":" << c.port << std::endl;
+}
+
+void Server::add_serverfds(std::vector<struct pollfd>& poll_fds)
+{
+	for (auto fd : m_server_fds)
+	{
+		poll_fds.emplace_back((struct pollfd){.fd = fd, .events = POLLIN, .revents = 0});
 	}
 }

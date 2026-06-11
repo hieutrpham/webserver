@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "main.hpp"
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -43,12 +44,14 @@ using LocationMap = std::unordered_map<std::string, Location>;
 using ErrPageMap = std::unordered_map<unsigned, std::string>;
 
 struct ServerConfig {
-	std::string		ip = "";
-	unsigned		port = 0;
-	std::string		server_name = "";
-	unsigned		client_max_bodysize = 4000;
-	ErrPageMap		error_pages = {};
-	LocationMap		locations = {};
+	std::string		   ip = "";
+	unsigned		   port = 0;
+	std::string		   server_name = "";
+	unsigned		   client_max_bodysize = 4000;
+	ErrPageMap		   error_pages = {};
+	LocationMap		   locations = {};
+	int                fd;
+	struct sockaddr_in address;
 	
 	bool		is_filled = false;
 	bool		is_empty();

@@ -1,5 +1,6 @@
 #pragma once
 #include "ConfigParser.hpp"
+#include "ServerConfig.hpp"
 #include "main.hpp"
 #include <map>
 #include "Request.hpp"
@@ -33,20 +34,14 @@ enum HttpStatus {
 
 class Server {
 private:
-	int m_fd;
-	struct sockaddr_in m_address;
-	std::string m_ip;
-	uint m_port;
+	ConfigVec m_configs;
 	std::map<int, std::string> m_clientBuffers; // Per-client buffer
 public:
-	Server();
-	Server(ServerConfig &);
-	~Server();
-	Server(const Server&);
-	Server& operator=(const Server&);
-	int get_fd() const;
-	const std::string& get_ip() const;
-	uint get_port() const;
-	void handle_new_connection(std::vector<struct pollfd>&);
-	void handle_client_data(std::vector<struct pollfd>&, int);
+	std::vector<int> m_server_fds;
+	Server(ConfigVec &);
+	void handle_client_data(std::vector<struct pollfd>&, int, ConfigVec&);
+	void handle_new_connection(std::vector<struct pollfd>&, int);
+	bool is_server(int fd);
+	void print_endpoints();
+	void add_serverfds(std::vector<struct pollfd>& poll_fds);
 };
