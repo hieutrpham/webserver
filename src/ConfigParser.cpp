@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/08 16:10:14 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/11 12:41:38 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -400,6 +400,7 @@ void	ConfigParser::buildServerBEngine() {
 		R"(|(client_max_body_size)\s+(\d{1,7})([kmKM])?;\s*)"
 		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/\w{1,13}\.html);\s*)"
 		R"(|(server_name)\s+([^;]+);\s*)"
+		R"(|(return)\s+(30\d);\s*)"
 		R"(|()())"
 		R"(|()())"
 	};
@@ -419,7 +420,8 @@ void	ConfigParser::buildLocationBEngine() {
 		R"(|(autoindex)\s+(on|off);\s*())"
 		R"(|(file_uploads)\s+(yes|no);\s*)"
 		R"(|(upload_store)\s+(/[^;]+);\s*)"
-		R"(|(alias)\s+(/[^;]+);\s*)"
+		R"(|(return)\s+(30\d);\s*)"
+		R"(|(cgi_script)\s+(/[^;]);\s*)"
 	};
 	lhead_engine_ = std::regex(locah_pattern.data());
 	lblock_engine_ = std::regex(locab_pattern.data());
