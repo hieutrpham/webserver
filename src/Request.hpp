@@ -37,6 +37,3 @@ class Request {
 };
 
 #endif
-
-request.getHeader("content-length")
-

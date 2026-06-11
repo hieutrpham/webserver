@@ -61,7 +61,7 @@ int main(int ac, char **av) {
 					s->handle_client_data(poll_fds, pfd.fd, config_vector);
 				}
 				//if fd was cgi pipe_out
-					waitSubProcess(); //reap child
+					//waitSubProcess(); //reap child
 					//handleCgiOuput()  build response object
 			}
 		}
