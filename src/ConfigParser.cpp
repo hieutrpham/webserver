@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/11 12:50:52 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/11 16:38:45 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -393,8 +393,6 @@ void	ConfigParser::buildRegexEngines() {
 	buildServerBEngine();
 	buildLocationBEngine();
 	buildLimexEngine();
-	//TODO: CGI
-	//TODO: redirs
 }
 
 void	ConfigParser::buildServerBEngine() {
@@ -429,7 +427,8 @@ void	ConfigParser::buildLocationBEngine() {
 		R"(|(file_uploads)\s+(yes|no);\s*)"
 		R"(|(upload_store)\s+(/[^;]+);\s*)"
 		R"(|(return)\s+(30\d);\s*)"
-		R"(|(cgi_script)\s+(/[^;]);\s*)"
+		R"(|(cgi_path)\s+(/[^;]);\s*)" //not strictly necessary?
+		R"(|(cgi_ext)\s+(\.php);\s*)"
 	};
 	lhead_engine_ = std::regex(locah_pattern.data());
 	lblock_engine_ = std::regex(locab_pattern.data());
