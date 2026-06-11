@@ -60,9 +60,9 @@ int main(int ac, char **av) {
 				} else {// handle client data
 					s->handle_client_data(poll_fds, pfd.fd, config_vector);
 				}
-				//if fd was cgi pipe_out
-					//waitSubProcess(); //reap child
-					//handleCgiOuput()  build response object
+				//if fd was CGI.pipe_out (held by parent & after child has written to pipe_in):
+					//cgiobj.waitSubProcess()	//reap child
+					//cgiobj.handleCGIOuput()	//build response object
 			}
 		}
 	}

@@ -376,8 +376,6 @@ void	ConfigParser::buildRegexEngines() {
 	buildServerBEngine();
 	buildLocationBEngine();
 	buildLimexEngine();
-	//TODO: CGI
-	//TODO: redirs
 }
 
 void	ConfigParser::buildServerBEngine() {

@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/05 15:40:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/10 12:25:56 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/11 15:27:24 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -61,7 +61,6 @@ class CGIHandler {
 		ServerConfig	config_;
 
 		void	execSubProcess(Request& req, Pipe& pipe);
-		void	waitSubProcess(pid_t pid);
 		char**	loadEnvp(Request& req, StringVec& env_vec, CStringVec& c_env_vec);
 		void	buildEnvVariables(Request& req, StringVec& env_vec);
 		
@@ -72,9 +71,11 @@ class CGIHandler {
 		~CGIHandler();
 		CGIHandler&	operator=(const CGIHandler& other);
 
-		//INTERFACE--------------------------//
-		std::string	executeCGI(Request& req);//
-		//-----------------------------------//
+		//INTERFACE-----------------------------//
+		std::string	executeCGI(Request& req);	//
+		void		waitSubProcess(pid_t pid);	//
+		Response	handleCGIOutput();			//
+		//--------------------------------------//
 
 		ServerConfig	getConfig();
 

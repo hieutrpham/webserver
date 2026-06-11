@@ -2,6 +2,7 @@
 
 #include "CGIHandler.hpp"
 #include "Request.hpp"
+#include "Response.hpp"
 #include "FileOperation.hpp"
 #include <unistd.h>
 #include <sys/wait.h>
@@ -33,9 +34,6 @@ std::string	CGIHandler::executeCGI(Request& req) {
 	if (pid == 0)
 		execSubProcess(req, pipe);
 	pipe.closeWrite();
-	waitSubProcess(pid);
-	//readOuput();
-	//constructReponseObject();
 	return;
 }
 
@@ -88,7 +86,7 @@ void	CGIHandler::buildEnvVariables(Request& req, StringVec& env_vec) {
 		std::string var = env_keys[SCRIPT_FILENAME] + value;
 		env_vec.push_back(var);
 	}
-	value = req.get(); //TODO
+	value = req.getQuery();
 	if (value != "") {
 		std::string var = env_keys[QUERY_STRING] + value;
 		env_vec.push_back(var);
@@ -108,7 +106,7 @@ void	CGIHandler::buildEnvVariables(Request& req, StringVec& env_vec) {
 		std::string var = env_keys[CONTENT_LENGTH] + value;
 		env_vec.push_back(var);
 	}
-	value = req.get(); //TODO
+	value = req.getPathInfo();
 	if (value != "") {
 		std::string var = env_keys[PATH_INFO] + value;
 		env_vec.push_back(var);
@@ -124,6 +122,18 @@ void	CGIHandler::waitSubProcess(pid_t pid) {
 	else if (WIFSIGNALED(status))
 		throw CGIExecException("CGI subprocess terminated by signal");
 	throw CGIExecException("CGI subprocess error");
+}
+
+Response	CGIHandler::handleCGIOutput() {
+	Response	res{};
+
+	// res.m_version;		// Http version
+	// res.m_status_code;	// Http status code: 200, 404, etc.
+	// res.m_reason;		// OK, Not found, etc.
+	// res.m_response_body;
+	// res.headers;
+
+	return res;
 }
 
 ServerConfig	CGIHandler::getConfig() {
