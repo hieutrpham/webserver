@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/05 15:40:06 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/10 12:25:54 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/11 13:03:45 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,6 +44,8 @@ std::string	CGIHandler::executeCGI(Request& req) {
 		execSubProcess(req, pipe);
 	pipe.closeWrite();
 	waitSubProcess(pid);
+	//readOuput();
+	//constructReponseObject();
 	return;
 }
 

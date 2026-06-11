@@ -68,6 +68,7 @@ int main(int ac, char **av) {
 		if (ready < 0) {
 			break;
 		}
+		
 		LOG("got something new to read");
 		// iterate the poll fds array to check if there are anything new to read
 		for (auto pfd : poll_fds) {
@@ -83,7 +84,7 @@ int main(int ac, char **av) {
 					s->handle_client_data(poll_fds, pfd.fd);
 				}
 			}
-		}
+		}waitSubProcess();
 	}
 	for (auto pfd : poll_fds) {
 		LOG("closing fd");
