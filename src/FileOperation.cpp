@@ -6,7 +6,11 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/25 15:16:02 by jvalkama          #+#    #+#             */
+<<<<<<< HEAD
 /*   Updated: 2026/06/08 15:54:43 by jvalkama         ###   ########.fr       */
+=======
+/*   Updated: 2026/06/08 15:56:06 by jvalkama         ###   ########.fr       */
+>>>>>>> main
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,7 +38,10 @@ void   FileOperation::openOutFStream(std::ofstream& out, std::string out_fname) 
 void   FileOperation::changeDir(std::string destination) {
 	std::filesystem::current_path(destination);
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> main
 //--------------------------------------------------
 
 

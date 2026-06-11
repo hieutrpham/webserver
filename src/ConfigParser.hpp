@@ -1,14 +1,4 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   ConfigParser.hpp                                   :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/05/22 13:39:13 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/09 11:51:54 by jvalkama         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
+
 
 #pragma once
 
@@ -50,6 +40,7 @@ typedef enum e_dir_names {
 	SERVNAME,
 	ROOT,
 	INDEX,
+	ALIAS,
 	AUINDEX,
 	FILEUPLOADS,
 	UPLOADPATH,
@@ -102,6 +93,7 @@ class ConfigParser {
 		static void		configPutServerName();
 		static void		configPutRoot();
 		static void		configPutIndex();
+		static void		configPutAlias();
 		static void		configPutAuindex();
 		static void		configPutFileUploads();
 		static void		configPutUploadStore();
