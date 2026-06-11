@@ -11,7 +11,7 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 	
 	// Checks if the request is CGI
 	if (isCgi(request, config_vector))
-		return (handleCgi(request, config_vector));
+		return (handleCgi(request, config_vector)); // CGIHandler::executeCGI();
 
 	// Handles the method and returns a filled 'Response' object. 
 	if (request.getMethod() == "GET")
@@ -29,14 +29,14 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 bool ResponseBuilder::isCgi(Request& request, ConfigVec& config) {
     (void)request;
     (void)config;
-	// CGIHandler::executeCGI();
+	
     return false;
 }
 
 Response ResponseBuilder::handleCgi(Request& request, ConfigVec& config) {
     (void)request;
     (void)config;
-
+	
     Response response;
     return response;
 }
