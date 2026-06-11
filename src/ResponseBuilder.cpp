@@ -1,4 +1,5 @@
 #include "ResponseBuilder.hpp"
+#include "GetMethod.hpp"
 // #include "CGIHandler.hpp"
 
 Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
@@ -8,14 +9,14 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 	// match request target to the correct config location block
 
 	// Probably check if request parsing ran into error and build an error response here?
-	
+	ServerConfig server_config = getConfig(request, config_vector);
 	// Checks if the request is CGI
 	if (isCgi(request, config_vector))
 		return (handleCgi(request, config_vector));
 
 	// Handles the method and returns a filled 'Response' object. 
 	if (request.getMethod() == "GET")
-		return (handleGet(request, config_vector));
+		return (GetMethod::handleGet(request, server_config));
 
 	if (request.getMethod() == "POST")
 		return (handlePost(request, config_vector));
@@ -41,13 +42,13 @@ Response ResponseBuilder::handleCgi(Request& request, ConfigVec& config) {
     return response;
 }
 
-Response ResponseBuilder::handleGet(Request& request, ConfigVec& config) {
-    (void)request;
-    (void)config;
+// Response ResponseBuilder::handleGet(Request& request, ConfigVec& config) {
+//     (void)request;
+//     (void)config;
 
-    Response response;
-    return response;
-}
+//     Response response;
+//     return response;
+// }
 
 Response ResponseBuilder::handlePost(Request& request, ConfigVec& config) {
     (void)request;
@@ -73,3 +74,20 @@ Response ResponseBuilder::makeErrorResponse(Request& request, ConfigVec& config)
     return response;
 }
 
+ServerConfig ResponseBuilder::getConfig(const Request& request, const ConfigVec& config_vector)
+{
+	auto host = request.getHeaders().at("host");
+	auto sep = host.find(":");
+	auto ip = host.substr(0, sep);
+	auto port = std::stoul(host.substr(sep+1, host.npos));
+
+	ServerConfig server_config;
+	for (auto c : config_vector)
+	{
+		if (((ip == "localhost" && c.ip == "127.0.0.1") || c.ip == ip) && c.port == port)
+		{
+			server_config = c;
+		}
+	}
+	return server_config;
+}

@@ -10,13 +10,14 @@ class ResponseBuilder {
 	private:
 		static bool		isCgi(Request& request, ConfigVec& config);
 		static Response handleCgi(Request& request, ConfigVec& config);
-		static Response handleGet(Request& request, ConfigVec& config);
+		// static Response handleGet(Request& request, ConfigVec& config);
 		static Response handlePost(Request& request, ConfigVec& config);
 		static Response handleDelete(Request& request, ConfigVec& config);
 		static Response makeErrorResponse(Request& request, ConfigVec& config);
 
 	public:
 		static Response buildResponse(Request& request, ConfigVec& config);
+		static ServerConfig    getConfig(const Request& request, const ConfigVec& config_vector);
 };
 
 #endif
