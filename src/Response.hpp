@@ -16,7 +16,7 @@ class Response
 
 		std::string m_response_body;
 
-		std::map<std::string, std::string>	headers;
+		std::map<std::string, std::string>	m_headers;
 
 		// std::unordered_map<std::string, std::string> m_response_src = {
 		// 	{"/", HTML_SRC"index.html"},
@@ -29,4 +29,7 @@ class Response
 		void setVersion(const std::string& version);
 		void setStatus(int statusCode, const std::string& reason);
 		void setBody(const std::string& body);
+		void setHeader(const std::string& key, const std::string& value);
+
+		std::string serialize() const;
 };

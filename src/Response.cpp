@@ -1,5 +1,6 @@
 #include "Response.hpp"
 #include <iostream>
+#include <sstream>
 
 // Response::Response(const Request& request)
 // {
@@ -53,7 +54,40 @@ void Response::setBody(const std::string& body) {
 	m_response_body = body;
 }
 
+void Response::setHeader(const std::string& key, const std::string& value) {
+	m_headers[key] = value;
+}
+
 std::string Response::getResponseBody()
 {
 	return m_response_body;
+}
+
+std::string Response::serialize() const {
+	std::ostringstream out;
+
+	// Response line
+	out << m_version << " "
+		<< m_status_code << " "
+		<< m_reason << "\r\n";
+
+	bool has_content_length = false;
+
+	// Response headers
+	for (std::map<std::string, std::string>::const_iterator it = m_headers.begin();
+		it != m_headers.end();
+		it++) {
+		if (it->first == "content-length")
+			has_content_length = true;
+		
+		out << it->first << ": " << it->second << "\r\n";
+	}
+
+	if (!has_content_length)
+		out << "Content-Length: " << m_response_body.size() << "\r\n";
+
+	out << "\r\n";
+	out << m_response_body;
+
+	return (out.str());
 }
