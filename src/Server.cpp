@@ -129,9 +129,6 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 	
 			Response response = ResponseBuilder::buildResponse(request, config_vector);
 
-			// Temporary hardcoded response just to display that everything still works
-			// Remove once buildResponse() is capable of building a response!
-
 			std::string final_response = response.serialize();
 
 			std::cout << "RESPONSE: " << final_response << std::endl;
