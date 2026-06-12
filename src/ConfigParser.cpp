@@ -1,14 +1,4 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   ConfigParser.cpp                                   :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/11 16:39:52 by jvalkama         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
+
 
 #include "ConfigParser.hpp"
 #include "ServerConfig.hpp"
@@ -415,7 +405,7 @@ void	ConfigParser::buildServerBEngine() {
 		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/\w{1,13}\.html);\s*)"
 		R"(|(server_name)\s+([^;]+);\s*)"
 		R"(|()())"
-		R"(|(return)\s+(30\d)\s+([^;]+);\s*)"
+		R"(|()())"	//R"(|(return)\s+(30\d)\s+([^;]+);\s*)"
 		R"(|()())"
 	};
 	shead_engine_ = std::regex(servh_pattern.data());
