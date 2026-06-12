@@ -50,12 +50,11 @@ typedef enum e_dir_names {
 	SERVNAME,
 	ROOT,
 	INDEX,
-	ALIAS,
 	AUINDEX,
 	FILEUPLOADS,
 	UPLOADPATH,
 	RETURN,
-	CGISCRIPT,
+	CGI,
 	DIR_COUNT
 }	t_dir_names;
 
@@ -105,23 +104,25 @@ class ConfigParser {
 		static void		configPutServerName();
 		static void		configPutRoot();
 		static void		configPutIndex();
-		static void		configPutAlias();
 		static void		configPutAuindex();
 		static void		configPutFileUploads();
 		static void		configPutUploadStore();
+		static void		configPutRedirection();
+		static void		configPutCGIPath();
 
 		static void		configPutMethods();
 		static void		configPutLex();
 		
 		//HELPER FUNCTIONS
-		static void		initConfigObj();
-		static void		mapLocation();
-		static bool		isCommentOrWhitespace();
-		static int		trimPrecedingWS(std::string& str);
-		static void		openBracket();
-		static void		closeBracket();
-		static void		blockEnd();
-		static unsigned	uintConverter(std::string str);
+		static void			initConfigObj();
+		static void			mapLocation();
+		static bool			isCommentOrWhitespace();
+		static int			trimPrecedingWS(std::string& str);
+		static void			openBracket();
+		static void			closeBracket();
+		static void			blockEnd();
+		static unsigned		uintConverter(std::string str);
+		static std::string	parsePathParam(std::string path_param);
 
 		//REGEX INITS
 		static void		buildRegexEngines();
