@@ -131,17 +131,13 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 
 			// Temporary hardcoded response just to display that everything still works
 			// Remove once buildResponse() is capable of building a response!
+			response.setVersion("HTTP/1.1");
 			response.setStatus(200, "OK");
-			response.setBody(
-				"HTTP/1.1 200 OK\r\n"
-				"Content-Type: text/html\r\n"
-				"Content-Length: 92\r\n"
-				"\r\n"
-				"<html><body><h1>webserv is alive</h1><p>This is a hardcoded response.</p></body></html>\r\n\r\n"
-			);
+			response.setHeader("Content-Type", "text/html");
+			response.setBody("<html><body><h1>webserv is alive</h1><p>This is a serialized response.</p></body></html>");
 
-			std::string response_body = response.getResponseBody();
-			if (send(fd, response_body.c_str(), response_body.length(), 0) < 0)
+			std::string final_response = response.serialize();
+			if (send(fd, final_response.c_str(), final_response.size(), 0) < 0)
 				ERR(strerror(errno));
 		}
 	}
