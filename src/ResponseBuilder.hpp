@@ -18,6 +18,7 @@ class ResponseBuilder {
 
 	public:
 		static Response buildResponse(Request& request, ConfigVec& config);
+		
 };
 
 #endif
