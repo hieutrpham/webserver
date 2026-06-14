@@ -69,6 +69,12 @@ Response ResponseBuilder::makeErrorResponse(Request& request, ServerConfig& conf
     (void)config;
 
     Response response;
+
+	response.setBody("Server Error");
+	response.setVersion("HTTP/1.1");
+	response.setStatus(500, "Internal Server Error");
+	response.setHeader("Content-Type", "text/html");
+
     return response;
 }
 
