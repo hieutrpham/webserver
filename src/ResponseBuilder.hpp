@@ -15,10 +15,10 @@ class ResponseBuilder {
 		static Response        handleDelete(Request& request, ServerConfig& config);
 		static Response        makeErrorResponse(Request& request, ServerConfig& config);
 		static ServerConfig    getConfig(const Request& request, const ConfigVec& config_vector);
+		static Location        getLocation(const Request& request, const ServerConfig& config);
 
 	public:
 		static Response buildResponse(Request& request, ConfigVec& config);
-		
 };
 
 #endif

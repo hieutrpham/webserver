@@ -89,3 +89,19 @@ ServerConfig ResponseBuilder::getConfig(const Request& request, const ConfigVec&
 	}
 	return server_config;
 }
+
+Location ResponseBuilder::getLocation(const Request& request, const ServerConfig& config)
+{
+	auto target = request.getTarget();
+	Location location;
+
+	for (auto l : config.locations)
+	{
+		if (target == l.first)
+		{
+			location = l.second;
+		}
+	}
+
+	return location;
+}
