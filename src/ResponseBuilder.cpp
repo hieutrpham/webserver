@@ -49,11 +49,17 @@ Response ResponseBuilder::handleGet(Request& request, ServerConfig& config) {
 }
 
 Response ResponseBuilder::handlePost(Request& request, ServerConfig& config) {
-    (void)request;
-    (void)config;
+	auto location = getLocation(request, config);
 
-    Response response;
-    return response;
+	if (!location.methods.except_allow[POST])
+		return makeErrorResponse(request, config);
+
+	Response response;
+	response.setVersion("HTTP/1.1");
+	response.setStatus(201, "Created");
+	response.setHeader("Content-Type", "text/html");
+	response.setBody("Success!");
+	return response;
 }
 
 Response ResponseBuilder::handleDelete(Request& request, ServerConfig& config) {
