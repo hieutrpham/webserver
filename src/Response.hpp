@@ -11,7 +11,7 @@ class Response
 	private:
 		std::string m_version;		// Http version
 
-		int			m_status_code;	// Http status code: 200, 404, etc.
+		int			m_status_code = 200;	// Http status code: 200, 404, etc.
 		std::string	m_reason;		// OK, Not found, etc.
 
 		std::string m_response_body;
