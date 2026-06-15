@@ -1,14 +1,4 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   ServerConfig.hpp                                   :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/05/29 16:02:15 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/08 16:30:30 by jvalkama         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
+
 
 #pragma once
 
@@ -16,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <optional>
 
 typedef enum e_allowed {
 	GET,
@@ -29,15 +20,21 @@ struct Methods {
 	bool	except_allow[MET_COUNT];
 };
 
+struct Redir {
+	unsigned		code;
+	std::string		actual_path;
+};
+
 struct Location {
-	std::string		uri;
-	std::string		root = "";
-	std::string		index = "index.html";
-	std::string		alias = "";
-	bool			autoindex = false;
-	Methods			methods = {};
-	bool			allow_file_uploads = false;
-	std::string		upload_store = "";
+	std::string				uri;
+	std::string				root = "";
+	std::string				index = "index.html";
+	std::optional<Redir>	redirection = std::nullopt;
+	bool					autoindex = false;
+	Methods					methods = {};
+	bool					allow_file_uploads = false;
+	std::string				upload_store = "";
+	bool					cgi = false;
 };
 
 using LocationMap = std::unordered_map<std::string, Location>;

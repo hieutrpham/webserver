@@ -15,11 +15,18 @@ int main(int ac, char **av) {
 		ERR("Empty config vector! Configuration file not parsed correctly.\n\n");
 		return 1;
 	}
-	//		EXAMPLE OF GETTING ONE OF THE LOCATIONS ON A SERVER, AND GETTING ITS ALIAS:
+	//		EXAMPLE OF GETTING ONE OF THE LOCATIONS ON THE FIRST SERVER, AND GETTING ITS REDIRECT PATH IF EXISTS:
 	// ServerConfig first_config = config_vector.front();
-	// auto iterator = first_config.locations.find("/requested/path-uri");
+	// auto iterator = first_config.locations.find("/redir");
 	// Location route = iterator->second;
-	// LOG(route.alias);
+	// if (route.redirection.has_value())
+	// 	LOG(route.redirection->actual_path);
+	//		EXAMPLE OF GETTING THE CGI ROUTE ON THE SECOND SERVER:
+	// ServerConfig second_config = *(config_vector.begin() + 1);
+	// auto iterator = second_config.locations.find("/cgi-bin");
+	// Location route = iterator->second;
+	// LOG(route.cgi);
+	// LOG(route.index);
 
 	std::unique_ptr<Server> s;
 	try {

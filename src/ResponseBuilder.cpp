@@ -28,14 +28,14 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 bool ResponseBuilder::isCgi(Request& request, ServerConfig& config) {
     (void)request;
     (void)config;
-	// CGIHandler::executeCGI();
+	
     return false;
 }
 
 Response ResponseBuilder::handleCgi(Request& request, ServerConfig& config) {
     (void)request;
     (void)config;
-
+	
     Response response;
     return response;
 }
