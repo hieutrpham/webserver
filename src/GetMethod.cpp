@@ -1,4 +1,5 @@
 #include "GetMethod.hpp"
+#include <sys/stat.h>
 
 Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	Response response;
@@ -16,7 +17,9 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	// Build path
 	std::string finalPath = "." + location.root + request.getTarget();
 
-	// Check if dir or file
+	// Check if path leads to something
+	if (!pathExists(finalPath))
+		return (response); // TODO: make error response
 	
 	// If dir - check auto index
 	if (location.autoindex == true) {
@@ -83,4 +86,13 @@ bool GetMethod::matchLocation(const std::string& requestPath, const ServerConfig
 	}
 
 	return (found);
+}
+
+bool GetMethod::pathExists(const std::string& path) {
+	struct stat info;
+
+	if (stat(path.c_str(), &info) == 0)
+		return (true);
+
+	return (false);
 }

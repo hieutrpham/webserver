@@ -8,6 +8,8 @@
 class GetMethod {
 	private:
 		static bool matchLocation(const std::string& requestPath, const ServerConfig& config, Location& matchedLocation);
+		static bool pathExists(const std::string& path);
+
 	public:
 		static Response handleGet(Request& request, ServerConfig& config);
 };
