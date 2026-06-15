@@ -96,3 +96,12 @@ bool GetMethod::pathExists(const std::string& path) {
 
 	return (false);
 }
+
+bool GetMethod::isDirectory(const std::string& path) {
+	struct stat info;
+
+	if (stat(path.c_str(), &info) != 0)
+		return (false);
+
+	return (S_ISDIR(info.st_mode));
+}
