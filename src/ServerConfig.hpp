@@ -17,7 +17,7 @@ typedef enum e_allowed {
 	MET_COUNT
 }	t_allowed;
 
-struct CGI {
+struct CGIData {
 	std::string		directory;
 	std::string		index;
 };
@@ -67,10 +67,10 @@ struct ServerConfig {
 	int                fd;
 	struct sockaddr_in address;
 	
-	bool				is_filled = false;
-	bool				is_Empty();
-	Location			getLocation(std::string path) const;
-	Methods				getMethods(std::string route) const;
-	std::string			getErrPagePath(unsigned int code) const;
-	std::optional<CGI>	getCGI() const;
+	bool					is_filled = false;
+	bool					is_Empty();
+	Location				getLocation(std::string path) const;
+	Methods					getMethods(std::string route) const;
+	std::string				getErrPagePath(unsigned int code) const;
+	std::optional<CGIData>	getCGI() const;
 };

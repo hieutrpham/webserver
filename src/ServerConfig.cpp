@@ -22,7 +22,7 @@ std::string		ServerConfig::getErrPagePath(unsigned int code) const {
 	return ite->second;
 }
 
-std::optional<CGI>	ServerConfig::getCGI() const {
+std::optional<CGIData>	ServerConfig::getCGI() const {
 	for (const auto& [route_path, location_obj] : locations) {
 		if (location_obj.cgi) {
 			std::string dir{};
@@ -30,7 +30,7 @@ std::optional<CGI>	ServerConfig::getCGI() const {
 				dir = location_obj.root;
 			else
 				dir = route_path;
-			return CGI{ .directory = dir, .index = location_obj.index };
+			return CGIData{ .directory = dir, .index = location_obj.index };
 		}
 	}
 	return std::nullopt;
