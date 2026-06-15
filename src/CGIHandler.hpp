@@ -60,9 +60,9 @@ class CGIHandler {
 
 		ServerConfig	config_;
 
-		void	execSubProcess(Request& req, Pipe& pipe);
-		char**	loadEnvp(Request& req, StringVec& env_vec, CStringVec& c_env_vec);
-		void	buildEnvVariables(Request& req, StringVec& env_vec);
+		void	execSubProcess(CGIData& cgi, Request& req, Pipe& pipe);
+		char**	loadEnvp(CGIData& cgi, Request& req, StringVec& env_vec, CStringVec& c_env_vec);
+		void	buildEnvVariables(CGIData& cgi, Request& req, StringVec& env_vec);
 		
 	public:
 		CGIHandler() = delete;

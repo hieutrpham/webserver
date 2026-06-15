@@ -4,6 +4,7 @@
 #include "Request.hpp"
 #include "Response.hpp"
 #include "FileOperation.hpp"
+#include "ServerConfig.hpp"
 #include <unistd.h>
 #include <sys/wait.h>
 
@@ -27,12 +28,13 @@ std::string	CGIHandler::executeCGI(Request& req) {
 	pid_t		pid;
 	Pipe		pipe;
 
-	FileOperation::changeDir("/cgi-bin");
+	CGIData cgi = config_.getCGIData();
+	FileOperation::changeDir(cgi.directory);
 	pid = fork();
 	if (pid == -1)
 		throw ForkException("forkexception");
 	if (pid == 0)
-		execSubProcess(req, pipe);
+		execSubProcess(cgi, req, pipe);
 	pipe.closeWrite();
 	return;
 }
@@ -51,28 +53,28 @@ std::string	CGIHandler::executeCGI(Request& req) {
 //	the script path: from config_file+request_URI
 //	the arg: request body
 //	the envp: parsed together from request parser
-void	CGIHandler::execSubProcess(Request& req, Pipe& pipe) {
+void	CGIHandler::execSubProcess(CGIData& cgi, Request& req, Pipe& pipe) {
 	StringVec		env_vec{};
 	CStringVec		c_env_vec{};
 
-	char** envp = loadEnvp(req, env_vec, c_env_vec);
+	char** envp = loadEnvp(cgi, req, env_vec, c_env_vec);
 	if (dup2(pipe[1], STDOUT_FILENO) == -1)
 		throw Dup2Exception("dup2exception");
 	pipe.closeRead();
 	execve("test.php", nullptr, envp);
 }
 
-char**	CGIHandler::loadEnvp(Request& req, StringVec& env_vec, CStringVec& c_env_vec) {
-	buildEnvVariables(req, env_vec);
+char**	CGIHandler::loadEnvp(CGIData& cgi, Request& req, StringVec& env_vec, CStringVec& c_env_vec) {
+	buildEnvVariables(cgi, req, env_vec);
 	for (const std::string& s : env_vec)
 		c_env_vec.push_back(const_cast<char*>(s.c_str()));
 	c_env_vec.push_back(nullptr);
 	return c_env_vec.data();
 }
 
-void	CGIHandler::buildEnvVariables(Request& req, StringVec& env_vec) {
+void	CGIHandler::buildEnvVariables(CGIData& cgi, Request& req, StringVec& env_vec) {
 	static constexpr const char*	env_keys[] = {
-		"SCRIPT_FILENAME=",
+		"SCRIPT_NAME=",
 		"QUERY_STRING=",
 		"REQUEST_METHOD=",
 		"CONTENT_TYPE=",
@@ -80,8 +82,7 @@ void	CGIHandler::buildEnvVariables(Request& req, StringVec& env_vec) {
 		"PATH_INFO="
 	};
 
-	//LOOPIFY ONCE THE GETTER FUNCTIONS ARE KNOWN (if the function signatures support a funptr array)
-	std::string value = req.get(); //TODO
+	std::string value = cgi.index;
 	if (value != "") {
 		std::string var = env_keys[SCRIPT_FILENAME] + value;
 		env_vec.push_back(var);
