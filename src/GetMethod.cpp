@@ -105,3 +105,12 @@ bool GetMethod::isDirectory(const std::string& path) {
 
 	return (S_ISDIR(info.st_mode));
 }
+
+bool GetMethod::isRegularFile(const std::string& path) {
+	struct stat info;
+
+	if (stat(path.c_str(), &info) != 0)
+		return (false);
+
+	return (S_ISREG(info.st_mode));
+}
