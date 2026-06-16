@@ -41,7 +41,7 @@ void	CGIHandler::executeCGI(Request& req) {
 	FileOperation::changeDir(cgi_.directory);
 	pid = fork();
 	if (pid == -1)
-		throw ForkException("forkexception");
+		throw ForkException(SYS_FORK);
 	if (pid == 0)
 		execSubProcess(pipe);
 	pipe.closeWrite();
@@ -67,9 +67,10 @@ void	CGIHandler::execSubProcess(Pipe& pipe) {
 
 	char** envp = loadEnvp(env_vec, c_env_vec);
 	if (dup2(pipe[1], STDOUT_FILENO) == -1)
-		throw Dup2Exception("dup2exception");	
+		throw Dup2Exception(SYS_DUP2);	
 	pipe.closeRead();
 	execve("test.php", nullptr, envp);
+	throw CGIExecException(SYS_EXECVE);
 }
 
 
@@ -166,12 +167,12 @@ std::string	CGIHandler::getRemoteAddr() {
 void	CGIHandler::waitSubProcess(pid_t pid) {
 	int		status{};
 
-	waitpid(pid, &status, 0);
+	waitpid(pid, &status, 0); //TODO: check status, check timer and back to event loop
 	if (WIFEXITED(status))
 		return;
 	else if (WIFSIGNALED(status))
-		throw CGIExecException("CGI subprocess terminated by signal");
-	throw CGIExecException("CGI subprocess error");
+		throw CGIExecException(SYS_SIGTERM);
+	//throw CGIExecException("CGI subprocess error");
 }
 //------------------------------------------------------------
 

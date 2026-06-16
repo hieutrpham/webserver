@@ -11,6 +11,10 @@
 #define PIPE_ERRGEN "CGI Pipe: Syscall failure: Dropping CGI Execution"
 #define PIPE_IDX	"Pipe operator[]: index access beyond memory"
 #define NO_CGI 		"No CGI set up in configuration file!"
+#define SYS_FORK	"CGI Fork: Syscall failure: Dropping CGI execution"
+#define SYS_DUP2	"CGI Dup2: Syscall failure: Dropping CGI execution"
+#define SYS_EXECVE	"CGI Execve: Syscall failure: Dropping CGI execution"
+#define SYS_SIGTERM	"CGI subprocess terminated by signal"
 
 #define SUCCESS		0
 #define ERROR		1
