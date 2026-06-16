@@ -80,7 +80,7 @@ bool	Methods::is_MethodAllowed(std::string method_name) {
 }
 
 bool	Methods::is_MethodAllowed(std::size_t method_num) {
-	if (method_num < MET_COUNT && method_num >= 0) {
+	if (method_num < MET_COUNT) {
 		t_allowed i = static_cast<t_allowed>(method_num);
 		return except_allow[i];
 	}
