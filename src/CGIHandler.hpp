@@ -1,20 +1,11 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   CGIHandler.hpp                                     :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/06/05 15:40:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/16 18:52:27 by jvalkama         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
+
 
 #pragma once
 
 #include "Request.hpp"
 #include "ConfigParser.hpp"
 #include "ServerConfig.hpp"
+#include "Response.hpp"
 
 #define PIPE_ERRFDN "CGI Pipe: Maximum number of open FDs reached: Dropping CGI execution"
 #define PIPE_ERRGEN "CGI Pipe: Syscall failure: Dropping CGI Execution"
@@ -60,8 +51,6 @@ class Pipe {
 				const char* what() const noexcept override;
 		};
 };
-
-
 
 class CGIHandler {
 	private:
