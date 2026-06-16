@@ -69,8 +69,8 @@ struct ServerConfig {
 	
 	bool					is_filled = false;
 	bool					is_Empty();
-	Location				getLocation(std::string path) const;
-	Methods					getMethods(std::string route) const;
+	Location				getLocation(std::string uri) const;
+	Methods					getMethods(std::string uri) const;
 	std::string				getErrPagePath(unsigned int code) const;
 	std::optional<CGIData>	getCGI() const;
 };

@@ -24,7 +24,7 @@ ConfigVec	ConfigParser::parse(std::string conf_fname) {
 		if (instream_.bad())
 			throw FileOperation::FileException(ERR_IO);
 	} catch (std::exception& e) {
-		std::cerr << C_RED << e.what() << C_RST;
+		std::cerr << C_RED << "Config ERR: " << C_RST << e.what();
 		return std::vector<ServerConfig>();
 	}
 	return server_configs_;
@@ -90,8 +90,10 @@ void	ConfigParser::parseLocationBlock() {
 			continue;
 		}
 		if (line_.back() == '}') {
+			current_location_ = "";
 			return blockEnd();
 		}
+		throw ContentException(ERR_TERM);
 	}
 	throw ContentException(ERR_LOCB_DIR);
 }
@@ -396,7 +398,7 @@ void	ConfigParser::buildRegexEngines() {
 void	ConfigParser::buildServerBEngine() {
 	constexpr std::string_view	servh_pattern
 	{
-		R"(server \{\s*)"
+		R"(server\s+\{\s*)"
 	};
 	constexpr std::string_view	servb_pattern
 	{
