@@ -2,6 +2,7 @@
 #include "Request.hpp"
 #include "Server.hpp"
 #include "ServerConfig.hpp"
+#include "POSTMethod.hpp"
 // #include "CGIHandler.hpp"
 
 Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
@@ -17,7 +18,7 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 		return (handleGet(request, server_config));
 
 	if (request.getMethod() == "POST")
-		return (handlePost(request, server_config));
+		return (POSTMethod::handlePost(request, server_config));
 
 	if (request.getMethod() == "DELETE")
 		return (handleDelete(request, server_config));
@@ -49,17 +50,11 @@ Response ResponseBuilder::handleGet(Request& request, ServerConfig& config) {
 }
 
 Response ResponseBuilder::handlePost(Request& request, ServerConfig& config) {
-	auto location = getLocation(request, config);
+    (void)request;
+    (void)config;
 
-	if (!location.methods.except_allow[POST])
-		return makeErrorResponse(request, config);
-
-	Response response;
-	response.setVersion("HTTP/1.1");
-	response.setStatus(201, "Created");
-	response.setHeader("Content-Type", "text/html");
-	response.setBody("Success!");
-	return response;
+    Response response;
+    return response;
 }
 
 Response ResponseBuilder::handleDelete(Request& request, ServerConfig& config) {
