@@ -6,7 +6,7 @@
 /*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/05 15:40:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/11 15:27:24 by jvalkama         ###   ########.fr       */
+/*   Updated: 2026/06/16 18:52:27 by jvalkama         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -61,16 +61,31 @@ class Pipe {
 		};
 };
 
+
+
 class CGIHandler {
 	private:
 		using StringVec = std::vector<std::string>;
 		using CStringVec = std::vector<char*>;
+		typedef std::string (CGIHandler::*FunPtr)(void);
 
 		ServerConfig	config_;
+		Request&		req_;
+		CGIData&		cgi_;
 
-		void	execSubProcess(CGIData& cgi, Request& req, Pipe& pipe);
-		char**	loadEnvp(CGIData& cgi, Request& req, StringVec& env_vec, CStringVec& c_env_vec);
-		void	buildEnvVariables(CGIData& cgi, Request& req, StringVec& env_vec);
+		void		execSubProcess(Pipe& pipe);
+		char**		loadEnvp(StringVec& env_vec, CStringVec& c_env_vec);
+		void		buildEnvVariables(StringVec& env_vec);
+		std::string	getScriptName();
+		std::string	getQueryString();
+		std::string	getRequestMethod();
+		std::string	getContentType();
+		std::string	getContentLength();
+		std::string	getGatewayInterface();
+		std::string	getServerName();
+		std::string	getServerPort();
+		std::string	getServerProtocol();
+		std::string	getRemoteAddr();
 		
 	public:
 		CGIHandler() = delete;

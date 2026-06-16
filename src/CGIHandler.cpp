@@ -28,24 +28,17 @@ std::string	CGIHandler::executeCGI(Request& req) {
 	pid_t		pid;
 	Pipe		pipe;
 
-	CGIData cgi = config_.getCGIData();
-	FileOperation::changeDir(cgi.directory);
+	req_ = req;
+	cgi_ = config_.getCGIData();
+	FileOperation::changeDir(cgi_.directory);
 	pid = fork();
 	if (pid == -1)
 		throw ForkException("forkexception");
 	if (pid == 0)
-		execSubProcess(cgi, req, pipe);
+		execSubProcess(pipe);
 	pipe.closeWrite();
 	return;
 }
-
-//need   vector<std::string> env_vars   to contain the env variables:
-		// cgi_param SCRIPT_FILENAME
-		// cgi_param QUERY_STRING
-		// cgi_param REQUEST_METHOD
-		// cgi_param CONTENT_TYPE
-		// cgi_param CONTENT_LENGTH
-		// cgi_param PATH_INFO
 		
 //env_cont: Environment container keeps the data in the correct stack scope,
 // so that the c-style pointers are not left dangling.
@@ -53,26 +46,26 @@ std::string	CGIHandler::executeCGI(Request& req) {
 //	the script path: from config_file+request_URI
 //	the arg: request body
 //	the envp: parsed together from request parser
-void	CGIHandler::execSubProcess(CGIData& cgi, Request& req, Pipe& pipe) {
+void	CGIHandler::execSubProcess(Pipe& pipe) {
 	StringVec		env_vec{};
 	CStringVec		c_env_vec{};
 
-	char** envp = loadEnvp(cgi, req, env_vec, c_env_vec);
+	char** envp = loadEnvp(env_vec, c_env_vec);
 	if (dup2(pipe[1], STDOUT_FILENO) == -1)
-		throw Dup2Exception("dup2exception");
+		throw Dup2Exception("dup2exception");	
 	pipe.closeRead();
 	execve("test.php", nullptr, envp);
 }
 
-char**	CGIHandler::loadEnvp(CGIData& cgi, Request& req, StringVec& env_vec, CStringVec& c_env_vec) {
-	buildEnvVariables(cgi, req, env_vec);
+char**	CGIHandler::loadEnvp(StringVec& env_vec, CStringVec& c_env_vec) {
+	buildEnvVariables(env_vec);
 	for (const std::string& s : env_vec)
 		c_env_vec.push_back(const_cast<char*>(s.c_str()));
 	c_env_vec.push_back(nullptr);
 	return c_env_vec.data();
 }
 
-void	CGIHandler::buildEnvVariables(CGIData& cgi, Request& req, StringVec& env_vec) {
+void	CGIHandler::buildEnvVariables(StringVec& env_vec) {
 	static constexpr const char*	env_keys[] = {
 		"SCRIPT_NAME=",
 		"QUERY_STRING=",
@@ -85,39 +78,70 @@ void	CGIHandler::buildEnvVariables(CGIData& cgi, Request& req, StringVec& env_ve
 		"SERVER_PROTOCOL=",
 		"REMOTE_ADDR="
 	};
+	FunPtr fun_ptr_arr[] = {
+		&CGIHandler::getScriptName,
+		&CGIHandler::getQueryString, //TODO
+		&CGIHandler::getRequestMethod, //TODO
+		&CGIHandler::getContentType, 
+		&CGIHandler::getContentLength,
+		&CGIHandler::getGatewayInterface,
+		&CGIHandler::getServerName,
+		&CGIHandler::getServerPort,
+		&CGIHandler::getServerProtocol,
+		&CGIHandler::getRemoteAddr
+	};
+	std::string value{};
 
-	std::string value = cgi.index;
-	if (value != "") {
-		std::string var = env_keys[SCRIPT_FILENAME] + value;
-		env_vec.push_back(var);
-	}
-	value = req.getQuery();
-	if (value != "") {
-		std::string var = env_keys[QUERY_STRING] + value;
-		env_vec.push_back(var);
-	}
-	value = req.getMethod();
-	if (value != "") {
-		std::string var = env_keys[REQUEST_METHOD] + value;
-		env_vec.push_back(var);
-	}
-	value = req.getHeader("content-type");
-	if (value != "") {
-		std::string var = env_keys[CONTENT_TYPE] + value;
-		env_vec.push_back(var);
-	}
-	value = req.getHeader("content-length");
-	if (value != "") {
-		std::string var = env_keys[CONTENT_LENGTH] + value;
-		env_vec.push_back(var);
-	}
-	value = req.getPathInfo();
-	if (value != "") {
-		std::string var = env_keys[PATH_INFO] + value;
-		env_vec.push_back(var);
+	for (std::size_t i = 0; i < KEY_COUNT; ++i) {
+		value = (this->*fun_ptr_arr[i])();
+		if (value != "") {
+			std::string var = env_keys[i] + value;
+			env_vec.push_back(var);
+		}
 	}
 }
 
+std::string	CGIHandler::getScriptName() {
+	return cgi_.index();
+}
+
+std::string	CGIHandler::getQueryString() { //TODO
+	return "";
+}
+
+std::string	CGIHandler::getRequestMethod() { //TODO
+	return "";
+}
+
+std::string	CGIHandler::getContentType() {
+	return req_.getHeader("content-type");
+}
+
+std::string	CGIHandler::getContentLength() {
+	return req_.getHeader("content-length");
+}
+
+std::string	CGIHandler::getGatewayInterface() {
+	return "CGI/1.1";
+}
+
+std::string	CGIHandler::getServerName() {
+	return config_.server_name;
+}
+
+std::string	CGIHandler::getServerPort() {
+	return std::to_string(config_.port);
+}
+
+std::string	CGIHandler::getServerProtocol() {
+	return req_.getVersion();
+}
+
+std::string	CGIHandler::getRemoteAddr() {
+	return "";
+}
+
+//WAIT TO REAP------------------------------------------------
 void	CGIHandler::waitSubProcess(pid_t pid) {
 	int		status{};
 
@@ -128,6 +152,7 @@ void	CGIHandler::waitSubProcess(pid_t pid) {
 		throw CGIExecException("CGI subprocess terminated by signal");
 	throw CGIExecException("CGI subprocess error");
 }
+//------------------------------------------------------------
 
 Response	CGIHandler::handleCGIOutput() {
 	Response	res{};
