@@ -13,7 +13,7 @@
 #define MB_MULTIP		1000000
 #define KB_MULTIP		1000
 
-#define ERR_IO			"InFile Stream SysCall: I/O system error\n"
+#define ERR_IO			"InFile Stream: I/O system call error\n"
 #define ERR_N_OBRC		"Config File Format: Too many opening brackets\n"
 #define ERR_N_CBRC		"Config File Format: Too many closing brackets\n"
 #define ERR_BRACK_CL	"Config File Format: Closing brackets need their own lines\n"
