@@ -1,5 +1,6 @@
 #include "GetMethod.hpp"
 #include <sys/stat.h>
+#include "ResponseBuilder.hpp"
 
 Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	Response response;
@@ -10,7 +11,7 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	Location location;
 	if (!matchLocation(request.getPath(), config, location)) {
 		std::cout << "ERROR: LOCATION " << request.getPath() << " NOT FOUND" << std::endl;
-		return (response); // TODO: return makeErrorResponse(404, "Not Found");
+		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
 	}
 		
 	// Build path
@@ -20,7 +21,7 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	// Check if path leads to something
 	if (!pathExists(finalPath)) {
 		std::cout << "PATH " << finalPath << " NOT FOUND!" << std::endl;
-		return (response); // TODO: make error response (404 not found)
+		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
 	}
 
 	// If path leads to directory
@@ -49,20 +50,20 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 		}
 		// No index file or autoindex -> error.
 		else {
-			return (response); // TODO: make error response (403 forbidden)
+			return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
 		}
 	}
 
 	// Not a directory or regular file - > error.
 	if (!isRegularFile(finalPath)) {
-		return (response); // TODO: make error response (403 forbidden)
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
 	}
 
 	// Copy file contents into response body.
 	std::ifstream file(finalPath.c_str());
 	if (!file.is_open()) {
 		std::cout << "ERROR: could not open file" << std::endl;
-		return (response); // TODO: make error response (403 forbidden)
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
 	}
 
 	std::stringstream buf;

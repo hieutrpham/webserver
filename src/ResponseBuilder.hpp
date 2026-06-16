@@ -18,6 +18,7 @@ class ResponseBuilder {
 	public:
 		static Response buildResponse(Request& request, ConfigVec& config);
 		static ServerConfig    getConfig(const Request& request, const ConfigVec& config_vector);
+		static Response buildErrorResponse(int code, const std::string& reason);
 };
 
 #endif

@@ -91,3 +91,19 @@ ServerConfig ResponseBuilder::getConfig(const Request& request, const ConfigVec&
 	}
 	return server_config;
 }
+
+Response ResponseBuilder::buildErrorResponse(int code, const std::string& reason) {
+	Response response;
+
+	std::stringstream body;
+	body << "<html><body><h1>"
+		 << code << " " << reason
+		 << "</h1></body></html>";
+
+	response.setVersion("HTTP/1.1");
+	response.setStatus(code, reason);
+	response.setHeader("Content-Type", "text/html");
+	response.setBody(body.str());
+
+	return (response);
+}
