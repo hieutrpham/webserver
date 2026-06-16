@@ -72,5 +72,5 @@ struct ServerConfig {
 	Location				getLocation(std::string uri) const;
 	Methods					getMethods(std::string uri) const;
 	std::string				getErrPagePath(unsigned int code) const;
-	std::optional<CGIData>	getCGI() const;
+	std::optional<CGIData>	getCGIData() const;
 };

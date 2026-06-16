@@ -10,6 +10,7 @@
 #define PIPE_ERRFDN "CGI Pipe: Maximum number of open FDs reached: Dropping CGI execution"
 #define PIPE_ERRGEN "CGI Pipe: Syscall failure: Dropping CGI Execution"
 #define PIPE_IDX	"Pipe operator[]: index access beyond memory"
+#define NO_CGI 		"No CGI set up in configuration file!"
 
 #define SUCCESS		0
 #define ERROR		1
@@ -59,8 +60,8 @@ class CGIHandler {
 		typedef std::string (CGIHandler::*FunPtr)(void);
 
 		ServerConfig	config_;
-		Request&		req_;
-		CGIData&		cgi_;
+		Request			req_;
+		CGIData			cgi_;
 
 		void		execSubProcess(Pipe& pipe);
 		char**		loadEnvp(StringVec& env_vec, CStringVec& c_env_vec);
@@ -75,6 +76,7 @@ class CGIHandler {
 		std::string	getServerPort();
 		std::string	getServerProtocol();
 		std::string	getRemoteAddr();
+		CGIData		configCheckCGIData();
 		
 	public:
 		CGIHandler() = delete;
@@ -84,12 +86,14 @@ class CGIHandler {
 		CGIHandler&	operator=(const CGIHandler& other);
 
 		//INTERFACE-----------------------------//
-		std::string	executeCGI(Request& req);	//
+		void		executeCGI(Request& req);	//
 		void		waitSubProcess(pid_t pid);	//
 		Response	handleCGIOutput();			//
 		//--------------------------------------//
 
-		ServerConfig	getConfig();
+		ServerConfig	getConfig() const;
+		Request			getRequest() const;
+		CGIData			getCGIData() const;
 
 		//EXCEPTION SUB CLASSES
 		class Dup2Exception : public std::exception {

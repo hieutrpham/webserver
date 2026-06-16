@@ -27,7 +27,7 @@ int main(int ac, char **av) {
 
 	// 	std::string err_page_path = conf.getErrPagePath(404);
 
-	// 	std::optional<CGIData> cgi = conf.getCGI();
+	// 	std::optional<CGIData> cgi = conf.getCGIData();
 	// 	if (cgi) {
 	// 		LOG(cgi->directory);
 	// 		LOG(cgi->index);

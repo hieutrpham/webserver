@@ -8,28 +8,36 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-CGIHandler::CGIHandler(ServerConfig& config) : config_(config) {}
+CGIHandler::CGIHandler(ServerConfig& config) : 
+	config_(config),
+	req_(Request()),
+	cgi_(CGIData())
+{}
 
 
-CGIHandler::CGIHandler(const CGIHandler& other) {
+CGIHandler::CGIHandler(const CGIHandler& other) : 
+	config_(other.config_),
+	req_(other.req_),
+	cgi_(other.cgi_)
+{}
 
-}
-
-CGIHandler::~CGIHandler() {
-
-}
+CGIHandler::~CGIHandler() {}
 
 CGIHandler&	CGIHandler::operator=(const CGIHandler& other) {
-
+	if (this != &other) {
+		config_ = other.config_;
+		req_ = other.req_;
+		cgi_ = other.cgi_;
+	}
+	return *this;
 }
 
-//Returns content/filepath as a string for now. Takes the request object as arg.
-std::string	CGIHandler::executeCGI(Request& req) {
-	pid_t		pid;
-	Pipe		pipe;
+void	CGIHandler::executeCGI(Request& req) {
+	cgi_ = configCheckCGIData();
+	pid_t	pid;
+	Pipe	pipe;
 
 	req_ = req;
-	cgi_ = config_.getCGIData();
 	FileOperation::changeDir(cgi_.directory);
 	pid = fork();
 	if (pid == -1)
@@ -38,6 +46,13 @@ std::string	CGIHandler::executeCGI(Request& req) {
 		execSubProcess(pipe);
 	pipe.closeWrite();
 	return;
+}
+
+CGIData		CGIHandler::configCheckCGIData() {
+	std::optional<CGIData> cgi = config_.getCGIData();
+	if (!cgi)
+		throw CGIExecException(NO_CGI);
+	return *cgi;
 }
 		
 //env_cont: Environment container keeps the data in the correct stack scope,
@@ -57,6 +72,9 @@ void	CGIHandler::execSubProcess(Pipe& pipe) {
 	execve("test.php", nullptr, envp);
 }
 
+
+
+//ENV BUILDER------------------------------------------------------
 char**	CGIHandler::loadEnvp(StringVec& env_vec, CStringVec& c_env_vec) {
 	buildEnvVariables(env_vec);
 	for (const std::string& s : env_vec)
@@ -140,6 +158,9 @@ std::string	CGIHandler::getServerProtocol() {
 std::string	CGIHandler::getRemoteAddr() {
 	return "";
 }
+//------------------------------------------------------------
+
+
 
 //WAIT TO REAP------------------------------------------------
 void	CGIHandler::waitSubProcess(pid_t pid) {
@@ -154,6 +175,9 @@ void	CGIHandler::waitSubProcess(pid_t pid) {
 }
 //------------------------------------------------------------
 
+
+
+//BUILD RESPONSE FROM CGI OUTPUT--------------------------------
 Response	CGIHandler::handleCGIOutput() {
 	Response	res{};
 
@@ -165,10 +189,24 @@ Response	CGIHandler::handleCGIOutput() {
 
 	return res;
 }
+//------------------------------------------------------------
 
-ServerConfig	CGIHandler::getConfig() {
+
+
+//GETTERS----------------------------------------------------
+ServerConfig	CGIHandler::getConfig() const {
 	return config_;
 }
+
+Request		CGIHandler::getRequest() const {
+	return req_;
+}
+
+CGIData		CGIHandler::getCGIData() const {
+	return cgi_;
+}
+//------------------------------------------------------------
+
 
 
 //CUSTOM EXCEPTIONS-------------------------------------------------------------
