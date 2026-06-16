@@ -15,9 +15,9 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	}
 		
 	// Build path
-	std::string finalPath = "." + location.root + request.getTarget();
-
+	std::string finalPath = "." + location.root + request.getPath();
 	std::cout << "FINAL PATH: " << finalPath << std::endl;
+
 	// Check if path leads to something
 	if (!pathExists(finalPath)) {
 		std::cout << "PATH " << finalPath << " NOT FOUND!" << std::endl;
@@ -72,6 +72,8 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	std::string body = buf.str();
 
 	response.setBody(body);
+	response.setHeader("Content-Type", GetMethod::getMimeType(finalPath));
+	response.setHeader("Content-Length", std::to_string(body.size()));
 	response.setStatus(200, "OK");
 	response.setVersion("HTTP/1.1");
 	return (response);
@@ -146,4 +148,30 @@ bool GetMethod::isRegularFile(const std::string& path) {
 		return (false);
 
 	return (S_ISREG(info.st_mode));
+}
+
+bool GetMethod::endsWith(const std::string& str, const std::string& suffix) {
+	if (str.length() < suffix.length())
+		return (false);
+
+	return (str.compare(str.length() - suffix.length(), suffix.length(), suffix) == 0);
+}
+
+std::string GetMethod::getMimeType(const std::string& path) {
+	if (endsWith(path, ".html") || endsWith(path, ".htm"))
+		return ("text/html");
+	if (endsWith(path, ".css"))
+		return ("text/css");
+	if (endsWith(path, ".js"))
+		return ("application/javascript");
+	if (endsWith(path, ".txt"))
+		return ("text/plain");
+	if (endsWith(path, ".png"))
+		return ("image/png");
+	if (endsWith(path, ".jpg") || endsWith(path, ".jpeg"))
+		return ("image/jpeg");
+	if (endsWith(path, ".gif"))
+		return ("image/gif");
+
+	return ("application/octet-stream");
 }

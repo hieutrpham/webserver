@@ -11,6 +11,8 @@ class GetMethod {
 		static bool pathExists(const std::string& path);
 		static bool isDirectory(const std::string& path);
 		static bool isRegularFile(const std::string& path);
+		static std::string getMimeType(const std::string& path);
+		static bool endsWith(const std::string& str, const std::string& suffix);
 
 	public:
 		static Response handleGet(Request& request, ServerConfig& config);
