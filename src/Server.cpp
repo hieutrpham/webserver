@@ -4,6 +4,7 @@
 #include "Response.hpp"
 #include "main.hpp"
 #include "RequestParser.hpp"
+#include <cstring>
 #include <iostream>
 #include <stdexcept>
 #include <cmath>
@@ -63,7 +64,7 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
 }
 
-static void requestDebugPrint(Request& request, ParseResult& result) {
+void requestDebugPrint(Request& request, ParseResult& result) {
 
 	std::cout << "\nHTTP RESULT: " << result.httpStatus << std::endl;
 	std::cout << "METHOD: " << request.getMethod() << std::endl;
@@ -125,9 +126,14 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 			LOG("Request succesfully parsed.");
 			// Remove only the bytes that belonged to the parsed requeest.
 			m_clientBuffers[fd].erase(0, result.bytesConsumed);		
-			requestDebugPrint(request, result);
+			// requestDebugPrint(request, result);
 	
-			Response response = ResponseBuilder::buildResponse(request, config_vector);
+			Response response;
+			try {
+				response = ResponseBuilder::buildResponse(request, config_vector);
+			} catch (std::exception &e) {
+				ERR(e.what());
+			}
 
 			// Temporary hardcoded response just to display that everything still works
 			// Remove once buildResponse() is capable of building a response!
