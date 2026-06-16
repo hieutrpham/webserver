@@ -10,29 +10,61 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	Location location;
 	if (!matchLocation(request.getPath(), config, location)) {
 		std::cout << "ERROR: LOCATION " << request.getPath() << " NOT FOUND" << std::endl;
-		// TODO: return makeErrorResponse(404, "Not Found");
-		return (response);
+		return (response); // TODO: return makeErrorResponse(404, "Not Found");
 	}
 		
 	// Build path
 	std::string finalPath = "." + location.root + request.getTarget();
 
+	std::cout << "FINAL PATH: " << finalPath << std::endl;
 	// Check if path leads to something
-	if (!pathExists(finalPath))
-		return (response); // TODO: make error response
-	
-	// If dir - check auto index
-	if (location.autoindex == true) {
-		finalPath += location.index;
-	} else {
-		// Cant serve a directory
-		// Make error response
-		return (response);
+	if (!pathExists(finalPath)) {
+		std::cout << "PATH " << finalPath << " NOT FOUND!" << std::endl;
+		return (response); // TODO: make error response (404 not found)
 	}
-	
-	std::cout << "FINAL PATH = " << finalPath << std::endl;
 
+	// If path leads to directory
+	if (isDirectory(finalPath)) {
+		std::cout << "PATH LEADS TO DIRECTORY" << std::endl;
+
+		// Try index file from directory
+		std::string indexPath = finalPath;
+		if (!indexPath.empty() && indexPath[indexPath.length() - 1] != '/')
+			indexPath += "/";
+		indexPath += location.index;
+
+		std::cout << "INDEX PATH: " << indexPath << std::endl;
+
+		// Index found, go serve index
+		if (isRegularFile(indexPath)) {
+			std::cout << "Index file found in directory" << std::endl;
+			finalPath = indexPath;
+		}
+		// Index file not valid or not found
+		// Check if autoindex is on && generate autoindex.
+		else if (location.autoindex) {
+			std::cout << "AUTOINDEX" << std::endl;
+			// TODO: generateAutoIndex()
+			return (response);
+		}
+		// No index file or autoindex -> error.
+		else {
+			return (response); // TODO: make error response (403 forbidden)
+		}
+	}
+
+	// Not a directory or regular file - > error.
+	if (!isRegularFile(finalPath)) {
+		return (response); // TODO: make error response (403 forbidden)
+	}
+
+	// Copy file contents into response body.
 	std::ifstream file(finalPath.c_str());
+	if (!file.is_open()) {
+		std::cout << "ERROR: could not open file" << std::endl;
+		return (response); // TODO: make error response (403 forbidden)
+	}
+
 	std::stringstream buf;
 	buf << file.rdbuf();
 
