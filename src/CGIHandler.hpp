@@ -16,6 +16,10 @@
 #include "ConfigParser.hpp"
 #include "ServerConfig.hpp"
 
+#define PIPE_ERRFDN "CGI Pipe: Maximum number of open FDs reached: Dropping CGI execution"
+#define PIPE_ERRGEN "CGI Pipe: Syscall failure: Dropping CGI Execution"
+#define PIPE_IDX	"Pipe operator[]: index access beyond memory"
+
 #define SUCCESS		0
 #define ERROR		1
 

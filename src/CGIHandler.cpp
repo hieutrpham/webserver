@@ -165,8 +165,12 @@ const char* CGIHandler::CGIExecException::what() const noexcept {
 
 //RAII WRAPPER FOR PIPE----------------------------------------------------	
 Pipe::Pipe() {
-	if (pipe(fds_) != SUCCESS)
-		throw PipeException("pipeexception");
+	if (pipe(fds_) != SUCCESS){
+		if (errno == EMFILE) {
+			throw PipeException(PIPE_ERRFDN);
+		}
+		throw PipeException(PIPE_ERRGEN);
+	}
 }
 
 Pipe::~Pipe() {
@@ -176,7 +180,7 @@ Pipe::~Pipe() {
 
 int		Pipe::operator[](int i) {
 	if (i < 0 || i > 1)
-		throw PipeException("Pipe: fildes index access beyond memory");
+		throw PipeException(PIPE_IDX);
 	return fds_[i];
 }
 
