@@ -79,7 +79,11 @@ void	CGIHandler::buildEnvVariables(CGIData& cgi, Request& req, StringVec& env_ve
 		"REQUEST_METHOD=",
 		"CONTENT_TYPE=",
 		"CONTENT_LENGTH=",
-		"PATH_INFO="
+		"GATEWAY_INTERFACE=",
+		"SERVER_NAME=",
+		"SERVER_PORT=",
+		"SERVER_PROTOCOL=",
+		"REMOTE_ADDR="
 	};
 
 	std::string value = cgi.index;
