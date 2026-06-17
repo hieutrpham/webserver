@@ -1,7 +1,4 @@
 #include "POSTMethod.hpp"
-#include "ResponseBuilder.hpp"
-#include "ServerConfig.hpp"
-#include "main.hpp"
 
 Response POSTMethod::handlePost(Request& request, ServerConfig& config)
 {
@@ -24,12 +21,7 @@ Response POSTMethod::handlePost(Request& request, ServerConfig& config)
 
 Response POSTMethod::handleFileUpload(std::string &content_type, Request& request, ServerConfig& config)
 {
-	auto boundary_index = content_type.find("--");
-	auto boundary = content_type.substr(boundary_index, std::string::npos);
-
-	auto body = request.getBody();
-	auto name = get_file_name(body);
-	save_file_upload(request, config, name, body, boundary);
+	auto name = save_file_upload(content_type, request, config);
 
 	Response response;
 	response.setStatus(202, "Accepted");
@@ -62,9 +54,13 @@ bool POSTMethod::is_file_upload(std::string &content_type, Request &request, Ser
 	&& config.getLocation(request.getTarget()).allow_file_uploads;
 }
 
-void POSTMethod::save_file_upload(Request &request, ServerConfig &config, std::string &name, std::string &body, std::string &boundary)
+std::string POSTMethod::save_file_upload(std::string &content_type, Request &request, ServerConfig &config)
 {
-	// prepare file stream
+	auto boundary_index = content_type.find("--");
+	auto boundary = content_type.substr(boundary_index, std::string::npos);
+	auto body = request.getBody();
+	auto name = get_file_name(body);
+
 	name = "." + config.getLocation(request.getTarget()).upload_store + "/" + name;
 
 	std::fstream outfile(name, outfile.out);
@@ -73,11 +69,13 @@ void POSTMethod::save_file_upload(Request &request, ServerConfig &config, std::s
 		throw std::runtime_error("could not open file");
 	}
 
-	// extracting out main body from boundary
+	// extracting out main body between boundary
 	auto header = body.find("\r\n\r\n");
 	body = body.substr(header + 4);
 	auto end = body.find("\r\n--" + boundary + "--");
 
-	// save the file
+	// write the file
 	outfile << body.substr(0, end);
+	outfile.close();
+	return name;
 }
