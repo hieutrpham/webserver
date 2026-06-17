@@ -1,7 +1,7 @@
 #include "POSTMethod.hpp"
 #include "ResponseBuilder.hpp"
-#include <fstream>
-#include <iostream>
+#include "ServerConfig.hpp"
+#include "main.hpp"
 
 Response POSTMethod::handlePost(Request& request, ServerConfig& config)
 {
@@ -11,8 +11,8 @@ Response POSTMethod::handlePost(Request& request, ServerConfig& config)
 		return ResponseBuilder::makeErrorResponse(request, config);
 
 	auto content_type = request.getHeaders().at("content-type");
-	if (content_type.find("multipart/form-data") != std::string::npos)
-		return handleFileUpload(request, config);
+	if (is_file_upload(content_type, request,  config))
+		return handleFileUpload(content_type, request, config);
 
 	Response response;
 	response.setVersion("HTTP/1.1");
@@ -22,37 +22,62 @@ Response POSTMethod::handlePost(Request& request, ServerConfig& config)
 	return response;
 }
 
-Response POSTMethod::handleFileUpload(Request& request, ServerConfig& config)
+Response POSTMethod::handleFileUpload(std::string &content_type, Request& request, ServerConfig& config)
 {
-	(void)config;
-
-	auto content_type = request.getHeaders().at("content-type");
 	auto boundary_index = content_type.find("--");
 	auto boundary = content_type.substr(boundary_index, std::string::npos);
 
-	// LOG("BODY: "+request.getBody());
-	std::istringstream body(request.getBody());
+	auto body = request.getBody();
+	auto name = get_file_name(body);
+	save_file_upload(request, config, name, body, boundary);
+
+	Response response;
+	response.setStatus(202, "Accepted");
+	response.setHeader("Location", name);
+	return response;
+}
+
+std::string POSTMethod::get_file_name(std::string &body)
+{
+	std::istringstream body_stream(body);
 	std::string line;
 	std::string name;
 
-	while (std::getline(body, line))
+	// get name of the file
+	while (std::getline(body_stream, line))
 	{
-		if (line.find_first_of("name") != std::string::npos)
+		if (line.find("name") != std::string::npos)
 		{
-			std::cout << line << "\n";
 			name = line.substr(line.find("\"") + 1);
 			name = name.substr(0, name.find("\""));
+			break;
 		}
 	}
+	return name;
+}
 
-	LOG("NAME: " + name);
+bool POSTMethod::is_file_upload(std::string &content_type, Request &request, ServerConfig & config)
+{
+	return content_type.find("multipart/form-data") != std::string::npos
+	&& config.getLocation(request.getTarget()).allow_file_uploads;
+}
+
+void POSTMethod::save_file_upload(Request &request, ServerConfig &config, std::string &name, std::string &body, std::string &boundary)
+{
+	// prepare file stream
+	name = "." + config.getLocation(request.getTarget()).upload_store + "/" + name;
 
 	std::fstream outfile(name, outfile.out);
-	if (!outfile.is_open()) {
+	if (!outfile.is_open())
+	{
 		throw std::runtime_error("could not open file");
 	}
-	
-	outfile << body.str();
-	Response response;
-	return response;
+
+	// extracting out main body from boundary
+	auto header = body.find("\r\n\r\n");
+	body = body.substr(header + 4);
+	auto end = body.find("\r\n--" + boundary + "--");
+
+	// save the file
+	outfile << body.substr(0, end);
 }

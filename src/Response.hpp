@@ -9,7 +9,7 @@
 class Response
 {
 	private:
-		std::string m_version;		// Http version
+		std::string m_version = "HTTP/1.1";		// Http version
 
 		int			m_status_code = 200;	// Http status code: 200, 404, etc.
 		std::string	m_reason;		// OK, Not found, etc.
