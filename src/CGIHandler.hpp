@@ -7,6 +7,8 @@
 #include "ServerConfig.hpp"
 #include "Response.hpp"
 
+#define CGI_VERSION "CGI/1.1"
+
 #define PIPE_ERRFDN "CGI Pipe: Maximum number of open FDs reached: Dropping CGI execution"
 #define PIPE_ERRGEN "CGI Pipe: Syscall failure: Dropping CGI Execution"
 #define PIPE_IDX	"Pipe operator[]: index access beyond memory"
@@ -18,6 +20,11 @@
 
 #define SUCCESS		0
 #define ERROR		1
+#define FAIL		-1
+#define IN_FILENO	0
+#define OUT_FILENO	1
+#define CHILD_SELF_ID	0
+#define NULL_OPTION		0
 
 enum e_param_keys {
 	SCRIPT_FILENAME,

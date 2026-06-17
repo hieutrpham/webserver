@@ -40,9 +40,9 @@ void	CGIHandler::executeCGI(Request& req) {
 	req_ = req;
 	FileOperation::changeDir(cgi_.directory);
 	pid = fork();
-	if (pid == -1)
+	if (pid == FAIL)
 		throw ForkException(SYS_FORK);
-	if (pid == 0)
+	if (pid == CHILD_SELF_ID)
 		execSubProcess(pipe);
 	pipe.closeWrite();
 	return;
@@ -66,7 +66,7 @@ void	CGIHandler::execSubProcess(Pipe& pipe) {
 	CStringVec		c_env_vec{};
 
 	char** envp = loadEnvp(env_vec, c_env_vec);
-	if (dup2(pipe[1], STDOUT_FILENO) == -1)
+	if (dup2(pipe[OUT_FILENO], STDOUT_FILENO) == FAIL)
 		throw Dup2Exception(SYS_DUP2);	
 	pipe.closeRead();
 	execve("test.php", nullptr, envp);
@@ -83,6 +83,13 @@ char**	CGIHandler::loadEnvp(StringVec& env_vec, CStringVec& c_env_vec) {
 	c_env_vec.push_back(nullptr);
 	return c_env_vec.data();
 }
+
+/*
+Authentication Enforcement: The server MUST NOT execute the script unless the client request passes all defined access controls (Section 3.1).
+If CONTENT_LENGTH is present, the server MUST make exactly that many bytes available for the script to read (Section 4.2).
+The server MUST remove any transfer-codings (like chunked) from the message body before passing it to the script
+and recalculate CONTENT_LENGTH (Section 4.2).
+*/
 
 void	CGIHandler::buildEnvVariables(StringVec& env_vec) {
 	static constexpr const char*	env_keys[] = {
@@ -111,7 +118,7 @@ void	CGIHandler::buildEnvVariables(StringVec& env_vec) {
 	};
 	std::string value{};
 
-	for (std::size_t i = 0; i < KEY_COUNT; ++i) {
+	for (std::size_t i{0}; i < KEY_COUNT; ++i) {
 		value = (this->*fun_ptr_arr[i])();
 		if (value != "") {
 			std::string var = env_keys[i] + value;
@@ -121,15 +128,15 @@ void	CGIHandler::buildEnvVariables(StringVec& env_vec) {
 }
 
 std::string	CGIHandler::getScriptName() {
-	return cgi_.index();
+	return cgi_.index;
 }
 
-std::string	CGIHandler::getQueryString() { //TODO
-	return "";
+std::string	CGIHandler::getQueryString() {
+	return req_.getQuery();
 }
 
-std::string	CGIHandler::getRequestMethod() { //TODO
-	return "";
+std::string	CGIHandler::getRequestMethod() {
+	return req_.getMethod();
 }
 
 std::string	CGIHandler::getContentType() {
@@ -141,7 +148,7 @@ std::string	CGIHandler::getContentLength() {
 }
 
 std::string	CGIHandler::getGatewayInterface() {
-	return "CGI/1.1";
+	return CGI_VERSION;
 }
 
 std::string	CGIHandler::getServerName() {
@@ -157,7 +164,7 @@ std::string	CGIHandler::getServerProtocol() {
 }
 
 std::string	CGIHandler::getRemoteAddr() {
-	return "";
+	return req_.getHeader("remote-addr");
 }
 //------------------------------------------------------------
 
@@ -167,7 +174,7 @@ std::string	CGIHandler::getRemoteAddr() {
 void	CGIHandler::waitSubProcess(pid_t pid) {
 	int		status{};
 
-	waitpid(pid, &status, 0); //TODO: check status, check timer and back to event loop
+	waitpid(pid, &status, NULL_OPTION); //TODO: check status, check timer and back to event loop
 	if (WIFEXITED(status))
 		return;
 	else if (WIFSIGNALED(status))
@@ -253,16 +260,16 @@ int		Pipe::operator[](int i) {
 }
 
 void	Pipe::closeRead() {
-	if (is_valid_[0] == true) {
-		close(fds_[0]);
-		is_valid_[0] = false;
+	if (is_valid_[IN_FILENO] == true) {
+		close(fds_[IN_FILENO]);
+		is_valid_[IN_FILENO] = false;
 	}
 }
 
 void	Pipe::closeWrite() {
-	if (is_valid_[1] == true) {
-		close(fds_[1]);
-		is_valid_[1] = false;
+	if (is_valid_[OUT_FILENO] == true) {
+		close(fds_[OUT_FILENO]);
+		is_valid_[OUT_FILENO] = false;
 	}
 }
 
