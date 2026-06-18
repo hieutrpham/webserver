@@ -1,14 +1,4 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   ConfigParser.cpp                                   :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/05/22 13:39:11 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/08 16:10:14 by jvalkama         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
+
 
 #include "ConfigParser.hpp"
 #include "ServerConfig.hpp"
@@ -34,7 +24,7 @@ ConfigVec	ConfigParser::parse(std::string conf_fname) {
 		if (instream_.bad())
 			throw FileOperation::FileException(ERR_IO);
 	} catch (std::exception& e) {
-		std::cerr << C_RED << e.what() << C_RST;
+		std::cerr << C_RED << "Config ERR: " << C_RST << e.what();
 		return std::vector<ServerConfig>();
 	}
 	return server_configs_;
@@ -100,8 +90,10 @@ void	ConfigParser::parseLocationBlock() {
 			continue;
 		}
 		if (line_.back() == '}') {
+			current_location_ = "";
 			return blockEnd();
 		}
+		throw ContentException(ERR_TERM);
 	}
 	throw ContentException(ERR_LOCB_DIR);
 }
@@ -141,6 +133,9 @@ bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
 		else if (matches_[14].matched) {
 			directive_name_ = matches_[14];
 		}
+		else if (matches_[17].matched) {
+			directive_name_ = matches_[17];
+		}
 		return true;
 	}
 	return false;
@@ -153,8 +148,8 @@ bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
 void	ConfigParser::configPutValue() {
 	static constexpr std::string_view	directive_names[DIR_COUNT] = {
 		"listen", "client_max_body_size", "error_page", 
-		"server_name", "root", "index", "alias",
-		"autoindex", "file_uploads", "upload_store"
+		"server_name", "root", "index", "autoindex",
+		"file_uploads", "upload_store", "return", "cgi"
 	};
 	t_dir_names		dir_name = DIR_COUNT;
 
@@ -175,14 +170,16 @@ void	ConfigParser::configPutValue() {
 			return configPutRoot();
 		case INDEX:
 			return configPutIndex();
-		case ALIAS:
-			return configPutAlias();
 		case AUINDEX:
 			return configPutAuindex();
 		case FILEUPLOADS:
 			return configPutFileUploads();
 		case UPLOADPATH:
 			return configPutUploadStore();
+		case RETURN:
+			return configPutRedirection();
+		case CGI:
+			return configPutCGIPath();
 		default:
 			throw ContentException(ERR_DIR);
 	}
@@ -190,6 +187,7 @@ void	ConfigParser::configPutValue() {
 
 void	ConfigParser::configPutListen() {
 	ServerConfig&	server = server_configs_.back();
+
 	server.ip = matches_[2];
 	server.port = uintConverter(matches_[3]);
 	server.is_filled = true;
@@ -248,14 +246,6 @@ void	ConfigParser::configPutIndex() {
 	location.index = matches_[5];
 }
 
-void	ConfigParser::configPutAlias() {
-	ServerConfig&	server = server_configs_.back();
-	auto 			it = server.locations.find(current_location_);
-	Location&		location = it->second;
-
-	location.alias = matches_[15];
-}
-
 void	ConfigParser::configPutAuindex() {
 	ServerConfig&	server = server_configs_.back();
 	auto 			it = server.locations.find(current_location_);
@@ -312,6 +302,24 @@ void	ConfigParser::configPutLex() {
 	Location&			location = it->second;
 
 	location.methods.deny_all = true;
+}
+
+void	ConfigParser::configPutRedirection() {
+	ServerConfig&		server = server_configs_.back();
+	auto 				it = server.locations.find(current_location_);
+	Location&			location = it->second;
+
+	location.redirection = Redir{uintConverter(matches_[15]), matches_[16]};
+}
+
+void	ConfigParser::configPutCGIPath() {
+	ServerConfig&		server = server_configs_.back();
+	auto 				it = server.locations.find(current_location_);
+	Location&			location = it->second;
+
+	if (matches_[18] == "on") {
+		location.cgi = true;
+	}
 }
 //----------------------------------------------------------------------------------
 
@@ -385,14 +393,12 @@ void	ConfigParser::buildRegexEngines() {
 	buildServerBEngine();
 	buildLocationBEngine();
 	buildLimexEngine();
-	//TODO: CGI
-	//TODO: redirs
 }
 
 void	ConfigParser::buildServerBEngine() {
 	constexpr std::string_view	servh_pattern
 	{
-		R"(server \{\s*)"
+		R"(server\s+\{\s*)"
 	};
 	constexpr std::string_view	servb_pattern
 	{
@@ -401,6 +407,7 @@ void	ConfigParser::buildServerBEngine() {
 		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/\w{1,13}\.html);\s*)"
 		R"(|(server_name)\s+([^;]+);\s*)"
 		R"(|()())"
+		R"(|()())"	//R"(|(return)\s+(30\d)\s+([^;]+);\s*)"
 		R"(|()())"
 	};
 	shead_engine_ = std::regex(servh_pattern.data());
@@ -415,11 +422,12 @@ void	ConfigParser::buildLocationBEngine() {
 	constexpr std::string_view	locab_pattern
 	{
 		R"((root)\s+(/[^;]+);\s*())"
-		R"(|(index)\s+(index\.html?);\s*())"
+		R"(|(index)\s+(index\.html?|[^;]+\.php);\s*())"
 		R"(|(autoindex)\s+(on|off);\s*())"
 		R"(|(file_uploads)\s+(yes|no);\s*)"
 		R"(|(upload_store)\s+(/[^;]+);\s*)"
-		R"(|(alias)\s+(/[^;]+);\s*)"
+		R"(|(return)\s+(30\d)\s+([^;]+);\s*)"
+		R"(|(cgi)\s+(on|off);\s*)"
 	};
 	lhead_engine_ = std::regex(locah_pattern.data());
 	lblock_engine_ = std::regex(locab_pattern.data());

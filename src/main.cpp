@@ -15,11 +15,30 @@ int main(int ac, char **av) {
 		ERR("Empty config vector! Configuration file not parsed correctly.\n\n");
 		return 1;
 	}
-	//		EXAMPLE OF GETTING ONE OF THE LOCATIONS ON A SERVER, AND GETTING ITS ALIAS:
-	// ServerConfig first_config = config_vector.front();
-	// auto iterator = first_config.locations.find("/requested/path-uri");
-	// Location route = iterator->second;
-	// LOG(route.alias);
+		//SOME NEW GETTERS:
+	// for (const ServerConfig& conf : config_vector) {
+	// 	Location loc = conf.getLocation("/images");
+	// 	Methods met = loc.getMethods();
+	// 	LOG(met.is_MethodAllowed("GET"));
+
+	// 	met = conf.getMethods("/upload");
+	// 	LOG(met.is_MethodAllowed("GET"));
+
+
+	// 	std::string err_page_path = conf.getErrPagePath(404);
+
+	// 	std::optional<CGIData> cgi = conf.getCGI();
+	// 	if (cgi) {
+	// 		LOG(cgi->directory);
+	// 		LOG(cgi->index);
+	// 	}
+
+	// 	bool is_route_redirected = loc.is_Redirected();
+	// 	if (is_route_redirected == true) {
+	// 		loc.getRedirCode();
+	// 		loc.getRedirPath();
+	// 	}
+	// }
 
 	std::unique_ptr<Server> s;
 	try {

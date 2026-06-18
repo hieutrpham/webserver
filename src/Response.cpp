@@ -1,6 +1,7 @@
 #include "Response.hpp"
 #include <iostream>
 #include <sstream>
+
 // Response::Response(const Request& request)
 // {
 // 	std::string target = request.getTarget();
@@ -51,6 +52,10 @@ void Response::setStatus(int statusCode, const std::string& reason) {
 
 void Response::setBody(const std::string& body) {
 	m_response_body = body;
+}
+
+void Response::setHeader(const std::string& key, const std::string& value) {
+	m_headers[key] = value;
 }
 
 std::string Response::getResponseBody()
