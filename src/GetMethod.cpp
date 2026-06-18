@@ -7,18 +7,15 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 
 	std::cout << "INSIDE handleGet()" << std::endl;
 
-	// Finds the location block with the longest match to request.path
 	Location location;
 	if (!matchLocation(request.getPath(), config, location)) {
 		std::cout << "ERROR: LOCATION " << request.getPath() << " NOT FOUND" << std::endl;
 		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
 	}
 		
-	// Build path
 	std::string finalPath = "." + location.root + request.getPath();
 	std::cout << "FINAL PATH: " << finalPath << std::endl;
 
-	// Check if path leads to something
 	if (!pathExists(finalPath)) {
 		std::cout << "PATH " << finalPath << " NOT FOUND!" << std::endl;
 		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
@@ -54,7 +51,7 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 		}
 	}
 
-	// Not a directory or regular file - > error.
+	// Not a directory or regular file -> error.
 	if (!isRegularFile(finalPath)) {
 		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
 	}
