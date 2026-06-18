@@ -6,7 +6,6 @@
 // #include "CGIHandler.hpp"
 
 Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
-	ServerConfig server_config = getConfig(request, config_vector);
 	// Probably check if request parsing ran into error and build an error response here?
 	ServerConfig server_config = getConfig(request, config_vector);
 	// Checks if the request is CGI
@@ -17,8 +16,8 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 	if (request.getMethod() == "GET")
 		return (GetMethod::handleGet(request, server_config));
 
-	if (request.getMethod() == "POST")
-		return (handlePost(request, server_config));
+	// if (request.getMethod() == "POST")
+	// 	return (handlePost(request, server_config));
 
 	if (request.getMethod() == "DELETE")
 		return (handleDelete(request, server_config));
@@ -49,10 +48,10 @@ Response ResponseBuilder::handleGet(Request& request, ServerConfig& config) {
     return response;
 }
 
-Response ResponseBuilder::handlePost(Request& request, ServerConfig& config) {
-    (void)request;
-    (void)config;
-}
+// Response ResponseBuilder::handlePost(Request& request, ServerConfig& config) {
+//     (void)request;
+//     (void)config;
+// }
 
 Response ResponseBuilder::handleDelete(Request& request, ServerConfig& config) {
     (void)request;
@@ -68,24 +67,6 @@ Response ResponseBuilder::makeErrorResponse(Request& request, ServerConfig& conf
 
     Response response;
     return response;
-}
-
-ServerConfig ResponseBuilder::getConfig(const Request& request, const ConfigVec& config_vector)
-{
-	auto host = request.getHeaders().at("host");
-	auto sep = host.find(":");
-	auto ip = host.substr(0, sep);
-	auto port = std::stoul(host.substr(sep+1, host.npos));
-
-	ServerConfig server_config;
-	for (auto c : config_vector)
-	{
-		if (((ip == "localhost" && c.ip == "127.0.0.1") || c.ip == ip) && c.port == port)
-		{
-			server_config = c;
-		}
-	}
-	return server_config;
 }
 
 ServerConfig ResponseBuilder::getConfig(const Request& request, const ConfigVec& config_vector)
