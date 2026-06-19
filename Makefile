@@ -7,7 +7,7 @@ DFLAGS = -MMD -MP
 SRC_PATH = src/
 SRC = main.cpp Server.cpp Request.cpp RequestParser.cpp \
 	  ConfigParser.cpp ServerConfig.cpp Response.cpp \
-	  FileOperation.cpp POSTMethod.cpp \
+	  FileOperation.cpp POSTMethod.cpp DELETEMethod.cpp\
 	  ResponseBuilder.cpp
 
 #include
