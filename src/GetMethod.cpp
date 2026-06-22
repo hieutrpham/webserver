@@ -1,6 +1,7 @@
 #include "GetMethod.hpp"
 #include <sys/stat.h>
 #include "ResponseBuilder.hpp"
+#include <dirent.h>
 
 Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	Response response;
@@ -31,6 +32,8 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 			indexPath += "/";
 		indexPath += location.index;
 
+		std::cout << "LOCATION URI: " << location.uri << std::endl;
+
 		std::cout << "INDEX PATH: " << indexPath << std::endl;
 
 		// Index found, go serve index
@@ -41,12 +44,12 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 		// Index file not valid or not found
 		// Check if autoindex is on && generate autoindex.
 		else if (location.autoindex) {
-			std::cout << "AUTOINDEX" << std::endl;
-			// TODO: generateAutoIndex()
-			return (response);
+			std::cout << "AUTOINDEX ON" << std::endl;
+			return (generateAutoIndex(finalPath, request.getPath()));
 		}
 		// No index file or autoindex -> error.
 		else {
+			std::cout << "NO INDEX FILE AND AUTOINDEX OFF" << std::endl;
 			return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
 		}
 	}
@@ -145,6 +148,66 @@ bool GetMethod::isRegularFile(const std::string& path) {
 		return (false);
 
 	return (S_ISREG(info.st_mode));
+}
+
+Response GetMethod::generateAutoIndex(const std::string& dirPath, const std::string& requestPath) {
+	DIR* dir = opendir(dirPath.c_str());
+	if (!dir)
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
+
+	std::stringstream body;
+
+	body << "<!DOCTYPE html>\n";
+	body << "<html>\n";
+	body << "<head><title>Index of " << requestPath << "</title></head>\n";
+	body << "<body>\n";
+	body << "<h1>Index of " << requestPath << "</h1>\n";
+	body << "<ul>\n";
+
+	// Read all directory entries
+	struct dirent* entry;
+	while ((entry = readdir(dir)) != NULL) {
+		std::string name = entry->d_name;
+
+		// Skip links to current dir and parent dir.
+		if (name == "." || name == "..")
+			continue ;
+		
+		std::string href = name;
+
+		std::string fullEntryPath = dirPath;
+
+		if (!fullEntryPath.empty() && fullEntryPath[fullEntryPath.length() - 1] != '/')
+			fullEntryPath += "/";
+
+		fullEntryPath += name;
+
+		if (isDirectory(fullEntryPath))
+			href += "/";
+
+		body << "<li><a href=\""
+			 << href
+			 << "\">"
+			 << href
+			 << "</a></li>\n";
+	}
+
+	body << "</ul>\n";
+	body << "</body>\n";
+	body << "</html>\n";
+
+	closedir(dir);
+
+	std::string html = body.str();
+
+	Response response;
+	response.setVersion("HTTP/1.1");
+	response.setStatus(200, "OK");
+	response.setHeader("Content-Type", "text/html");
+	response.setHeader("Content-Length", std::to_string(html.size()));
+	response.setBody(html);
+
+	return (response);
 }
 
 bool GetMethod::endsWith(const std::string& str, const std::string& suffix) {
