@@ -6,25 +6,18 @@
 Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	Response response;
 
-	std::cout << "INSIDE handleGet()" << std::endl;
-
 	Location location;
 	if (!matchLocation(request.getPath(), config, location)) {
-		std::cout << "ERROR: LOCATION " << request.getPath() << " NOT FOUND" << std::endl;
 		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
 	}
 		
 	std::string finalPath = "." + location.root + request.getPath();
-	std::cout << "FINAL PATH: " << finalPath << std::endl;
 
-	if (!pathExists(finalPath)) {
-		std::cout << "PATH " << finalPath << " NOT FOUND!" << std::endl;
+	if (!pathExists(finalPath))
 		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
-	}
 
 	// If path leads to directory
 	if (isDirectory(finalPath)) {
-		std::cout << "PATH LEADS TO DIRECTORY" << std::endl;
 
 		// Try index file from directory
 		std::string indexPath = finalPath;
@@ -32,24 +25,17 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 			indexPath += "/";
 		indexPath += location.index;
 
-		std::cout << "LOCATION URI: " << location.uri << std::endl;
-
-		std::cout << "INDEX PATH: " << indexPath << std::endl;
-
 		// Index found, go serve index
 		if (isRegularFile(indexPath)) {
-			std::cout << "Index file found in directory" << std::endl;
 			finalPath = indexPath;
 		}
 		// Index file not valid or not found
 		// Check if autoindex is on && generate autoindex.
 		else if (location.autoindex) {
-			std::cout << "AUTOINDEX ON" << std::endl;
 			return (generateAutoIndex(finalPath, request.getPath()));
 		}
 		// No index file or autoindex -> error.
 		else {
-			std::cout << "NO INDEX FILE AND AUTOINDEX OFF" << std::endl;
 			return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
 		}
 	}
@@ -62,7 +48,6 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	// Copy file contents into response body.
 	std::ifstream file(finalPath.c_str());
 	if (!file.is_open()) {
-		std::cout << "ERROR: could not open file" << std::endl;
 		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
 	}
 
