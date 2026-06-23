@@ -20,7 +20,6 @@ class ResponseBuilder {
 		static Response buildErrorResponse(int code, const std::string& reason);
 		static Response        makeErrorResponse(Request& request, ServerConfig& config);
 		static Location        getLocation(const Request& request, const ServerConfig& config);
-		static Response        buildResponse(Request& request, ConfigVec& config);
 };
 
 #endif
