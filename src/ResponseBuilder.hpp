@@ -13,12 +13,12 @@ class ResponseBuilder {
 		static Response        handleGet(Request& request, ServerConfig& config);
 		static Response        handlePost(Request& request, ServerConfig& config);
 		static Response        handleDelete(Request& request, ServerConfig& config);
-		static Response        makeErrorResponse(Request& request, ServerConfig& config);
 		static ServerConfig    getConfig(const Request& request, const ConfigVec& config_vector);
 
 	public:
-		static Response buildResponse(Request& request, ConfigVec& config);
-		
+		static Response        makeErrorResponse(Request& request, ServerConfig& config);
+		static Location        getLocation(const Request& request, const ServerConfig& config);
+		static Response        buildResponse(Request& request, ConfigVec& config);
 };
 
 #endif
