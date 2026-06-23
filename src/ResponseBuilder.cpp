@@ -3,6 +3,7 @@
 #include "Request.hpp"
 #include "Server.hpp"
 #include "ServerConfig.hpp"
+#include "POSTMethod.hpp"
 // #include "CGIHandler.hpp"
 
 Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
@@ -16,8 +17,8 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 	if (request.getMethod() == "GET")
 		return (GetMethod::handleGet(request, server_config));
 
-	// if (request.getMethod() == "POST")
-	// 	return (handlePost(request, server_config));
+	if (request.getMethod() == "POST")
+		return (POSTMethod::handlePost(request, server_config));
 
 	if (request.getMethod() == "DELETE")
 		return (handleDelete(request, server_config));
@@ -66,6 +67,12 @@ Response ResponseBuilder::makeErrorResponse(Request& request, ServerConfig& conf
     (void)config;
 
     Response response;
+
+	response.setBody("Server Error");
+	response.setVersion("HTTP/1.1");
+	response.setStatus(500, "Internal Server Error");
+	response.setHeader("Content-Type", "text/html");
+
     return response;
 }
 
@@ -100,5 +107,21 @@ Response ResponseBuilder::buildErrorResponse(int code, const std::string& reason
 	response.setHeader("Content-Type", "text/html");
 	response.setBody(body.str());
 
-	return (response);
+	return (response); 
+}
+
+Location ResponseBuilder::getLocation(const Request& request, const ServerConfig& config)
+{
+	auto target = request.getTarget();
+	Location location;
+
+	for (auto l : config.locations)
+	{
+		if (target == l.first)
+		{
+			location = l.second;
+		}
+	}
+
+	return location;
 }
