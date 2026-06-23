@@ -9,8 +9,8 @@ SRC = main.cpp Server.cpp Request.cpp RequestParser.cpp \
 	  ConfigParser.cpp ServerConfig.cpp Response.cpp \
 	  FileOperation.cpp \
 	  ResponseBuilder.cpp \
-	  GetMethod.cpp
-    POSTMethod.cpp \
+	  GetMethod.cpp \
+     POSTMethod.cpp \
 
 #include
 INCLUDE = -I./src/
