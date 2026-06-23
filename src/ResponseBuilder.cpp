@@ -50,11 +50,6 @@ Response ResponseBuilder::handleGet(Request& request, ServerConfig& config) {
     return response;
 }
 
-// Response ResponseBuilder::handlePost(Request& request, ServerConfig& config) {
-//     (void)request;
-//     (void)config;
-// }
-
 Response ResponseBuilder::handleDelete(Request& request, ServerConfig& config) {
     (void)request;
     (void)config;
