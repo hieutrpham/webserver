@@ -4,6 +4,7 @@
 #include "Server.hpp"
 #include "ServerConfig.hpp"
 #include "POSTMethod.hpp"
+#include "DELETEMethod.hpp"
 // #include "CGIHandler.hpp"
 
 Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
@@ -21,7 +22,7 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 		return (POSTMethod::handlePost(request, server_config));
 
 	if (request.getMethod() == "DELETE")
-		return (handleDelete(request, server_config));
+		return (DELETEMethod::handleDelete(request, server_config));
 	
 	return (makeErrorResponse(request, server_config));
 }
@@ -112,7 +113,7 @@ Response ResponseBuilder::buildErrorResponse(int code, const std::string& reason
 
 Location ResponseBuilder::getLocation(const Request& request, const ServerConfig& config)
 {
-	auto target = request.getTarget();
+	auto target = request.getPath();
 	Location location;
 
 	for (auto l : config.locations)

@@ -5,7 +5,10 @@ Response POSTMethod::handlePost(Request& request, ServerConfig& config)
 	auto location = ResponseBuilder::getLocation(request, config);
 
 	if (!location.methods.except_allow[POST])
+	{
+		ERR("POST not allowed at: " + location.uri);
 		return ResponseBuilder::makeErrorResponse(request, config);
+	}
 
 	auto content_type = request.getHeaders().at("content-type");
 	if (is_file_upload(content_type, request,  config))
@@ -51,7 +54,7 @@ std::string POSTMethod::get_file_name(std::string &body)
 bool POSTMethod::is_file_upload(std::string &content_type, Request &request, ServerConfig & config)
 {
 	return content_type.find("multipart/form-data") != std::string::npos
-	&& config.getLocation(request.getTarget()).allow_file_uploads;
+	&& config.getLocation(request.getPath()).allow_file_uploads;
 }
 
 std::string POSTMethod::save_file_upload(std::string &content_type, Request &request, ServerConfig &config)
@@ -61,12 +64,12 @@ std::string POSTMethod::save_file_upload(std::string &content_type, Request &req
 	auto body = request.getBody();
 	auto name = get_file_name(body);
 
-	name = "." + config.getLocation(request.getTarget()).upload_store + "/" + name;
+	name = "." + config.getLocation(request.getPath()).upload_store + "/" + name;
 
 	std::fstream outfile(name, outfile.out);
 	if (!outfile.is_open())
 	{
-		throw std::runtime_error("could not open file");
+		throw std::runtime_error("could not open file: " + name);
 	}
 
 	// extracting out main body between boundary
