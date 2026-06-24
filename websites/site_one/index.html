@@ -1,23 +1,18 @@
 <!DOCTYPE html>
-
 <html>
-	<head>
-		<style>
-			h1, p {
-				display: flex,
-				justify-content: center;
-				align-items: center;
-				align-content: center;
-				height: 100px;
-				width: 100%;
-				border: 2px dashed #f69c55;
-			}
-		</style>
-	</head>
-	<body>
-		<h1>Web Server from Hell</h1>
-		<p>Hieu</p>
-		<p>Janne</p>
-		<p>Walteri</p>
-	</body>
+<head>
+    <title>Site One</title>
+</head>
+<body>
+    <h1>Site One</h1>
+    <p>Root index page. If you see this, GET / works.</p>
+
+    <ul>
+        <li><a href="/docs/">Docs directory with index.html</a></li>
+        <li><a href="/docs/guide.html">Direct nested file: guide.html</a></li>
+        <li><a href="/images/">Images directory</a></li>
+        <li><a href="/downloads/">Downloads directory for autoindex testing</a></li>
+        <li><a href="/missing.html">Missing file test</a></li>
+    </ul>
+</body>
 </html>
