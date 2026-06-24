@@ -106,8 +106,8 @@ void	CGIHandler::buildEnvVariables(StringVec& env_vec) {
 	};
 	FunPtr fun_ptr_arr[] = {
 		&CGIHandler::getScriptName,
-		&CGIHandler::getQueryString, //TODO
-		&CGIHandler::getRequestMethod, //TODO
+		&CGIHandler::getQueryString,
+		&CGIHandler::getRequestMethod,
 		&CGIHandler::getContentType, 
 		&CGIHandler::getContentLength,
 		&CGIHandler::getGatewayInterface,
@@ -171,7 +171,7 @@ std::string	CGIHandler::getRemoteAddr() {
 
 
 //WAIT TO REAP------------------------------------------------
-void	CGIHandler::waitSubProcess(pid_t pid) {
+void	CGIHandler::waitSubProcess(pid_t pid) { //TODO: check status & handle response object if exited
 	int		status{};
 
 	waitpid(pid, &status, NULL_OPTION); //TODO: check status, check timer and back to event loop
@@ -186,14 +186,14 @@ void	CGIHandler::waitSubProcess(pid_t pid) {
 
 
 //BUILD RESPONSE FROM CGI OUTPUT--------------------------------
-Response	CGIHandler::handleCGIOutput() {
+Response	CGIHandler::handleCGIOutput() { //TODO
 	Response	res{};
 
-	// res.m_version;		// Http version
-	// res.m_status_code;	// Http status code: 200, 404, etc.
-	// res.m_reason;		// OK, Not found, etc.
-	// res.m_response_body;
-	// res.headers;
+	res.m_version;		// Http version
+	res.m_status_code;	// Http status code: 200, 404, etc.
+	res.m_reason;		// OK, Not found, etc.
+	res.m_response_body;
+	res.headers;
 
 	return res;
 }
