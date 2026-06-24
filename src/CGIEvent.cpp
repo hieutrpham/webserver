@@ -1,29 +1,30 @@
 
 
-#include "CGIHandler.hpp"
+#include "CGIEvent.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
+#include "ResponseBuilder.hpp"
 #include "FileOperation.hpp"
 #include "ServerConfig.hpp"
 #include <unistd.h>
 #include <sys/wait.h>
 
-CGIHandler::CGIHandler(ServerConfig& config) : 
+CGIEvent::CGIEvent(ServerConfig& config) : 
 	config_(config),
 	req_(Request()),
 	cgi_(CGIData())
 {}
 
 
-CGIHandler::CGIHandler(const CGIHandler& other) : 
+CGIEvent::CGIEvent(const CGIEvent& other) : 
 	config_(other.config_),
 	req_(other.req_),
 	cgi_(other.cgi_)
 {}
 
-CGIHandler::~CGIHandler() {}
+CGIEvent::~CGIEvent() {}
 
-CGIHandler&	CGIHandler::operator=(const CGIHandler& other) {
+CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 	if (this != &other) {
 		config_ = other.config_;
 		req_ = other.req_;
@@ -32,7 +33,7 @@ CGIHandler&	CGIHandler::operator=(const CGIHandler& other) {
 	return *this;
 }
 
-void	CGIHandler::executeCGI(Request& req) {
+void	CGIEvent::executeCGI(Request& req) {
 	cgi_ = configCheckCGIData();
 	pid_t	pid;
 	Pipe	pipe;
@@ -48,7 +49,7 @@ void	CGIHandler::executeCGI(Request& req) {
 	return;
 }
 
-CGIData		CGIHandler::configCheckCGIData() {
+CGIData		CGIEvent::configCheckCGIData() {
 	std::optional<CGIData> cgi = config_.getCGIData();
 	if (!cgi)
 		throw CGIExecException(NO_CGI);
@@ -61,7 +62,7 @@ CGIData		CGIHandler::configCheckCGIData() {
 //	the script path: from config_file+request_URI
 //	the arg: request body
 //	the envp: parsed together from request parser
-void	CGIHandler::execSubProcess(Pipe& pipe) {
+void	CGIEvent::execSubProcess(Pipe& pipe) {
 	StringVec		env_vec{};
 	CStringVec		c_env_vec{};
 
@@ -76,7 +77,7 @@ void	CGIHandler::execSubProcess(Pipe& pipe) {
 
 
 //ENV BUILDER------------------------------------------------------
-char**	CGIHandler::loadEnvp(StringVec& env_vec, CStringVec& c_env_vec) {
+char**	CGIEvent::loadEnvp(StringVec& env_vec, CStringVec& c_env_vec) {
 	buildEnvVariables(env_vec);
 	for (const std::string& s : env_vec)
 		c_env_vec.push_back(const_cast<char*>(s.c_str()));
@@ -91,7 +92,7 @@ The server MUST remove any transfer-codings (like chunked) from the message body
 and recalculate CONTENT_LENGTH (Section 4.2).
 */
 
-void	CGIHandler::buildEnvVariables(StringVec& env_vec) {
+void	CGIEvent::buildEnvVariables(StringVec& env_vec) {
 	static constexpr const char*	env_keys[] = {
 		"SCRIPT_NAME=",
 		"QUERY_STRING=",
@@ -105,16 +106,16 @@ void	CGIHandler::buildEnvVariables(StringVec& env_vec) {
 		"REMOTE_ADDR="
 	};
 	FunPtr fun_ptr_arr[] = {
-		&CGIHandler::getScriptName,
-		&CGIHandler::getQueryString,
-		&CGIHandler::getRequestMethod,
-		&CGIHandler::getContentType, 
-		&CGIHandler::getContentLength,
-		&CGIHandler::getGatewayInterface,
-		&CGIHandler::getServerName,
-		&CGIHandler::getServerPort,
-		&CGIHandler::getServerProtocol,
-		&CGIHandler::getRemoteAddr
+		&CGIEvent::getScriptName,
+		&CGIEvent::getQueryString,
+		&CGIEvent::getRequestMethod,
+		&CGIEvent::getContentType, 
+		&CGIEvent::getContentLength,
+		&CGIEvent::getGatewayInterface,
+		&CGIEvent::getServerName,
+		&CGIEvent::getServerPort,
+		&CGIEvent::getServerProtocol,
+		&CGIEvent::getRemoteAddr
 	};
 	std::string value{};
 
@@ -127,43 +128,43 @@ void	CGIHandler::buildEnvVariables(StringVec& env_vec) {
 	}
 }
 
-std::string	CGIHandler::getScriptName() {
+std::string	CGIEvent::getScriptName() {
 	return cgi_.index;
 }
 
-std::string	CGIHandler::getQueryString() {
+std::string	CGIEvent::getQueryString() {
 	return req_.getQuery();
 }
 
-std::string	CGIHandler::getRequestMethod() {
+std::string	CGIEvent::getRequestMethod() {
 	return req_.getMethod();
 }
 
-std::string	CGIHandler::getContentType() {
+std::string	CGIEvent::getContentType() {
 	return req_.getHeader("content-type");
 }
 
-std::string	CGIHandler::getContentLength() {
+std::string	CGIEvent::getContentLength() {
 	return req_.getHeader("content-length");
 }
 
-std::string	CGIHandler::getGatewayInterface() {
+std::string	CGIEvent::getGatewayInterface() {
 	return CGI_VERSION;
 }
 
-std::string	CGIHandler::getServerName() {
+std::string	CGIEvent::getServerName() {
 	return config_.server_name;
 }
 
-std::string	CGIHandler::getServerPort() {
+std::string	CGIEvent::getServerPort() {
 	return std::to_string(config_.port);
 }
 
-std::string	CGIHandler::getServerProtocol() {
+std::string	CGIEvent::getServerProtocol() {
 	return req_.getVersion();
 }
 
-std::string	CGIHandler::getRemoteAddr() {
+std::string	CGIEvent::getRemoteAddr() {
 	return req_.getHeader("remote-addr");
 }
 //------------------------------------------------------------
@@ -171,7 +172,7 @@ std::string	CGIHandler::getRemoteAddr() {
 
 
 //WAIT TO REAP------------------------------------------------
-void	CGIHandler::waitSubProcess(pid_t pid) { //TODO: check status & handle response object if exited
+void	CGIEvent::waitSubProcess(pid_t pid) { //TODO: check status & handle response object if exited
 	int		status{};
 
 	waitpid(pid, &status, NULL_OPTION); //TODO: check status, check timer and back to event loop
@@ -186,14 +187,15 @@ void	CGIHandler::waitSubProcess(pid_t pid) { //TODO: check status & handle respo
 
 
 //BUILD RESPONSE FROM CGI OUTPUT--------------------------------
-Response	CGIHandler::handleCGIOutput() { //TODO
+Response	CGIEvent::putCGIOutResponse() { //TODO
 	Response	res{};
 
-	res.m_version;		// Http version
-	res.m_status_code;	// Http status code: 200, 404, etc.
-	res.m_reason;		// OK, Not found, etc.
-	res.m_response_body;
-	res.headers;
+	auto location = ResponseBuilder::getLocation(req_, config_);
+	req_.setBody("CGI output body"); //TODO: read from pipe and set body
+	// res.setVersion();				// Http version
+	// res.setStatus(code, reason);	// Http status code: 200, 404, etc.
+	// res.setBody();
+	// res.setHeader();
 
 	return res;
 }
@@ -202,15 +204,15 @@ Response	CGIHandler::handleCGIOutput() { //TODO
 
 
 //GETTERS----------------------------------------------------
-ServerConfig	CGIHandler::getConfig() const {
+ServerConfig	CGIEvent::getConfig() const {
 	return config_;
 }
 
-Request		CGIHandler::getRequest() const {
+Request		CGIEvent::getRequest() const {
 	return req_;
 }
 
-CGIData		CGIHandler::getCGIData() const {
+CGIData		CGIEvent::getCGIData() const {
 	return cgi_;
 }
 //------------------------------------------------------------
@@ -218,21 +220,21 @@ CGIData		CGIHandler::getCGIData() const {
 
 
 //CUSTOM EXCEPTIONS-------------------------------------------------------------
-CGIHandler::Dup2Exception::Dup2Exception(const std::string& msg) {}
+CGIEvent::Dup2Exception::Dup2Exception(const std::string& msg) {}
 
-const char* CGIHandler::Dup2Exception::Dup2Exception::what() const noexcept {
+const char* CGIEvent::Dup2Exception::Dup2Exception::what() const noexcept {
 	return this->msg_.c_str();
 }
 
-CGIHandler::ForkException::ForkException(const std::string& msg) {}
+CGIEvent::ForkException::ForkException(const std::string& msg) {}
 
-const char* CGIHandler::ForkException::what() const noexcept {
+const char* CGIEvent::ForkException::what() const noexcept {
 	return this->msg_.c_str();
 }
 
-CGIHandler::CGIExecException::CGIExecException(const std::string& msg) {}
+CGIEvent::CGIExecException::CGIExecException(const std::string& msg) {}
 
-const char* CGIHandler::CGIExecException::what() const noexcept {
+const char* CGIEvent::CGIExecException::what() const noexcept {
 	return this->msg_.c_str();
 }
 //------------------------------------------------------------------------------

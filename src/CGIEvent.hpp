@@ -64,11 +64,11 @@ class Pipe {
 		};
 };
 
-class CGIHandler {
+class CGIEvent {
 	private:
 		using StringVec = std::vector<std::string>;
 		using CStringVec = std::vector<char*>;
-		typedef std::string (CGIHandler::*FunPtr)(void);
+		typedef std::string (CGIEvent::*FunPtr)(void);
 
 		ServerConfig	config_;
 		Request			req_;
@@ -90,16 +90,16 @@ class CGIHandler {
 		CGIData		configCheckCGIData();
 		
 	public:
-		CGIHandler() = delete;
-		CGIHandler(ServerConfig& config);
-		CGIHandler(const CGIHandler& other);
-		~CGIHandler();
-		CGIHandler&	operator=(const CGIHandler& other);
+		CGIEvent() = delete;
+		CGIEvent(ServerConfig& config);
+		CGIEvent(const CGIEvent& other);
+		~CGIEvent();
+		CGIEvent&	operator=(const CGIEvent& other);
 
 		//INTERFACE-----------------------------//
 		void		executeCGI(Request& req);	//
 		void		waitSubProcess(pid_t pid);	//
-		Response	handleCGIOutput();			//
+		Response	putCGIOutResponse();			//
 		//--------------------------------------//
 
 		ServerConfig	getConfig() const;
