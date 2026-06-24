@@ -9,20 +9,24 @@
 
 #define CGI_VERSION "CGI/1.1"
 
-#define PIPE_ERRFDN "CGI Pipe: Maximum number of open FDs reached: Dropping CGI execution"
-#define PIPE_ERRGEN "CGI Pipe: Syscall failure: Dropping CGI Execution"
-#define PIPE_IDX	"Pipe operator[]: index access beyond memory"
-#define NO_CGI 		"No CGI set up in configuration file!"
-#define SYS_FORK	"CGI Fork: Syscall failure: Dropping CGI execution"
-#define SYS_DUP2	"CGI Dup2: Syscall failure: Dropping CGI execution"
-#define SYS_EXECVE	"CGI Execve: Syscall failure: Dropping CGI execution"
-#define SYS_SIGTERM	"CGI subprocess terminated by signal"
+#define PIPE_ERRFDN 	"CGI Pipe: Maximum number of open FDs reached: Dropping CGI execution"
+#define PIPE_ERRGEN 	"CGI Pipe: Syscall failure: Dropping CGI Execution"
+#define PIPE_IDX		"Pipe operator[]: index access beyond memory"
+#define NO_CGI 			"No CGI set up in configuration file!"
+#define SYS_FORK		"CGI fork: Syscall failure: Dropping CGI execution"
+#define SYS_DUP2		"CGI dup2: Syscall failure: Dropping CGI execution"
+#define SYS_EXECVE		"CGI execve: Syscall failure: Dropping CGI execution"
+#define SYS_SIGTERM		"CGI subprocess terminated by signal"
+#define SYS_WAITPID		"CGI waitpid: Syscall failure: Dropping CGI execution"
+#define SYS_SUBEXIT		"CGI subprocess exited with error: Dropping CGI execution"
+#define SYS_WUNKNOWN	"CGI waitpid: Unknown subprocess failure: Dropping CGI execution"
 
-#define SUCCESS		0
-#define ERROR		1
-#define FAIL		-1
-#define IN_FILENO	0
-#define OUT_FILENO	1
+#define SUCCESS			0
+#define ERROR			1
+#define FAIL			-1
+#define STILL_RUNNING	1
+#define IN_FILENO		0
+#define OUT_FILENO		1
 #define CHILD_SELF_ID	0
 #define NULL_OPTION		0
 
@@ -73,8 +77,9 @@ class CGIEvent {
 		ServerConfig	config_;
 		Request			req_;
 		CGIData			cgi_;
+		pid_t			pid_;
 
-		void		execSubProcess(Pipe& pipe);
+		void		execChildProcess(Pipe& pipe);
 		char**		loadEnvp(StringVec& env_vec, CStringVec& c_env_vec);
 		void		buildEnvVariables(StringVec& env_vec);
 		std::string	getScriptName();
@@ -98,14 +103,14 @@ class CGIEvent {
 
 		//INTERFACE-----------------------------//
 		void		executeCGI(Request& req);	//
-		void		waitSubProcess(pid_t pid);	//
-		Response	putCGIOutResponse();			//
+		int			waitSubProcess();			//
+		Response	putCGIOutResponse();		//
 		//--------------------------------------//
 
 		ServerConfig	getConfig() const;
 		Request			getRequest() const;
 		CGIData			getCGIData() const;
-
+		pid_t			getPid() const;
 		//EXCEPTION SUB CLASSES
 		class Dup2Exception : public std::exception {
 				std::string		msg_;

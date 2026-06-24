@@ -12,14 +12,16 @@
 CGIEvent::CGIEvent(ServerConfig& config) : 
 	config_(config),
 	req_(Request()),
-	cgi_(CGIData())
+	cgi_(CGIData()),
+	pid_(-1)
 {}
 
 
 CGIEvent::CGIEvent(const CGIEvent& other) : 
 	config_(other.config_),
 	req_(other.req_),
-	cgi_(other.cgi_)
+	cgi_(other.cgi_),
+	pid_(other.getPid())
 {}
 
 CGIEvent::~CGIEvent() {}
@@ -29,6 +31,7 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 		config_ = other.config_;
 		req_ = other.req_;
 		cgi_ = other.cgi_;
+		pid_ = other.getPid();
 	}
 	return *this;
 }
@@ -44,7 +47,8 @@ void	CGIEvent::executeCGI(Request& req) {
 	if (pid == FAIL)
 		throw ForkException(SYS_FORK);
 	if (pid == CHILD_SELF_ID)
-		execSubProcess(pipe);
+		execChildProcess(pipe);
+	pid_ = pid;
 	pipe.closeWrite();
 	return;
 }
@@ -62,7 +66,7 @@ CGIData		CGIEvent::configCheckCGIData() {
 //	the script path: from config_file+request_URI
 //	the arg: request body
 //	the envp: parsed together from request parser
-void	CGIEvent::execSubProcess(Pipe& pipe) {
+void	CGIEvent::execChildProcess(Pipe& pipe) {
 	StringVec		env_vec{};
 	CStringVec		c_env_vec{};
 
@@ -172,15 +176,28 @@ std::string	CGIEvent::getRemoteAddr() {
 
 
 //WAIT TO REAP------------------------------------------------
-void	CGIEvent::waitSubProcess(pid_t pid) { //TODO: check status & handle response object if exited
+int	CGIEvent::waitSubProcess() {
 	int		status{};
 
-	waitpid(pid, &status, NULL_OPTION); //TODO: check status, check timer and back to event loop
-	if (WIFEXITED(status))
-		return;
-	else if (WIFSIGNALED(status))
+	if (pid_ == -1)
+		throw CGIExecException(NO_CGI);
+	pid_t result = waitpid(pid_, &status, WNOHANG); //TODO: check timer and back to event loop
+	if (result == 0)
+		return STILL_RUNNING;
+
+	else if (result == -1)
+		throw CGIExecException(SYS_WAITPID);
+
+	if (WIFEXITED(status)) {
+		int exit_status = WEXITSTATUS(status);
+		if (exit_status != SUCCESS)
+			throw CGIExecException(SYS_SUBEXIT);
+		return SUCCESS;
+	}
+	else if (WIFSIGNALED(status)) {
 		throw CGIExecException(SYS_SIGTERM);
-	//throw CGIExecException("CGI subprocess error");
+	}
+	throw CGIExecException(SYS_WUNKNOWN);
 }
 //------------------------------------------------------------
 
@@ -191,11 +208,17 @@ Response	CGIEvent::putCGIOutResponse() { //TODO
 	Response	res{};
 
 	auto location = ResponseBuilder::getLocation(req_, config_);
-	req_.setBody("CGI output body"); //TODO: read from pipe and set body
-	// res.setVersion();				// Http version
-	// res.setStatus(code, reason);	// Http status code: 200, 404, etc.
-	// res.setBody();
-	// res.setHeader();
+	
+	std::string body = ""; //TODO: parse from CGI output
+	req_.setBody(body);			
+
+	std::string reason = "OK"; //TODO: parse from CGI output
+	int code = 200; //TODO: parse from CGI output
+	res.setStatus(code, reason);
+	
+	std::string key = "Content-Type"; //TODO: parse from CGI output
+	std::string value = "text/html"; //TODO: parse from CGI output
+	res.setHeader(key, value);
 
 	return res;
 }
@@ -214,6 +237,10 @@ Request		CGIEvent::getRequest() const {
 
 CGIData		CGIEvent::getCGIData() const {
 	return cgi_;
+}
+
+pid_t		CGIEvent::getPid() const {
+	return pid_;
 }
 //------------------------------------------------------------
 
