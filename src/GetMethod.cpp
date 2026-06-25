@@ -8,10 +8,10 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 
 	Location location;
 	if (!matchLocation(request.getPath(), config, location))
-		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
+		return (ResponseBuilder::buildErrorResponse(404, "Not Found"));
 
 	if (!location.methods.is_MethodAllowed("GET"))
-		return (ResponseBuilder::buildErrorResponse(405, "Method not Allowed"));
+		return (ResponseBuilder::buildErrorResponse(405, "Method Not Allowed"));
 
 	if (request.getPath().find("..") != std::string::npos)
 		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
@@ -19,7 +19,7 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	std::string finalPath = "." + location.root + request.getPath();
 
 	if (!pathExists(finalPath))
-		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
+		return (ResponseBuilder::buildErrorResponse(404, "Not Found"));
 
 	// If path leads to directory
 	if (isDirectory(finalPath)) {
