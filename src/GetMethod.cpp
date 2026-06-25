@@ -12,6 +12,9 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 
 	if (!location.methods.is_MethodAllowed("GET"))
 		return (ResponseBuilder::buildErrorResponse(405, "Method not Allowed"));
+
+	if (request.getPath().find("..") != std::string::npos)
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
 		
 	std::string finalPath = "." + location.root + request.getPath();
 
