@@ -47,7 +47,7 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	}
 
 	// Copy file contents into response body.
-	std::ifstream file(finalPath.c_str());
+	std::ifstream file(finalPath.c_str(), std::ios::in | std::ios::binary);
 	if (!file.is_open()) {
 		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
 	}
