@@ -36,13 +36,20 @@ bool ResponseBuilder::isCgi(Request& request, ServerConfig& config) {
     return false;
 }
 
+//non-event-queue implementation:
 Response ResponseBuilder::handleCgi(Request& request, ServerConfig& config) {
-    CGIEvent cgievent(config);
+    CGIEvent 	cgievent(config);
+	Response 	response;
 
-	//non-event-queue implementation:
-	cgievent.executeCGI(request); //forks and execs the CGI script, sets up a pipe
-	cgievent.waitSubProcess(); //waits for the CGI script until finished, then reaps the child process
-	return cgievent.getCGIResponse(); //reads the CGI output from a pipe and returns a response obj
+	try {
+		cgievent.executeCGI(request); //forks and execs the CGI script, sets up a pipe
+		response = cgievent.getCGIResponse(); //reads the CGI output from a pipe and returns a response obj
+		cgievent.waitSubProcess(); //waits for the CGI script until finished, then reaps the child process
+		return response;
+	} catch (std::exception &e) {
+		ERR(e.what());
+		return makeErrorResponse(request, config);
+	}
 }
 
 Response ResponseBuilder::handleGet(Request& request, ServerConfig& config) {

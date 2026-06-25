@@ -237,10 +237,9 @@ Response	CGIEvent::getCGIResponse() {
 	while ((bytes_read = read(pipe_[OUT_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
 		cgi_output += std::string(buffer);
 	}
-
+	pipe_.closeRead();
 	if (bytes_read == -1)
 		throw CGIExecException(SYS_READ);
-
 	res.setBody(cgi_output);
 	res.setCGI(true);
 
