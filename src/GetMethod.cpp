@@ -7,9 +7,11 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	Response response;
 
 	Location location;
-	if (!matchLocation(request.getPath(), config, location)) {
+	if (!matchLocation(request.getPath(), config, location))
 		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
-	}
+
+	if (!location.methods.is_MethodAllowed("GET"))
+		return (ResponseBuilder::buildErrorResponse(405, "Method not Allowed"));
 		
 	std::string finalPath = "." + location.root + request.getPath();
 
@@ -18,7 +20,6 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 
 	// If path leads to directory
 	if (isDirectory(finalPath)) {
-
 		// Try index file from directory
 		std::string indexPath = finalPath;
 		if (!indexPath.empty() && indexPath[indexPath.length() - 1] != '/')
