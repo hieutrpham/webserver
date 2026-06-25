@@ -8,18 +8,18 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 
 	Location location;
 	if (!matchLocation(request.getPath(), config, location))
-		return (ResponseBuilder::buildErrorResponse(404, "Not Found"));
+		return (ResponseBuilder::buildErrorResponse(404, "Not Found", config));
 
 	if (!location.methods.is_MethodAllowed("GET"))
-		return (ResponseBuilder::buildErrorResponse(405, "Method Not Allowed"));
+		return (ResponseBuilder::buildErrorResponse(405, "Method Not Allowed", config));
 
 	if (request.getPath().find("..") != std::string::npos)
-		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden", config));
 		
 	std::string finalPath = "." + location.root + request.getPath();
 
 	if (!pathExists(finalPath))
-		return (ResponseBuilder::buildErrorResponse(404, "Not Found"));
+		return (ResponseBuilder::buildErrorResponse(404, "Not Found", config));
 
 	// If path leads to directory
 	if (isDirectory(finalPath)) {
@@ -40,19 +40,19 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 		}
 		// No index file or autoindex -> error.
 		else {
-			return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
+			return (ResponseBuilder::buildErrorResponse(403, "Forbidden", config));
 		}
 	}
 
 	// Not a directory or regular file -> error.
 	if (!isRegularFile(finalPath)) {
-		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden", config));
 	}
 
 	// Copy file contents into response body.
 	std::ifstream file(finalPath.c_str(), std::ios::in | std::ios::binary);
 	if (!file.is_open()) {
-		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden", config));
 	}
 
 	std::stringstream buf;
