@@ -7,18 +7,22 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	Response response;
 
 	Location location;
-	if (!matchLocation(request.getPath(), config, location)) {
-		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
-	}
+	if (!matchLocation(request.getPath(), config, location))
+		return (ResponseBuilder::buildErrorResponse(404, "Not Found"));
+
+	if (!location.methods.is_MethodAllowed("GET"))
+		return (ResponseBuilder::buildErrorResponse(405, "Method Not Allowed"));
+
+	if (request.getPath().find("..") != std::string::npos)
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
 		
 	std::string finalPath = "." + location.root + request.getPath();
 
 	if (!pathExists(finalPath))
-		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
+		return (ResponseBuilder::buildErrorResponse(404, "Not Found"));
 
 	// If path leads to directory
 	if (isDirectory(finalPath)) {
-
 		// Try index file from directory
 		std::string indexPath = finalPath;
 		if (!indexPath.empty() && indexPath[indexPath.length() - 1] != '/')
@@ -46,7 +50,7 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	}
 
 	// Copy file contents into response body.
-	std::ifstream file(finalPath.c_str());
+	std::ifstream file(finalPath.c_str(), std::ios::in | std::ios::binary);
 	if (!file.is_open()) {
 		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
 	}
