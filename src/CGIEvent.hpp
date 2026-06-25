@@ -13,13 +13,14 @@
 #define PIPE_ERRGEN 	"CGI Pipe: Syscall failure: Dropping CGI Execution"
 #define PIPE_IDX		"Pipe operator[]: index access beyond memory"
 #define NO_CGI 			"No CGI set up in configuration file!"
-#define SYS_FORK		"CGI fork: Syscall failure: Dropping CGI execution"
-#define SYS_DUP2		"CGI dup2: Syscall failure: Dropping CGI execution"
-#define SYS_EXECVE		"CGI execve: Syscall failure: Dropping CGI execution"
+#define SYS_FORK		"CGI fork: Fork() Syscall failure: Dropping CGI execution"
+#define SYS_DUP2		"CGI dup2: Dup2() Syscall failure: Dropping CGI execution"
+#define SYS_EXECVE		"CGI execve: Execve() Syscall failure: Dropping CGI execution"
 #define SYS_SIGTERM		"CGI subprocess terminated by signal"
-#define SYS_WAITPID		"CGI waitpid: Syscall failure: Dropping CGI execution"
+#define SYS_WAITPID		"CGI waitpid: Waitpid() Syscall failure: Dropping CGI execution"
 #define SYS_SUBEXIT		"CGI subprocess exited with error: Dropping CGI execution"
 #define SYS_WUNKNOWN	"CGI waitpid: Unknown subprocess failure: Dropping CGI execution"
+#define SYS_READ		"CGI read: Read() Syscall failure: Dropping CGI execution"
 
 #define SUCCESS			0
 #define ERROR			1
@@ -75,6 +76,7 @@ class CGIEvent {
 		typedef std::string (CGIEvent::*FunPtr)(void);
 
 		ServerConfig	config_;
+		Pipe			pipe_;
 		Request			req_;
 		CGIData			cgi_;
 		pid_t			pid_;
@@ -103,14 +105,16 @@ class CGIEvent {
 
 		//INTERFACE-----------------------------//
 		void		executeCGI(Request& req);	//
+		int			waitSubProcessNH();			//
 		int			waitSubProcess();			//
-		Response	putCGIOutResponse();		//
+		Response	getCGIResponse();			//
 		//--------------------------------------//
 
 		ServerConfig	getConfig() const;
 		Request			getRequest() const;
 		CGIData			getCGIData() const;
 		pid_t			getPid() const;
+		Pipe			getPipe() const;
 		//EXCEPTION SUB CLASSES
 		class Dup2Exception : public std::exception {
 				std::string		msg_;

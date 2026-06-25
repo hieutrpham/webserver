@@ -17,6 +17,8 @@ class Response
 		std::string m_response_body;
 
 		std::map<std::string, std::string>	m_headers;
+		
+		bool		m_is_cgi = false;
 
 		// std::unordered_map<std::string, std::string> m_response_src = {
 		// 	{"/", HTML_SRC"index.html"},
@@ -26,10 +28,13 @@ class Response
 	public:
 		std::string getResponseBody();
 
+		bool isCGI() const;
+
 		void setVersion(const std::string& version);
 		void setStatus(int statusCode, const std::string& reason);
 		void setBody(const std::string& body);
 		void setHeader(const std::string& key, const std::string& value);
+		void setCGI(bool is_cgi);
 
 		std::string serialize() const;
 };

@@ -11,27 +11,29 @@
 
 CGIEvent::CGIEvent(ServerConfig& config) : 
 	config_(config),
-	req_(Request()),
-	cgi_(CGIData()),
-	pid_(-1)
+	req_(),	// default constructor is defined but not implemented 
+	cgi_(),
+	pid_(-1),
+	pipe_()
 {}
 
-
 CGIEvent::CGIEvent(const CGIEvent& other) : 
-	config_(other.config_),
-	req_(other.req_),
-	cgi_(other.cgi_),
-	pid_(other.getPid())
+	config_(other.getConfig()),
+	req_(other.getRequest()),
+	cgi_(other.getCGIData()),
+	pid_(other.getPid()),
+	pipe_(other.getPipe())
 {}
 
 CGIEvent::~CGIEvent() {}
 
 CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 	if (this != &other) {
-		config_ = other.config_;
-		req_ = other.req_;
-		cgi_ = other.cgi_;
+		config_ = other.getConfig();
+		req_ = other.getRequest();
+		cgi_ = other.getCGIData();
 		pid_ = other.getPid();
+		pipe_ = other.getPipe();
 	}
 	return *this;
 }
@@ -39,7 +41,6 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 void	CGIEvent::executeCGI(Request& req) {
 	cgi_ = configCheckCGIData();
 	pid_t	pid;
-	Pipe	pipe;
 
 	req_ = req;
 	FileOperation::changeDir(cgi_.directory);
@@ -47,9 +48,9 @@ void	CGIEvent::executeCGI(Request& req) {
 	if (pid == FAIL)
 		throw ForkException(SYS_FORK);
 	if (pid == CHILD_SELF_ID)
-		execChildProcess(pipe);
+		execChildProcess(pipe_);
 	pid_ = pid;
-	pipe.closeWrite();
+	pipe_.closeWrite();
 	return;
 }
 
@@ -176,12 +177,13 @@ std::string	CGIEvent::getRemoteAddr() {
 
 
 //WAIT TO REAP------------------------------------------------
-int	CGIEvent::waitSubProcess() {
+//Non-blocking event-queue version of reaper.
+int	CGIEvent::waitSubProcessNH() {
 	int		status{};
 
 	if (pid_ == -1)
 		throw CGIExecException(NO_CGI);
-	pid_t result = waitpid(pid_, &status, WNOHANG); //TODO: check timer and back to event loop
+	pid_t result = waitpid(pid_, &status, WNOHANG);
 	if (result == 0)
 		return STILL_RUNNING;
 
@@ -199,26 +201,48 @@ int	CGIEvent::waitSubProcess() {
 	}
 	throw CGIExecException(SYS_WUNKNOWN);
 }
+
+//blocking version of reaper for non-event-queue implementation.
+int CGIEvent::waitSubProcess() {
+	int		status{};
+
+	if (pid_ == -1)
+		throw CGIExecException(NO_CGI);
+	pid_t result = waitpid(pid_, &status, 0);
+	if (result == -1)
+		throw CGIExecException(SYS_WAITPID);
+
+	if (WIFEXITED(status)) {
+		int exit_status = WEXITSTATUS(status);
+		if (exit_status != SUCCESS)
+			throw CGIExecException(SYS_SUBEXIT);
+		return SUCCESS;
+	}
+	else if (WIFSIGNALED(status)) {
+		throw CGIExecException(SYS_SIGTERM);
+	}
+	throw CGIExecException(SYS_WUNKNOWN);
+}
 //------------------------------------------------------------
 
 
 
-//BUILD RESPONSE FROM CGI OUTPUT--------------------------------
-Response	CGIEvent::putCGIOutResponse() { //TODO
-	Response	res{};
+//get RESPONSE FROM CGI OUTPUT--------------------------------
+Response	CGIEvent::getCGIResponse() {
+	Response		res{};
+	std::string 	cgi_output{};
+	std::size_t 	bytes_read{};
+	char			buffer[1028] = {0};
 
-	auto location = ResponseBuilder::getLocation(req_, config_);
-	
-	std::string body = ""; //TODO: parse from CGI output
-	req_.setBody(body);			
+	while ((bytes_read = read(pipe_[OUT_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
+		cgi_output += std::string(buffer);
+	}
 
-	std::string reason = "OK"; //TODO: parse from CGI output
-	int code = 200; //TODO: parse from CGI output
-	res.setStatus(code, reason);
-	
-	std::string key = "Content-Type"; //TODO: parse from CGI output
-	std::string value = "text/html"; //TODO: parse from CGI output
-	res.setHeader(key, value);
+	if (bytes_read == -1)
+		throw CGIExecException(SYS_READ);
+
+	res.setBody(cgi_output);
+	res.setCGI(true);
 
 	return res;
 }
@@ -241,6 +265,10 @@ CGIData		CGIEvent::getCGIData() const {
 
 pid_t		CGIEvent::getPid() const {
 	return pid_;
+}
+
+Pipe		CGIEvent::getPipe() const {
+	return pipe_;
 }
 //------------------------------------------------------------
 

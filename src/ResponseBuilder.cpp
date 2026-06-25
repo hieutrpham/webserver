@@ -5,7 +5,7 @@
 #include "ServerConfig.hpp"
 #include "POSTMethod.hpp"
 #include "DELETEMethod.hpp"
-// #include "CGIHandler.hpp"
+#include "CGIEvent.hpp"
 
 Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
 	// Probably check if request parsing ran into error and build an error response here?
@@ -28,18 +28,21 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 }
 
 bool ResponseBuilder::isCgi(Request& request, ServerConfig& config) {
-    (void)request;
-    (void)config;
-	
+	std::string path = request.getPath();
+	std::size_t len = path.length();
+
+	if (path.find(".php", 0, len) != std::string::npos || path.find("cgi-bin", 0, len) != std::string::npos)
+		return true;
     return false;
 }
 
 Response ResponseBuilder::handleCgi(Request& request, ServerConfig& config) {
-    (void)request;
-    (void)config;
-	
-    Response response;
-    return response;
+    CGIEvent cgievent(config);
+
+	//non-event-queue implementation:
+	cgievent.executeCGI(request); //forks and execs the CGI script, sets up a pipe
+	cgievent.waitSubProcess(); //waits for the CGI script until finished, then reaps the child process
+	return cgievent.getCGIResponse(); //reads the CGI output from a pipe and returns a response obj
 }
 
 Response ResponseBuilder::handleGet(Request& request, ServerConfig& config) {
