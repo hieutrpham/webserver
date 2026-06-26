@@ -30,7 +30,7 @@ std::optional<CGIData>	ServerConfig::getCGI() const {
 				dir = location_obj.root;
 			else
 				dir = uri;
-			return CGIData{ .directory = dir, .index = location_obj.index };
+			return CGIData{ .directory = dir, .index = location_obj.index, .binary{} };
 		}
 	}
 	return std::nullopt;

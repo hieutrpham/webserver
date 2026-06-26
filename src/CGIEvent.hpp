@@ -7,7 +7,8 @@
 #include "ServerConfig.hpp"
 #include "Response.hpp"
 
-#define CGI_VERSION "CGI/1.1"
+#define CGI_VERSION 	"CGI/1.1"
+#define CGI_EXT			".py"
 
 #define PIPE_ERRFDN 	"CGI Pipe: Maximum number of open FDs reached: Dropping CGI execution"
 #define PIPE_ERRGEN 	"CGI Pipe: Syscall failure: Dropping CGI Execution"
@@ -21,6 +22,9 @@
 #define SYS_SUBEXIT		"CGI subprocess exited with error: Dropping CGI execution"
 #define SYS_WUNKNOWN	"CGI waitpid: Unknown subprocess failure: Dropping CGI execution"
 #define SYS_READ		"CGI read: Read() Syscall failure: Dropping CGI execution"
+#define INVALID_CGI_DIR	"Configured CGI directory is not valid: Dropping CGI execution"
+#define INVALID_BIN		"Configured CGI binary is not valid: Dropping CGI execution"
+#define INVALID_BIN_REQ	"Configured CGI binary does not match requested script: Dropping CGI execution"
 
 #define SUCCESS			0
 #define ERROR			1
@@ -82,6 +86,9 @@ class CGIEvent {
 		pid_t			pid_;
 
 		void		execChildProcess(Pipe& pipe);
+		CGIData		checkCGIData();
+		std::string	matchCGIRequest();
+		std::string	getReqScriptName(std::string target_path);
 		char**		loadEnvp(StringVec& env_vec, CStringVec& c_env_vec);
 		void		buildEnvVariables(StringVec& env_vec);
 		std::string	getScriptName();
@@ -94,7 +101,7 @@ class CGIEvent {
 		std::string	getServerPort();
 		std::string	getServerProtocol();
 		std::string	getRemoteAddr();
-		CGIData		configCheckCGIData();
+		
 		
 	public:
 		CGIEvent() = delete;
@@ -104,7 +111,7 @@ class CGIEvent {
 		CGIEvent&	operator=(const CGIEvent& other);
 
 		//INTERFACE-----------------------------//
-		void		executeCGI(Request& req);	//
+		void		executeCGI(const Request& req);
 		int			waitSubProcessNH();			//
 		int			waitSubProcess();			//
 		Response	getCGIResponse();			//

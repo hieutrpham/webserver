@@ -18,6 +18,7 @@ typedef enum e_allowed {
 struct CGIData {
 	std::string		directory;
 	std::string		index;
+	std::string		binary;
 };
 
 struct Methods {
@@ -70,5 +71,5 @@ struct ServerConfig {
 	Location				getLocation(std::string uri) const;
 	Methods					getMethods(std::string uri) const;
 	std::string				getErrPagePath(unsigned int code) const;
-	std::optional<CGIData>	getCGIData() const;
+	std::optional<CGIData>	getCGI() const;
 };

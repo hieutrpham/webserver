@@ -10,11 +10,10 @@
 Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
 	// Probably check if request parsing ran into error and build an error response here?
 	ServerConfig server_config = getConfig(request, config_vector);
-	// Checks if the request is CGI
-	if (isCgi(request, server_config))
+
+	if (isCGI(request, server_config))
 		return (handleCgi(request, server_config));
 
-	// Handles the method and returns a filled 'Response' object. 
 	if (request.getMethod() == "GET")
 		return (GetMethod::handleGet(request, server_config));
 
@@ -27,12 +26,19 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 	return (makeErrorResponse(request, server_config));
 }
 
-bool ResponseBuilder::isCgi(Request& request, ServerConfig& config) {
-	std::string path = request.getPath();
-	std::size_t len = path.length();
+bool ResponseBuilder::isCGI(Request& request, ServerConfig& config) {
+	std::optional<CGIData> cgi_conf = config.getCGI();
 
-	if (path.find(".php", 0, len) != std::string::npos || path.find("cgi-bin", 0, len) != std::string::npos)
-		return true;
+	if (cgi_conf.has_value()) {
+		std::string target = request.getPath();
+		std::size_t target_len = target.length();
+		std::string cgi_dir = cgi_conf->directory;
+		std::string cgi_index = cgi_conf->index;
+
+		if (target.find(CGI_EXT, 0, target_len) != std::string::npos 
+			|| target.find(cgi_dir.c_str(), 0, target_len) != std::string::npos)
+			return true;
+	}
     return false;
 }
 
@@ -48,7 +54,7 @@ Response ResponseBuilder::handleCgi(Request& request, ServerConfig& config) {
 		return response;
 	} catch (std::exception &e) {
 		ERR(e.what());
-		return makeErrorResponse(request, config);
+		return buildErrorResponse(500, "Internal Server Error");
 	}
 }
 

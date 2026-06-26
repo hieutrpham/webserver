@@ -38,11 +38,11 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 	return *this;
 }
 
-void	CGIEvent::executeCGI(Request& req) {
-	cgi_ = configCheckCGIData();
+void	CGIEvent::executeCGI(const Request& req) {
 	pid_t	pid;
 
 	req_ = req;
+	cgi_ = checkCGIData();
 	FileOperation::changeDir(cgi_.directory);
 	pid = fork();
 	if (pid == FAIL)
@@ -54,19 +54,71 @@ void	CGIEvent::executeCGI(Request& req) {
 	return;
 }
 
-CGIData		CGIEvent::configCheckCGIData() {
-	std::optional<CGIData> cgi = config_.getCGIData();
+CGIData		CGIEvent::checkCGIData() {
+	std::optional<CGIData> cgi = config_.getCGI();
+
+	//check that cgi is configured
 	if (!cgi)
 		throw CGIExecException(NO_CGI);
+
+	//check that a valid cgi directory is configured
+	if (!FileOperation::isDir(cgi->directory))
+		throw CGIExecException(INVALID_CGI_DIR);
+
+	//check that the configured cgi directory contains a file
+	if (cgi->directory.empty())
+		throw CGIExecException(INVALID_BIN);
+
+	//check that the requested cgi path matches the configured path
+	std::string binary = matchCGIRequest();
+
 	return *cgi;
 }
-		
+
+std::string	CGIEvent::matchCGIRequest() {
+	//get whole requested cgi path
+	std::string target_path = req_.getPath();
+
+	//get requested cgi directory
+	std::size_t dir_pos = target_path.find(cgi_.directory);
+	if (dir_pos == std::string::npos)
+		throw CGIExecException(INVALID_BIN_REQ);
+
+	std::size_t path_end_pos = target_path.find_last_of('/');
+	if (path_end_pos == std::string::npos)
+		throw CGIExecException(INVALID_BIN_REQ);
+
+	//match requested cgi directory with configured cgi directory
+	std::string target_directory = target_path.substr(dir_pos, path_end_pos - dir_pos) + "/";
+	if (target_directory != cgi_.directory)
+		throw CGIExecException(INVALID_BIN_REQ);
+
+	//TODO: IF THERE IS AN INDEX CONFIGURED, AND IF REQUEST CONTAINS A SCRIPT NAME:
+	//get requested cgi script name
+	std::string req_script_name = getReqScriptName(target_path);
+	if (!req_script_name.empty()) {
+		if (!cgi->index.empty() && cgi->index != req_script_name)
+			throw CGIExecException(INVALID_BIN_REQ);
+	}
+
+	//PUT THE CORRECT SCRIPT NAME INTO THE .BINARY in CGI
+
+	return binary;
+}
+
+std::string	CGIEvent::getReqScriptName(std::string target_path) {
+	std::size_t last_slash = target_path.find_last_of('/');
+	if (last_slash == std::string::npos)
+		return target_path;
+	return target_path.substr(last_slash + 1);
+}
+
 //env_cont: Environment container keeps the data in the correct stack scope,
 // so that the c-style pointers are not left dangling.
 // GIVES  EXECVE:
 //	the script path: from config_file+request_URI
 //	the arg: request body
-//	the envp: parsed together from request parser
+//	the envp: parsed together from request
 void	CGIEvent::execChildProcess(Pipe& pipe) {
 	StringVec		env_vec{};
 	CStringVec		c_env_vec{};
@@ -265,6 +317,7 @@ CGIData		CGIEvent::getCGIData() const {
 pid_t		CGIEvent::getPid() const {
 	return pid_;
 }
+
 
 Pipe		CGIEvent::getPipe() const {
 	return pipe_;

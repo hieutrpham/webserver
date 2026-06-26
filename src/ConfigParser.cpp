@@ -405,7 +405,7 @@ void	ConfigParser::buildServerBEngine() {
 	{
 		R"((listen)\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+);\s*)"
 		R"(|(client_max_body_size)\s+(\d{1,7})([kmKM])?;\s*)"
-		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/\w{1,13}\.html);\s*)"
+		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/\w{1,18}\.html);\s*)"
 		R"(|(server_name)\s+([^;]+);\s*)"
 		R"(|()())"
 		R"(|()())"	//R"(|(return)\s+(30\d)\s+([^;]+);\s*)"
@@ -423,7 +423,7 @@ void	ConfigParser::buildLocationBEngine() {
 	constexpr std::string_view	locab_pattern
 	{
 		R"((root)\s+(/[^;]+);\s*())"
-		R"(|(index)\s+(index\.html?|[^;]+\.php);\s*())"
+		R"(|(index)\s+(index\.html?|[^;]+\.py);\s*())"
 		R"(|(autoindex)\s+(on|off);\s*())"
 		R"(|(file_uploads)\s+(yes|no);\s*)"
 		R"(|(upload_store)\s+(/[^;]+);\s*)"
