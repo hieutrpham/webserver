@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Response.hpp"
 #include "ResponseBuilder.hpp"
 #include "ServerConfig.hpp"

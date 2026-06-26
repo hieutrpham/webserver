@@ -20,6 +20,7 @@ class ResponseBuilder {
 		static Response buildErrorResponse(int code, const std::string& reason);
 		static Response buildErrorResponse(int code, const std::string& reason, ServerConfig& config);
 		static Location        getLocation(const Request& request, const ServerConfig& config);
+		static bool            isRedirect(Request& request, ServerConfig& config);
 };
 
 #endif

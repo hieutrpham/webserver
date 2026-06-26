@@ -9,9 +9,18 @@
 
 Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
 	ServerConfig server_config = getConfig(request, config_vector);
-	
-	// if (isCgi(request, server_config))
-	// 	return (handleCgi(request, server_config));
+  
+	if (isRedirect(request, server_config))
+	{
+		auto redir = server_config.getLocation(request.getPath()).redirection;
+		Response response;
+		response.setHeader("Location", redir->actual_path);
+		response.setStatus(301, "Moved Permanently");
+		return response;
+	}
+
+// 	if (isCgi(request, server_config))
+// 		return (handleCgi(request, server_config));
 	if (request.getMethod() == "GET")
 		return (GetMethod::handleGet(request, server_config));
 
@@ -24,6 +33,10 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 	return ResponseBuilder::buildErrorResponse(501, "Not Implemented", server_config);
 }
 
+bool ResponseBuilder::isRedirect(Request& request, ServerConfig& config)
+{
+	return config.getLocation(request.getPath()).is_Redirected();
+}
 
 ServerConfig ResponseBuilder::getConfig(const Request& request, const ConfigVec& config_vector)
 {
