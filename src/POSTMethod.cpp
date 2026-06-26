@@ -7,7 +7,7 @@ Response POSTMethod::handlePost(Request& request, ServerConfig& config)
 	if (!location.methods.except_allow[POST])
 	{
 		ERR("POST not allowed at: " + location.uri);
-		return ResponseBuilder::makeErrorResponse(request, config);
+		return ResponseBuilder::buildErrorResponse(405, "Method Not Allowed", config);
 	}
 
 	auto content_type = request.getHeaders().at("content-type");
