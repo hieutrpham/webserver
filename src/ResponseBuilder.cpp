@@ -24,6 +24,7 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 	return ResponseBuilder::buildErrorResponse(501, "Not Implemented", server_config);
 }
 
+
 ServerConfig ResponseBuilder::getConfig(const Request& request, const ConfigVec& config_vector)
 {
 	auto host = request.getHeaders().at("host");

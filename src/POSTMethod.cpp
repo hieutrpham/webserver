@@ -13,7 +13,6 @@ Response POSTMethod::handlePost(Request& request, ServerConfig& config)
 	auto content_type = request.getHeaders().at("content-type");
 	if (is_file_upload(content_type, request,  config))
 		return handleFileUpload(content_type, request, config);
-
 	Response response;
 	response.setVersion("HTTP/1.1");
 	response.setStatus(201, "Created");
