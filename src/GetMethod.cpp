@@ -36,7 +36,7 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 		// Index file not valid or not found
 		// Check if autoindex is on && generate autoindex.
 		else if (location.autoindex) {
-			return (generateAutoIndex(finalPath, request.getPath()));
+			return (generateAutoIndex(finalPath, request.getPath(), config));
 		}
 		// No index file or autoindex -> error.
 		else {
@@ -139,10 +139,10 @@ bool GetMethod::isRegularFile(const std::string& path) {
 	return (S_ISREG(info.st_mode));
 }
 
-Response GetMethod::generateAutoIndex(const std::string& dirPath, const std::string& requestPath) {
+Response GetMethod::generateAutoIndex(const std::string& dirPath, const std::string& requestPath, ServerConfig& config) {
 	DIR* dir = opendir(dirPath.c_str());
 	if (!dir)
-		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden", config));
 
 	std::stringstream body;
 
