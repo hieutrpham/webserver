@@ -10,7 +10,16 @@
 Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
 	// Probably check if request parsing ran into error and build an error response here?
 	ServerConfig server_config = getConfig(request, config_vector);
-	// Checks if the request is CGI
+
+	if (isRedirect(request, server_config))
+	{
+		auto redir = server_config.getLocation(request.getPath()).redirection;
+		Response response;
+		response.setHeader("Location", redir->actual_path);
+		response.setStatus(301, "Moved Permanently");
+		return response;
+	}
+
 	if (isCgi(request, server_config))
 		return (handleCgi(request, server_config));
 
@@ -25,6 +34,11 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 		return (DELETEMethod::handleDelete(request, server_config));
 	
 	return (makeErrorResponse(request, server_config));
+}
+
+bool ResponseBuilder::isRedirect(Request& request, ServerConfig& config)
+{
+	return config.getLocation(request.getPath()).is_Redirected();
 }
 
 bool ResponseBuilder::isCgi(Request& request, ServerConfig& config) {
