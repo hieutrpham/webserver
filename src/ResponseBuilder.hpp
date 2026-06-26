@@ -19,7 +19,6 @@ class ResponseBuilder {
 		static Response buildResponse(Request& request, ConfigVec& config);
 		static Response buildErrorResponse(int code, const std::string& reason);
 		static Response buildErrorResponse(int code, const std::string& reason, ServerConfig& config);
-		static Response        makeErrorResponse(Request& request, ServerConfig& config);
 		static Location        getLocation(const Request& request, const ServerConfig& config);
 };
 

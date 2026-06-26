@@ -8,13 +8,10 @@
 // #include "CGIHandler.hpp"
 
 Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
-	// Probably check if request parsing ran into error and build an error response here?
 	ServerConfig server_config = getConfig(request, config_vector);
-	// Checks if the request is CGI
-	if (isCgi(request, server_config))
-		return (handleCgi(request, server_config));
-
-	// Handles the method and returns a filled 'Response' object. 
+	
+	// if (isCgi(request, server_config))
+	// 	return (handleCgi(request, server_config));
 	if (request.getMethod() == "GET")
 		return (GetMethod::handleGet(request, server_config));
 
@@ -24,57 +21,7 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 	if (request.getMethod() == "DELETE")
 		return (DELETEMethod::handleDelete(request, server_config));
 	
-	return (makeErrorResponse(request, server_config));
-}
-
-bool ResponseBuilder::isCgi(Request& request, ServerConfig& config) {
-    (void)request;
-    (void)config;
-	
-    return false;
-}
-
-Response ResponseBuilder::handleCgi(Request& request, ServerConfig& config) {
-    (void)request;
-    (void)config;
-	
-    Response response;
-    return response;
-}
-
-Response ResponseBuilder::handleGet(Request& request, ServerConfig& config) {
-    (void)request;
-    (void)config;
-
-    Response response;
-    return response;
-}
-
-// Response ResponseBuilder::handlePost(Request& request, ServerConfig& config) {
-//     (void)request;
-//     (void)config;
-// }
-
-Response ResponseBuilder::handleDelete(Request& request, ServerConfig& config) {
-    (void)request;
-    (void)config;
-
-    Response response;
-    return response;
-}
-
-Response ResponseBuilder::makeErrorResponse(Request& request, ServerConfig& config) {
-    (void)request;
-    (void)config;
-
-    Response response;
-
-	response.setBody("Server Error");
-	response.setVersion("HTTP/1.1");
-	response.setStatus(500, "Internal Server Error");
-	response.setHeader("Content-Type", "text/html");
-
-    return response;
+	return ResponseBuilder::buildErrorResponse(501, "Not Implemented", server_config);
 }
 
 ServerConfig ResponseBuilder::getConfig(const Request& request, const ConfigVec& config_vector)
