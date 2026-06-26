@@ -1,5 +1,5 @@
 #include "ResponseBuilder.hpp"
-#include "GetMethod.hpp"
+#include "GETMethod.hpp"
 #include "Request.hpp"
 #include "Server.hpp"
 #include "ServerConfig.hpp"

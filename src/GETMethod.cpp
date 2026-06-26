@@ -1,4 +1,4 @@
-#include "GetMethod.hpp"
+#include "GETMethod.hpp"
 #include <sys/stat.h>
 #include "ResponseBuilder.hpp"
 #include <dirent.h>
