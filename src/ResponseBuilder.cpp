@@ -12,13 +12,7 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 	ServerConfig server_config = getConfig(request, config_vector);
 
 	if (isRedirect(request, server_config))
-	{
-		auto redir = server_config.getLocation(request.getPath()).redirection;
-		Response response;
-		response.setHeader("Location", redir->actual_path);
-		response.setStatus(301, "Moved Permanently");
-		return response;
-	}
+		return (handleRedirection(request, server_config));
 
 	if (isCgi(request, server_config))
 		return (handleCgi(request, server_config));
@@ -36,9 +30,36 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 	return (makeErrorResponse(request, server_config));
 }
 
+Response ResponseBuilder::handleRedirection(Request& request, ServerConfig& config)
+{
+	auto redir = config.getLocation(request.getPath()).redirection;
+	Response response;
+	
+	response.setHeader("Location", redir->actual_path);
+
+	switch (redir->code) {
+		case 300: response.setStatus(redir->code, "Multiple Choices"); break;
+		case 302: response.setStatus(redir->code, "Found"); break;
+		case 303: response.setStatus(redir->code, "See Other"); break;
+		case 304: response.setStatus(redir->code, "Not Modified"); break;
+		case 307: response.setStatus(redir->code, "Temporary Redirect"); break;
+		case 308: response.setStatus(redir->code, "Permanent Redirect"); break;
+		default : response.setStatus(301, "Moved Permanently"); break;
+	}
+	return response;
+}
+
 bool ResponseBuilder::isRedirect(Request& request, ServerConfig& config)
 {
-	return config.getLocation(request.getPath()).is_Redirected();
+	Location loc;
+
+	try {
+		 loc = config.getLocation(request.getPath());
+	} catch (std::exception &e) {
+		LOG(e.what());
+		return false;
+	}
+	return loc.is_Redirected();
 }
 
 bool ResponseBuilder::isCgi(Request& request, ServerConfig& config) {
@@ -117,7 +138,7 @@ Response ResponseBuilder::buildErrorResponse(int code, const std::string& reason
 	response.setHeader("Content-Type", "text/html");
 	response.setBody(body.str());
 
-	return (response); 
+	return (response);
 }
 
 Location ResponseBuilder::getLocation(const Request& request, const ServerConfig& config)
