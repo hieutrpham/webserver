@@ -13,6 +13,7 @@ class ResponseBuilder {
 		static Response        handleGet(Request& request, ServerConfig& config);
 		static Response        handlePost(Request& request, ServerConfig& config);
 		static Response        handleDelete(Request& request, ServerConfig& config);
+		static Response        handleRedirection(Request& request, ServerConfig& config);
 		static ServerConfig    getConfig(const Request& request, const ConfigVec& config_vector);
 
 	public:
