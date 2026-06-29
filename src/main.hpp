@@ -29,12 +29,12 @@
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
 #define RED     "\033[31m"
-#define YELLOW  "\033[32m"
+#define GREEN  "\033[32m"
 #define RESET   "\033[0m"
 
-#define LOG(msg) (std::cout << YELLOW "LOG: " RESET << (msg) << std::endl)
+#define LOG(msg) (std::cout << GREEN "LOG: " RESET << (msg) << std::endl)
 #define ERR(msg) (std::cerr << RED "ERR: " RESET << (msg) \
-	<< "--" << __FILE__ << ":" << __LINE__ << std::endl)
+	<< " -- " << __FILE__ << ":" << __LINE__ << std::endl)
 
 void handler_sig_int(int sig);
 struct sigaction signal_handler();

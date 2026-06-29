@@ -1,6 +1,6 @@
-
-
 #pragma once
+
+#define EMPTY -1
 
 #include "main.hpp"
 #include <string>
@@ -15,9 +15,19 @@ typedef enum e_allowed {
 	MET_COUNT
 }	t_allowed;
 
+struct CGIData {
+	std::string		directory;
+	std::string		index;
+};
+
 struct Methods {
 	bool	deny_all;
 	bool	except_allow[MET_COUNT];
+
+	bool	is_MethodAllowed(std::string method_name);
+	bool	is_MethodAllowed(std::size_t method_num);
+
+	bool	operator[](int i) const;
 };
 
 struct Redir {
@@ -35,6 +45,11 @@ struct Location {
 	bool					allow_file_uploads = false;
 	std::string				upload_store = "";
 	bool					cgi = false;
+
+	bool			is_Redirected();
+	Methods			getMethods() const;
+	std::string	 	getRedirPath() const;
+	unsigned	 	getRedirCode() const;
 };
 
 using LocationMap = std::unordered_map<std::string, Location>;
@@ -50,6 +65,10 @@ struct ServerConfig {
 	int                fd;
 	struct sockaddr_in address;
 	
-	bool		is_filled = false;
-	bool		is_empty();
+	bool					is_filled = false;
+	bool					is_Empty();
+	Location				getLocation(std::string uri) const;
+	Methods					getMethods(std::string uri) const;
+	std::string				getErrPagePath(unsigned int code) const;
+	std::optional<CGIData>	getCGI() const;
 };
