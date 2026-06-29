@@ -36,16 +36,20 @@ struct Redir {
 	std::string		actual_path;
 };
 
+using OptStr = std::optional<std::string>;
+using OptRedir = std::optional<Redir>;
+
 struct Location {
-	std::string				uri;
-	std::string				root = "";
-	std::string				index = "index.html";
-	std::optional<Redir>	redirection = std::nullopt;
-	bool					autoindex = false;
-	Methods					methods = {};
-	bool					allow_file_uploads = false;
-	std::string				upload_store = "";
-	bool					cgi = false;
+	std::string		uri;
+	std::string		root = "";
+	std::string		index = "index.html";
+	OptRedir		redirection = std::nullopt;
+	bool			autoindex = false;
+	Methods			methods = {};
+	bool			allow_file_uploads = false;
+	std::string		upload_store = "";
+	bool			cgi = false;
+	OptStr			cgi_script = std::nullopt;
 
 	bool			is_Redirected();
 	Methods			getMethods() const;

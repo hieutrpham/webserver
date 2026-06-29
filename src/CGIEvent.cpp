@@ -38,11 +38,27 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 	return *this;
 }
 
+//non-event-queue implementation:
+Response CGIEvent::handleCGI(Request& request, ServerConfig& config) {
+    CGIEvent 	cgievent(config);
+	Response 	response;
+
+	try {
+		cgievent.executeCGI(request); //forks and execs the CGI script, sets up a pipe
+		response = cgievent.getCGIResponse(); //reads the CGI output from a pipe during child processing, but leaves it unreaped
+		cgievent.waitSubProcess(); //waits for the child process to exit, then reaps it
+		return response;
+	} catch (std::exception &e) {
+		ERR(e.what());
+		return ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
+	}
+}
+
 void	CGIEvent::executeCGI(const Request& req) {
 	pid_t	pid;
 
 	req_ = req;
-	cgi_ = checkCGIData();
+	checkCGIData();
 	FileOperation::changeDir(cgi_.directory);
 	pid = fork();
 	if (pid == FAIL)
@@ -54,30 +70,29 @@ void	CGIEvent::executeCGI(const Request& req) {
 	return;
 }
 
+//DOES THE REQUESTED CGI PATH NEED TO SPECIFICALLY BE MATCHED WITH THE CONFIG?
 CGIData		CGIEvent::checkCGIData() {
-	std::optional<CGIData> cgi = config_.getCGI();
+	std::optional<CGIData> cgi_ = config_.getCGI();
 
 	//check that cgi is configured
-	if (!cgi)
+	if (!cgi_)
 		throw CGIExecException(NO_CGI);
-
-	//check that a valid cgi directory is configured
-	if (!FileOperation::isDir(cgi->directory))
+	//check that the configured cgi directory is valid and exists
+	if (!FileOperation::isValidDir(cgi_->directory))
 		throw CGIExecException(INVALID_CGI_DIR);
 
-	//check that the configured cgi directory contains a file
-	if (cgi->directory.empty())
-		throw CGIExecException(INVALID_BIN);
-
-	//check that the requested cgi path matches the configured path
-	std::string binary = matchCGIRequest();
-
-	return *cgi;
+	//check that the requested cgi path matches the configured path ????
+	cgi_->binary = matchCGIRequest(); //PUT THE CORRECT SCRIPT NAME INTO THE .BINARY in CGI
 }
 
+//last / is the end of the directory,
+//if there is nothing after the last /, then the request is for the directory: 
+//config must specify script -> if no script in config that is present in the requested dir, then error
+//
 std::string	CGIEvent::matchCGIRequest() {
+	std::string 	bin_path{};
 	//get whole requested cgi path
-	std::string target_path = req_.getPath();
+	std::string 	target_path = req_.getPath();
 
 	//get requested cgi directory
 	std::size_t dir_pos = target_path.find(cgi_.directory);
@@ -96,14 +111,11 @@ std::string	CGIEvent::matchCGIRequest() {
 	//TODO: IF THERE IS AN INDEX CONFIGURED, AND IF REQUEST CONTAINS A SCRIPT NAME:
 	//get requested cgi script name
 	std::string req_script_name = getReqScriptName(target_path);
-	if (!req_script_name.empty()) {
-		if (!cgi->index.empty() && cgi->index != req_script_name)
-			throw CGIExecException(INVALID_BIN_REQ);
-	}
 
-	//PUT THE CORRECT SCRIPT NAME INTO THE .BINARY in CGI
+	//try to put binary as index first
+	//try to put binary as script_name
 
-	return binary;
+	return bin_path;
 }
 
 std::string	CGIEvent::getReqScriptName(std::string target_path) {

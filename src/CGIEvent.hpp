@@ -84,24 +84,23 @@ class CGIEvent {
 		Request			req_;
 		CGIData			cgi_;
 		pid_t			pid_;
-
-		void		execChildProcess(Pipe& pipe);
-		CGIData		checkCGIData();
-		std::string	matchCGIRequest();
-		std::string	getReqScriptName(std::string target_path);
-		char**		loadEnvp(StringVec& env_vec, CStringVec& c_env_vec);
-		void		buildEnvVariables(StringVec& env_vec);
-		std::string	getScriptName();
-		std::string	getQueryString();
-		std::string	getRequestMethod();
-		std::string	getContentType();
-		std::string	getContentLength();
-		std::string	getGatewayInterface();
-		std::string	getServerName();
-		std::string	getServerPort();
-		std::string	getServerProtocol();
-		std::string	getRemoteAddr();
 		
+		void			execChildProcess(Pipe& pipe);
+		CGIData			checkCGIData();
+		std::string		matchCGIRequest();
+		std::string		getReqScriptName(std::string target_path);
+		char**			loadEnvp(StringVec& env_vec, CStringVec& c_env_vec);
+		void			buildEnvVariables(StringVec& env_vec);
+		std::string		getScriptName();
+		std::string		getQueryString();
+		std::string		getRequestMethod();
+		std::string		getContentType();
+		std::string		getContentLength();
+		std::string		getGatewayInterface();
+		std::string		getServerName();
+		std::string		getServerPort();
+		std::string		getServerProtocol();
+		std::string		getRemoteAddr();
 		
 	public:
 		CGIEvent() = delete;
@@ -111,6 +110,8 @@ class CGIEvent {
 		CGIEvent&	operator=(const CGIEvent& other);
 
 		//INTERFACE-----------------------------//
+		Response	handleCGI(Request& request, ServerConfig& config);
+		//QUEUE IMPLEMENTATION INTERFACE--------//
 		void		executeCGI(const Request& req);
 		int			waitSubProcessNH();			//
 		int			waitSubProcess();			//

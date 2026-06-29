@@ -82,7 +82,25 @@ void requestDebugPrint(Request& request, ParseResult& result) {
 
 	std::cout << "BODY: " << request.getBody() << std::endl;
 	std::cout << std::endl;
-} 
+}
+
+static std::string getReasonPhrase(int status)
+{
+	switch (status) {
+		case 400:
+			return "Bad Request";
+		case 413:
+			return "Payload Too Large";
+		case 414:
+			return "URI Too Long";
+		case 501:
+			return "Not Implemented";
+		case 505:
+			return "HTTP Version Not Supported";
+		default:
+			return "Bad Request";
+	}
+}
 
 void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, ConfigVec& config_vector) {
 	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
@@ -112,10 +130,18 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 				return ;
 			}
 
-			// Malformed request, clear buffer and close connection.
+			// Malformed request, send error response, clear buffer and close connection.
 			if (result.status == PARSE_BAD_REQUEST) {
 				LOG("Bad request");
-				std::cout << "Reason: " << result.httpStatus << std::endl;
+				
+				Response response = ResponseBuilder::buildErrorResponse(result.httpStatus, getReasonPhrase(result.httpStatus));
+				std::string final_response = response.serialize();
+
+				std::cout << "RESPONSE: " << final_response << std::endl;
+
+				if (send(fd, final_response.c_str(), final_response.size(), 0) < 0)
+					ERR(strerror(errno));
+
 				m_clientBuffers.erase(fd);
 				close(fd);
 				std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });

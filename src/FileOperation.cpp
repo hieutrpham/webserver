@@ -24,9 +24,12 @@ void   FileOperation::changeDir(std::string destination) {
 	std::filesystem::current_path(destination);
 }
 
-bool	FileOperation::isDir(std::string path) {
-	std::filesystem::path p(path);
-	return std::filesystem::is_directory(p);
+bool	FileOperation::isValidDir(std::string path) {
+	std::filesystem::path	 dir_path(path);
+
+	if (!std::filesystem::exists(dir_path))
+		return false;
+	return std::filesystem::is_directory(dir_path);
 }
 
 //CUSTOM FILE EXCEPTION

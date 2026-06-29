@@ -1,5 +1,5 @@
 #include "ResponseBuilder.hpp"
-#include "GetMethod.hpp"
+#include "GETMethod.hpp"
 #include "Request.hpp"
 #include "Server.hpp"
 #include "ServerConfig.hpp"
@@ -8,12 +8,22 @@
 #include "CGIEvent.hpp"
 
 Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
-	// Probably check if request parsing ran into error and build an error response here?
 	ServerConfig server_config = getConfig(request, config_vector);
 
-	if (isCGI(request, server_config))
-		return (handleCgi(request, server_config));
+	if (isRedirect(request, server_config))
+	{
+		auto redir = server_config.getLocation(request.getPath()).redirection;
+		Response response;
+		response.setHeader("Location", redir->actual_path);
+		response.setStatus(301, "Moved Permanently");
+		return response;
+	}
 
+	if (isCGI(request, server_config)) {
+		CGIEvent cgi(server_config);
+		return (cgi.handleCGI(request, server_config));
+	}
+		
 	if (request.getMethod() == "GET")
 		return (GetMethod::handleGet(request, server_config));
 
@@ -23,17 +33,18 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 	if (request.getMethod() == "DELETE")
 		return (DELETEMethod::handleDelete(request, server_config));
 	
-	return (makeErrorResponse(request, server_config));
+	return ResponseBuilder::buildErrorResponse(501, "Not Implemented", server_config);
 }
 
+//techically request parsing but is here for now
 bool ResponseBuilder::isCGI(Request& request, ServerConfig& config) {
 	std::optional<CGIData> cgi_conf = config.getCGI();
 
+	//parsing the request to find either a script extension or a configured cgi directory
 	if (cgi_conf.has_value()) {
 		std::string target = request.getPath();
 		std::size_t target_len = target.length();
 		std::string cgi_dir = cgi_conf->directory;
-		std::string cgi_index = cgi_conf->index;
 
 		if (target.find(CGI_EXT, 0, target_len) != std::string::npos 
 			|| target.find(cgi_dir.c_str(), 0, target_len) != std::string::npos)
@@ -42,55 +53,9 @@ bool ResponseBuilder::isCGI(Request& request, ServerConfig& config) {
     return false;
 }
 
-//non-event-queue implementation:
-Response ResponseBuilder::handleCgi(Request& request, ServerConfig& config) {
-    CGIEvent 	cgievent(config);
-	Response 	response;
-
-	try {
-		cgievent.executeCGI(request); //forks and execs the CGI script, sets up a pipe
-		response = cgievent.getCGIResponse(); //reads the CGI output from a pipe and returns a response obj
-		cgievent.waitSubProcess(); //waits for the CGI script until finished, then reaps the child process
-		return response;
-	} catch (std::exception &e) {
-		ERR(e.what());
-		return buildErrorResponse(500, "Internal Server Error");
-	}
-}
-
-Response ResponseBuilder::handleGet(Request& request, ServerConfig& config) {
-    (void)request;
-    (void)config;
-
-    Response response;
-    return response;
-}
-
-// Response ResponseBuilder::handlePost(Request& request, ServerConfig& config) {
-//     (void)request;
-//     (void)config;
-// }
-
-Response ResponseBuilder::handleDelete(Request& request, ServerConfig& config) {
-    (void)request;
-    (void)config;
-
-    Response response;
-    return response;
-}
-
-Response ResponseBuilder::makeErrorResponse(Request& request, ServerConfig& config) {
-    (void)request;
-    (void)config;
-
-    Response response;
-
-	response.setBody("Server Error");
-	response.setVersion("HTTP/1.1");
-	response.setStatus(500, "Internal Server Error");
-	response.setHeader("Content-Type", "text/html");
-
-    return response;
+bool ResponseBuilder::isRedirect(Request& request, ServerConfig& config)
+{
+	return config.getLocation(request.getPath()).is_Redirected();
 }
 
 ServerConfig ResponseBuilder::getConfig(const Request& request, const ConfigVec& config_vector)
@@ -111,6 +76,7 @@ ServerConfig ResponseBuilder::getConfig(const Request& request, const ConfigVec&
 	return server_config;
 }
 
+// Serves default error page.
 Response ResponseBuilder::buildErrorResponse(int code, const std::string& reason) {
 	Response response;
 
@@ -125,6 +91,42 @@ Response ResponseBuilder::buildErrorResponse(int code, const std::string& reason
 	response.setBody(body.str());
 
 	return (response); 
+}
+
+// Serves configured error page from config.
+// If no configured page, serves default error page.
+Response ResponseBuilder::buildErrorResponse(int code, const std::string& reason, ServerConfig& config) {
+	std::unordered_map<unsigned, std::string>::const_iterator it = config.error_pages.find(code);
+ 
+	if (it != config.error_pages.end()) {
+		std::unordered_map<std::string, Location>::const_iterator rootIt =
+		config.locations.find("/");
+	
+		if (rootIt == config.locations.end())
+			return (buildErrorResponse(code, reason));
+	
+		std::string errorPagePath = "." + rootIt->second.root + it->second;
+
+		std::ifstream file(errorPagePath.c_str(), std::ios::in | std::ios::binary);
+		if (file.is_open()) {
+			std::stringstream buf;
+			buf << file.rdbuf();
+
+			std::string body = buf.str();
+
+			Response response;
+			response.setVersion("HTTP/1.1");
+			response.setStatus(code, reason);
+			response.setHeader("Content-Type", "text/html");
+			response.setHeader("Content-Length", std::to_string(body.size()));
+			response.setBody(body);
+
+			return (response);
+		}
+	}
+
+	// Configured error page missing or couldn't be opened.
+	return (buildErrorResponse(code, reason));
 }
 
 Location ResponseBuilder::getLocation(const Request& request, const ServerConfig& config)

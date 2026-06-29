@@ -1,4 +1,4 @@
-#include "GetMethod.hpp"
+#include "GETMethod.hpp"
 #include <sys/stat.h>
 #include "ResponseBuilder.hpp"
 #include <dirent.h>
@@ -7,18 +7,22 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 	Response response;
 
 	Location location;
-	if (!matchLocation(request.getPath(), config, location)) {
-		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
-	}
+	if (!matchLocation(request.getPath(), config, location))
+		return (ResponseBuilder::buildErrorResponse(404, "Not Found", config));
+
+	if (!location.methods.is_MethodAllowed("GET"))
+		return (ResponseBuilder::buildErrorResponse(405, "Method Not Allowed", config));
+
+	if (request.getPath().find("..") != std::string::npos)
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden", config));
 		
 	std::string finalPath = "." + location.root + request.getPath();
 
 	if (!pathExists(finalPath))
-		return (ResponseBuilder::buildErrorResponse(404, "Not found"));
+		return (ResponseBuilder::buildErrorResponse(404, "Not Found", config));
 
 	// If path leads to directory
 	if (isDirectory(finalPath)) {
-
 		// Try index file from directory
 		std::string indexPath = finalPath;
 		if (!indexPath.empty() && indexPath[indexPath.length() - 1] != '/')
@@ -32,23 +36,23 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 		// Index file not valid or not found
 		// Check if autoindex is on && generate autoindex.
 		else if (location.autoindex) {
-			return (generateAutoIndex(finalPath, request.getPath()));
+			return (generateAutoIndex(finalPath, request.getPath(), config));
 		}
 		// No index file or autoindex -> error.
 		else {
-			return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
+			return (ResponseBuilder::buildErrorResponse(403, "Forbidden", config));
 		}
 	}
 
 	// Not a directory or regular file -> error.
 	if (!isRegularFile(finalPath)) {
-		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden", config));
 	}
 
 	// Copy file contents into response body.
-	std::ifstream file(finalPath.c_str());
+	std::ifstream file(finalPath.c_str(), std::ios::in | std::ios::binary);
 	if (!file.is_open()) {
-		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden", config));
 	}
 
 	std::stringstream buf;
@@ -135,10 +139,10 @@ bool GetMethod::isRegularFile(const std::string& path) {
 	return (S_ISREG(info.st_mode));
 }
 
-Response GetMethod::generateAutoIndex(const std::string& dirPath, const std::string& requestPath) {
+Response GetMethod::generateAutoIndex(const std::string& dirPath, const std::string& requestPath, ServerConfig& config) {
 	DIR* dir = opendir(dirPath.c_str());
 	if (!dir)
-		return (ResponseBuilder::buildErrorResponse(403, "Forbidden"));
+		return (ResponseBuilder::buildErrorResponse(403, "Forbidden", config));
 
 	std::stringstream body;
 

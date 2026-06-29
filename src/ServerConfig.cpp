@@ -8,17 +8,33 @@ bool	ServerConfig::is_Empty() {
 
 Location	ServerConfig::getLocation(std::string uri) const {
 	auto ite = locations.find(uri);
+	if (ite == locations.end())
+	{
+		ERR("Can not find location");
+		throw std::runtime_error("std::map::find");
+	}
 	return ite->second;
 }
 
 Methods		ServerConfig::getMethods(std::string uri) const {
 	auto ite = locations.find(uri);
+
+	if (ite == locations.end())
+	{
+		ERR("Can not find location");
+		throw std::runtime_error("std::map::find");
+	}
 	Location location = ite->second;
 	return location.methods;
 }
 
 std::string		ServerConfig::getErrPagePath(unsigned int code) const {
 	auto ite = error_pages.find(code);
+	if (ite == error_pages.end())
+	{
+		ERR("Can not find error");
+		throw std::runtime_error("std::map::find");
+	}
 	return ite->second;
 }
 
