@@ -13,7 +13,7 @@
 #define MB_MULTIP		1000000
 #define KB_MULTIP		1000
 
-#define ERR_IO			"InFile Stream SysCall: I/O system error\n"
+#define ERR_IO			"InFile Stream: I/O system call error\n"
 #define ERR_N_OBRC		"Config File Format: Too many opening brackets\n"
 #define ERR_N_CBRC		"Config File Format: Too many closing brackets\n"
 #define ERR_BRACK_CL	"Config File Format: Closing brackets need their own lines\n"
@@ -32,8 +32,21 @@
 #define SUCCESS		0
 #define BLANK		1
 
-//TODO: ADD NEW DIRECtIVES IN ENUM AND IN COrRESPONDING METHODS.
-//		CREATE THE CONFIGPUT METHODS FOR THE DIRECTIVES.
+//SERVER BLOCK DIRECTIVE MATCH INDEXES:
+#define I_LISTEN 1
+#define I_CLMAXBSIZE 4
+#define I_ERRPAGE 7
+#define I_SERVNAME 10
+//LOCATION BLOCK DIRECTIVE MATCH INDEXES:
+#define I_ROOT 1
+#define I_INDEX 4
+#define I_AUINDEX 7
+#define I_FILEUPLOADS 10
+#define I_UPLOADPATH 12
+#define I_RETURN 14
+#define I_CGI 17
+#define I_CGISCRIPT 19
+
 typedef enum e_dir_names {
 	LISTEN,
 	CLMAXBSIZE,
@@ -46,6 +59,7 @@ typedef enum e_dir_names {
 	UPLOADPATH,
 	RETURN,
 	CGI,
+	CGISCRIPT,
 	DIR_COUNT
 }	t_dir_names;
 
@@ -84,7 +98,8 @@ class ConfigParser {
 		static void		parseFile();
 		static void		parseServerBlock();
 		static void		parseLocationBlock();
-		static bool		matchSimpleDirective(std::regex& engine);
+		static bool		matchServerBlockDirective(std::regex& engine);
+		static bool		matchLocationBlockDirective(std::regex& engine);
 		static void		parseLimex();
 		
 		//CONFIG STRUCT ASSIGNMENT
@@ -99,7 +114,8 @@ class ConfigParser {
 		static void		configPutFileUploads();
 		static void		configPutUploadStore();
 		static void		configPutRedirection();
-		static void		configPutCGIPath();
+		static void		configPutCGIOn();
+		static void		configPutCGIScript();
 
 		static void		configPutMethods();
 		static void		configPutLex();

@@ -22,6 +22,7 @@ class FileOperation {
 		static void	openInFStream(std::ifstream& instream, std::string in_fname);
 		static void	openOutFStream(std::ofstream& out, std::string out_fname);
 		static void	changeDir(std::string destination);
+		static bool	isValidDir(std::string path);
 
 	class FileException : public std::exception {
 			std::string		msg_;

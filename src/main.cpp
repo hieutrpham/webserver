@@ -27,7 +27,7 @@ int main(int ac, char **av) {
 
 	// 	std::string err_page_path = conf.getErrPagePath(404);
 
-	// 	std::optional<CGIData> cgi = conf.getCGI();
+	// 	std::optional<CGIData> cgi = conf.getCGIData();
 	// 	if (cgi) {
 	// 		LOG(cgi->directory);
 	// 		LOG(cgi->index);
@@ -79,9 +79,6 @@ int main(int ac, char **av) {
 				} else {// handle client data
 					s->handle_client_data(poll_fds, pfd.fd, config_vector);
 				}
-				//if fd was CGI.pipe_out (held by parent & after child has written to pipe_in):
-					//cgiobj.waitSubProcess()	//reap child
-					//cgiobj.handleCGIOuput()	//build response object
 			}
 		}
 	}

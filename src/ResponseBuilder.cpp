@@ -5,11 +5,11 @@
 #include "ServerConfig.hpp"
 #include "POSTMethod.hpp"
 #include "DELETEMethod.hpp"
-// #include "CGIHandler.hpp"
+#include "CGIEvent.hpp"
 
 Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
 	ServerConfig server_config = getConfig(request, config_vector);
-  
+
 	if (isRedirect(request, server_config))
 	{
 		auto redir = server_config.getLocation(request.getPath()).redirection;
@@ -19,8 +19,11 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 		return response;
 	}
 
-// 	if (isCgi(request, server_config))
-// 		return (handleCgi(request, server_config));
+	if (isCGI(request, server_config)) {
+		CGIEvent cgi(server_config);
+		return (cgi.handleCGI(request, server_config));
+	}
+		
 	if (request.getMethod() == "GET")
 		return (GetMethod::handleGet(request, server_config));
 
@@ -31,6 +34,23 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 		return (DELETEMethod::handleDelete(request, server_config));
 	
 	return ResponseBuilder::buildErrorResponse(501, "Not Implemented", server_config);
+}
+
+//techically request parsing but is here for now
+bool ResponseBuilder::isCGI(Request& request, ServerConfig& config) {
+	std::optional<CGIData> cgi_conf = config.getCGI();
+
+	//parsing the request to find either a script extension or a configured cgi directory
+	if (cgi_conf.has_value()) {
+		std::string target = request.getPath();
+		std::size_t target_len = target.length();
+		std::string cgi_dir = cgi_conf->directory;
+
+		if (target.find(CGI_EXT, 0, target_len) != std::string::npos 
+			|| target.find(cgi_dir.c_str(), 0, target_len) != std::string::npos)
+			return true;
+	}
+    return false;
 }
 
 bool ResponseBuilder::isRedirect(Request& request, ServerConfig& config)
