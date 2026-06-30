@@ -60,7 +60,7 @@ void	CGIEvent::executeCGI(const Request& req) {
 
 	req_ = req;
 	checkCGIData();
-	FileOperation::changeDir(cgi_.directory);
+	FileOperation::changeDir(cgi_->directory);
 
 	pid = fork();
 	if (pid == FAIL)
