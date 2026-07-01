@@ -162,12 +162,7 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 			}
 
 			std::string final_response;
-			if (response.isCGI()) {
-				final_response = response.getResponseBody();
-			}
-			else {
-				final_response = response.serialize();
-			}
+			final_response = response.serialize();
 
 			std::cout << "RESPONSE: " << final_response << std::endl;
 			

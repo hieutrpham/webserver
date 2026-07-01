@@ -19,13 +19,11 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 		return response;
 	}
 
-	LOG("HERE2");
-
 	if (isCGI(request, server_config)) {
 		CGIEvent cgi_event(server_config, request);
 		return (cgi_event.handleCGI());
 	}
-		
+
 	if (request.getMethod() == "GET")
 		return (GetMethod::handleGet(request, server_config));
 
@@ -43,12 +41,9 @@ bool ResponseBuilder::isCGI(Request& request, ServerConfig& config) {
 
 	if (cgi_conf.has_value()) {
 		std::string target = request.getPath();
-		std::size_t target_len = target.length();
-		std::string cgi_dir = cgi_conf->directory;
 		std::string cgi_bin = cgi_conf->binary;
-
-		if (target.find(cgi_bin.c_str(), 0, target_len) != std::string::npos 
-			|| target.find(cgi_dir.c_str(), 0, target_len) != std::string::npos)
+		std::size_t found_pos = target.find(cgi_bin.data(), 0);
+		if (found_pos != std::string::npos)
 			return true;
 	}
     return false;
@@ -56,8 +51,6 @@ bool ResponseBuilder::isCGI(Request& request, ServerConfig& config) {
 
 bool ResponseBuilder::isRedirect(Request& request, ServerConfig& config)
 {
-	LOG("HERE1");
-	LOG(request.getPath());
 	return config.getLocation(request.getPath()).is_Redirected();
 }
 

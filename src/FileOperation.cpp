@@ -20,16 +20,35 @@ void   FileOperation::openOutFStream(std::ofstream& out, std::string out_fname) 
     }
 }
 
-void   FileOperation::changeDir(std::string destination) {
+void   FileOperation::changeDirRelative(std::string destination) {
+	destination = absoluteToRelative(destination);
+	std::filesystem::current_path(destination);
+}
+
+void	FileOperation::changeDirAbsolute(std::string destination) {
 	std::filesystem::current_path(destination);
 }
 
 bool	FileOperation::isValidDir(std::string path) {
-	std::filesystem::path	 dir_path(path);
+	if (path[0] == '/' && path.length() == 1)
+		return true;
 
-	if (!std::filesystem::exists(dir_path))
+	std::filesystem::path	 dir_path(absoluteToRelative(path));
+
+	if (!std::filesystem::exists(dir_path)) {
 		return false;
+	}
 	return std::filesystem::is_directory(dir_path);
+}
+
+std::string	FileOperation::getCWD() {
+	return std::filesystem::current_path().string();
+}
+
+std::string FileOperation::absoluteToRelative(std::string path) {
+	if (path[0] == '/' && path.length() > 1)
+		path.erase(0, 1);
+	return path;
 }
 
 //CUSTOM FILE EXCEPTION

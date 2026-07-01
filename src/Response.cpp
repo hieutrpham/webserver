@@ -58,20 +58,11 @@ void Response::setHeader(const std::string& key, const std::string& value) {
 	m_headers[key] = value;
 }
 
-void Response::setCGI(bool is_cgi) {
-	m_is_cgi = is_cgi;
-}
-
-
 
 
 std::string Response::getResponseBody()
 {
 	return m_response_body;
-}
-
-bool Response::isCGI() const {
-	return m_is_cgi;
 }
 
 

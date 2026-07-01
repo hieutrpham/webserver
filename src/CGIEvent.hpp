@@ -19,14 +19,14 @@
 #define SYS_EXECVE			"CGI execve: Execve() Syscall failure: Dropping CGI execution"
 #define SYS_SIGTERM			"CGI subprocess terminated by signal"
 #define SYS_WAITPID			"CGI waitpid: Waitpid() Syscall failure: Dropping CGI execution"
-#define SYS_SUBEXIT			"CGI subprocess exited with error: Dropping CGI execution"
-#define SYS_WUNKNOWN		"CGI waitpid: Unknown subprocess failure: Dropping CGI execution"
+#define SYS_SUBEXIT			"CGI subprocess exited with error"
+#define SYS_WUNKNOWN		"CGI waitpid: Unknown subprocess failure"
 #define SYS_READ			"CGI read: Read() Syscall failure: Dropping CGI execution"
 #define SYS_WRITE			"CGI write: Write() Syscall failure: Dropping CGI execution"
 #define INVALID_CGI_DIR		"Configured CGI directory is not valid: Dropping CGI execution"
 #define INVALID_DIR_REQ		"Configured and requested CGI directories don't match: Dropping CGI execution"
 #define INVALID_BIN			"Configured CGI binary is not valid: Dropping CGI execution"
-#define INVALID_BIN_REQ		"Configured CGI binary does not match requested script: Dropping CGI execution"
+#define INVALID_BIN_REQ		"Invalid CGI script request: Dropping CGI execution"
 
 #define SUCCESS			0
 #define ERROR			1
@@ -89,13 +89,15 @@ class CGIEvent {
 		ServerConfig	config_;
 		Request			req_;
 		OptCgi			cgi_;
-		Pipe			pipe_;
+		Pipe			p2c_pipe_;
+		Pipe			c2p_pipe_;
 		pid_t			pid_;
 		
-		void			execChildProcess(Pipe& pipe);
+		void			execChildProcess();
 		void			checkCGIData();
 		std::string		matchCGIRequest();
 		void			provideBody();
+		Response		respond(std::string cgi_output);
 
 		char**			loadEnvp(StringVec& env_vec, CStringVec& c_env_vec);
 		void			buildEnvVariables(StringVec& env_vec);
@@ -132,7 +134,8 @@ class CGIEvent {
 		Request			getRequest() const;
 		OptCgi			getCGIData() const;
 		pid_t			getPid() const;
-		Pipe			getPipe() const;
+		Pipe			getP2CPipe() const;
+		Pipe			getC2PPipe() const;
 
 		//EXCEPTION SUB CLASSES
 		class Dup2Exception : public std::exception {

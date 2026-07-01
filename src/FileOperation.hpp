@@ -18,11 +18,15 @@ class FileOperation {
 		~FileOperation() = delete;
 		FileOperation&	operator=(const FileOperation& other) = delete;
 
+		static std::string	absoluteToRelative(std::string path);
+
 	public:
-		static void	openInFStream(std::ifstream& instream, std::string in_fname);
-		static void	openOutFStream(std::ofstream& out, std::string out_fname);
-		static void	changeDir(std::string destination);
-		static bool	isValidDir(std::string path);
+		static void			openInFStream(std::ifstream& instream, std::string in_fname);
+		static void			openOutFStream(std::ofstream& out, std::string out_fname);
+		static void			changeDirRelative(std::string destination);
+		static void			changeDirAbsolute(std::string destination);
+		static bool			isValidDir(std::string path);
+		static std::string	getCWD();
 
 	class FileException : public std::exception {
 			std::string		msg_;

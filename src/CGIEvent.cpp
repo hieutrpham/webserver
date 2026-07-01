@@ -6,6 +6,7 @@
 #include "ResponseBuilder.hpp"
 #include "FileOperation.hpp"
 #include "ServerConfig.hpp"
+#include <string>
 #include <unistd.h>
 #include <sys/wait.h>
 
@@ -13,7 +14,8 @@ CGIEvent::CGIEvent(ServerConfig& config, Request& request) :
 	config_(config),
 	req_(request),
 	cgi_(std::nullopt),
-	pipe_(),
+	p2c_pipe_(),
+	c2p_pipe_(),
 	pid_(-1)
 {}
 
@@ -21,7 +23,8 @@ CGIEvent::CGIEvent(const CGIEvent& other) :
 	config_(other.getConfig()),
 	req_(other.getRequest()),
 	cgi_(other.getCGIData()),
-	pipe_(other.getPipe()),
+	p2c_pipe_(other.getP2CPipe()),
+	c2p_pipe_(other.getC2PPipe()),
 	pid_(other.getPid())
 {}
 
@@ -32,7 +35,8 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 		config_ = other.getConfig();
 		req_ = other.getRequest();
 		cgi_ = other.getCGIData();
-		pipe_ = other.getPipe();
+		p2c_pipe_ = other.getP2CPipe();
+		c2p_pipe_ = other.getC2PPipe();
 		pid_ = other.getPid();
 	}
 	return *this;
@@ -54,20 +58,23 @@ Response CGIEvent::handleCGI() {
 }
 
 void	CGIEvent::executeCGI() {
-	pid_t		pid;
+	std::string 	prior_cwd{FileOperation::getCWD()};
+	pid_t			pid;
 
 	checkCGIData();
-	FileOperation::changeDir(cgi_->directory);
 
+	FileOperation::changeDirRelative(cgi_->directory);
 	pid = fork();
 	if (pid == FAIL)
 		throw ForkException(SYS_FORK);
 	if (pid == CHILD_SELF_ID)
-		execChildProcess(pipe_);
+		execChildProcess();
 	pid_ = pid;
-
+	p2c_pipe_.closeRead();
+	c2p_pipe_.closeWrite();
 	provideBody();
-	pipe_.closeWrite();
+	p2c_pipe_.closeWrite();
+	FileOperation::changeDirAbsolute(prior_cwd);
 
 	return;
 }
@@ -96,8 +103,6 @@ std::string	CGIEvent::matchCGIRequest() {
 	if (std::size_t bin_pos = target_path.find(cgi_->binary) != std::string::npos) {
 		std::size_t	bin_pos_end = bin_pos + cgi_->binary.length();
 		std::size_t dir_pos_end = dir_pos + cgi_->directory.length();
-		if (target_path[dir_pos] == '/')
-			dir_pos_end += 1;
 		bin_path = target_path.substr(dir_pos_end, bin_pos_end);
 	}
 	else
@@ -106,23 +111,25 @@ std::string	CGIEvent::matchCGIRequest() {
 	return bin_path;
 }
 
-void	CGIEvent::execChildProcess(Pipe& pipe) {
+void	CGIEvent::execChildProcess() {
 	StringVec	env_vec{};
 	CStringVec	c_env_vec{};
 	char** 		envp = loadEnvp(env_vec, c_env_vec);
 	char*		executable = cgi_->binary.data();
 	char*		argv[2] = {executable, nullptr};
-
-	if (dup2(pipe[OUT_FILENO], STDOUT_FILENO) == FAIL)
+	
+	p2c_pipe_.closeWrite();
+	if (dup2(p2c_pipe_[IN_FILENO], STDIN_FILENO) == FAIL)
 		throw Dup2Exception(SYS_DUP2);
-	pipe.closeWrite();
+	p2c_pipe_.closeRead();
 
-	if (dup2(pipe[IN_FILENO], STDIN_FILENO) == FAIL)
+	c2p_pipe_.closeRead();
+	if (dup2(c2p_pipe_[OUT_FILENO], STDOUT_FILENO) == FAIL)
 		throw Dup2Exception(SYS_DUP2);
-	pipe.closeRead();
+	c2p_pipe_.closeWrite();
 
 	execve(cgi_->binary.c_str(), argv, envp);
-	throw CGIExecException(SYS_EXECVE);
+	_exit(1);
 }
 
 void	CGIEvent::provideBody() {
@@ -131,7 +138,7 @@ void	CGIEvent::provideBody() {
 	std::string len_str = req_.getHeader("content-length");
 	if (!len_str.empty()) {
 		content_len = std::atol(len_str.c_str());
-		std::size_t bytes = write(pipe_[OUT_FILENO], req_.getBody().c_str(), content_len);
+		std::size_t bytes = write(p2c_pipe_[OUT_FILENO], req_.getBody().c_str(), content_len);
 		if (bytes != content_len)
 			throw CGIExecException(SYS_WRITE);
 	}
@@ -278,19 +285,39 @@ int CGIEvent::waitSubProcess() {
 
 //get RESPONSE FROM CGI OUTPUT--------------------------------
 Response	CGIEvent::getCGIResponse() {
-	Response		res{};
 	std::string 	cgi_output{};
 	ssize_t 		bytes_read{};
 	char			buffer[1028] = {0};
 
-	while ((bytes_read = read(pipe_[OUT_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
+	while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
 		cgi_output += std::string(buffer);
 	}
-	pipe_.closeRead();
+	c2p_pipe_.closeRead();
 	if (bytes_read == -1)
-		throw CGIExecException(SYS_READ);
+		return ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
+	
+	return respond(cgi_output);
+}
+
+Response	CGIEvent::respond(std::string cgi_output) {
+	Response			res{};
+	std::stringstream 	ss(cgi_output);
+	std::string 		line;
+
+	res.setVersion(req_.getVersion());
+	res.setStatus(200, "OK");
+	while (std::getline(ss, line) && !line.empty()) {
+		std::string key = line.substr(0, line.find(":"));
+		if (key == "Status") {
+			std::string status_code = line.substr(line.find(" ") + 1, 3);
+			std::string reason = line.substr(line.find(" ") + 5);
+			res.setStatus(std::stoi(status_code), reason);
+		}
+		else
+		res.setHeader(key, line.substr(line.find(":") + 2));
+	}
+	cgi_output = cgi_output.substr(cgi_output.find("<html>"));
 	res.setBody(cgi_output);
-	res.setCGI(true);
 
 	return res;
 }
@@ -315,9 +342,12 @@ pid_t		CGIEvent::getPid() const {
 	return pid_;
 }
 
+Pipe		CGIEvent::getP2CPipe() const {
+	return p2c_pipe_;
+}
 
-Pipe		CGIEvent::getPipe() const {
-	return pipe_;
+Pipe		CGIEvent::getC2PPipe() const {
+	return c2p_pipe_;
 }
 //------------------------------------------------------------
 
