@@ -87,13 +87,13 @@ class CGIEvent {
 		typedef std::string (CGIEvent::*FunPtr)(void);
 
 		ServerConfig	config_;
-		Pipe			pipe_;
 		Request			req_;
 		OptCgi			cgi_;
+		Pipe			pipe_;
 		pid_t			pid_;
 		
 		void			execChildProcess(Pipe& pipe);
-		CGIData			checkCGIData();
+		void			checkCGIData();
 		std::string		matchCGIRequest();
 		void			provideBody();
 
@@ -113,25 +113,27 @@ class CGIEvent {
 		
 	public:
 		CGIEvent() = delete;
-		CGIEvent(ServerConfig& config);
+		CGIEvent(ServerConfig& config, Request& request);
 		CGIEvent(const CGIEvent& other);
 		~CGIEvent();
 		CGIEvent&	operator=(const CGIEvent& other);
 
 		//INTERFACE-----------------------------//
-		Response	handleCGI(Request& request, ServerConfig& config);
+		Response	handleCGI();				//
 		//QUEUE IMPLEMENTATION INTERFACE--------//
-		void		executeCGI(const Request& req);
+		void		executeCGI();				//
 		int			waitSubProcessNH();			//
 		int			waitSubProcess();			//
 		Response	getCGIResponse();			//
 		//--------------------------------------//
 
+		//GETTERS
 		ServerConfig	getConfig() const;
 		Request			getRequest() const;
 		OptCgi			getCGIData() const;
 		pid_t			getPid() const;
 		Pipe			getPipe() const;
+
 		//EXCEPTION SUB CLASSES
 		class Dup2Exception : public std::exception {
 				std::string		msg_;

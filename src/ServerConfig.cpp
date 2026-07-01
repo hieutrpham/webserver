@@ -7,21 +7,28 @@ bool	ServerConfig::is_Empty() {
 }
 
 Location	ServerConfig::getLocation(std::string uri) const {
-	auto ite = locations.find(uri);
+	std::size_t last_slash_pos = uri.find_last_of('/');
+	std::string location_path = uri.substr(0, last_slash_pos + 1);
+
+	auto ite = locations.find(location_path);
+
 	if (ite == locations.end())
 	{
-		ERR("Can not find location");
+		ERR("Can not find location!");
 		throw std::runtime_error("std::map::find");
 	}
 	return ite->second;
 }
 
 Methods		ServerConfig::getMethods(std::string uri) const {
-	auto ite = locations.find(uri);
+	std::size_t last_slash_pos = uri.find_last_of('/');
+	std::string location_path = uri.substr(0, last_slash_pos + 1);
+
+	auto ite = locations.find(location_path);
 
 	if (ite == locations.end())
 	{
-		ERR("Can not find location");
+		ERR("Can not find methods");
 		throw std::runtime_error("std::map::find");
 	}
 	Location location = ite->second;

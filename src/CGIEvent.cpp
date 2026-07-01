@@ -9,20 +9,20 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-CGIEvent::CGIEvent(ServerConfig& config) : 
+CGIEvent::CGIEvent(ServerConfig& config, Request& request) : 
 	config_(config),
-	req_(),	// default constructor is defined but not implemented 
-	cgi_(),
-	pid_(-1),
-	pipe_()
+	req_(request),
+	cgi_(std::nullopt),
+	pipe_(),
+	pid_(-1)
 {}
 
 CGIEvent::CGIEvent(const CGIEvent& other) : 
 	config_(other.getConfig()),
 	req_(other.getRequest()),
 	cgi_(other.getCGIData()),
-	pid_(other.getPid()),
-	pipe_(other.getPipe())
+	pipe_(other.getPipe()),
+	pid_(other.getPid())
 {}
 
 CGIEvent::~CGIEvent() {}
@@ -32,21 +32,20 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 		config_ = other.getConfig();
 		req_ = other.getRequest();
 		cgi_ = other.getCGIData();
-		pid_ = other.getPid();
 		pipe_ = other.getPipe();
+		pid_ = other.getPid();
 	}
 	return *this;
 }
 
 //non-event-queue implementation:
-Response CGIEvent::handleCGI(Request& request, ServerConfig& config) {
-    CGIEvent 	cgievent(config);
+Response CGIEvent::handleCGI() {
 	Response 	response;
 
 	try {
-		cgievent.executeCGI(request); //forks and execs the CGI script, sets up a pipe
-		response = cgievent.getCGIResponse(); //reads the CGI output from a pipe during child processing, but leaves it unreaped
-		cgievent.waitSubProcess(); //waits for the child process to exit, then reaps it
+		executeCGI(); //forks and execs the CGI script, sets up a pipe
+		response = getCGIResponse(); //reads the CGI output from a pipe during child processing, but leaves it unreaped
+		waitSubProcess(); //waits for the child process to exit, then reaps it
 		return response;
 	} catch (std::exception &e) {
 		ERR(e.what());
@@ -54,11 +53,9 @@ Response CGIEvent::handleCGI(Request& request, ServerConfig& config) {
 	}
 }
 
-void	CGIEvent::executeCGI(const Request& req) {
+void	CGIEvent::executeCGI() {
 	pid_t		pid;
 
-
-	req_ = req;
 	checkCGIData();
 	FileOperation::changeDir(cgi_->directory);
 
@@ -75,8 +72,7 @@ void	CGIEvent::executeCGI(const Request& req) {
 	return;
 }
 
-//DOES THE REQUESTED CGI PATH NEED TO SPECIFICALLY BE MATCHED WITH THE CONFIG?
-CGIData		CGIEvent::checkCGIData() {
+void	CGIEvent::checkCGIData() {
 	cgi_ = config_.getCGI();
 
 	if (!cgi_.has_value())
@@ -88,22 +84,18 @@ CGIData		CGIEvent::checkCGIData() {
 	cgi_->binary = matchCGIRequest();
 }
 
-//last / is the end of the directory,
-//if there is nothing after the last /, then the request is for the directory: 
-//config must specify script -> if no script in config that is present in the requested dir, then error
-//
 std::string	CGIEvent::matchCGIRequest() {
 	std::string 	target_path = req_.getPath();
 	std::string 	bin_path{};
 	std::size_t		dir_pos{};
 	
-	dir_pos = target_path.find(cgi_.directory);
-	if (dir_pos = std::string::npos)
+	dir_pos = target_path.find(cgi_->directory);
+	if (dir_pos == std::string::npos)
 		throw CGIExecException(INVALID_DIR_REQ);
 
-	if (std::size_t bin_pos = target_path.find(cgi_.binary) != std::string::npos) {
-		std::size_t	bin_pos_end = bin_pos + cgi_.binary.length();
-		std::size_t dir_pos_end = dir_pos + cgi_.directory.length();
+	if (std::size_t bin_pos = target_path.find(cgi_->binary) != std::string::npos) {
+		std::size_t	bin_pos_end = bin_pos + cgi_->binary.length();
+		std::size_t dir_pos_end = dir_pos + cgi_->directory.length();
 		if (target_path[dir_pos] == '/')
 			dir_pos_end += 1;
 		bin_path = target_path.substr(dir_pos_end, bin_pos_end);
@@ -114,16 +106,12 @@ std::string	CGIEvent::matchCGIRequest() {
 	return bin_path;
 }
 
-//env_cont: Environment container keeps the data in the correct stack scope,
-// so that the c-style pointers are not left dangling.
-// GIVES  EXECVE:
-//	the script path: from config_file+request_URI
-//	the arg: request body
-//	the envp: parsed together from request
 void	CGIEvent::execChildProcess(Pipe& pipe) {
 	StringVec	env_vec{};
 	CStringVec	c_env_vec{};
 	char** 		envp = loadEnvp(env_vec, c_env_vec);
+	char*		executable = cgi_->binary.data();
+	char*		argv[2] = {executable, nullptr};
 
 	if (dup2(pipe[OUT_FILENO], STDOUT_FILENO) == FAIL)
 		throw Dup2Exception(SYS_DUP2);
@@ -132,8 +120,8 @@ void	CGIEvent::execChildProcess(Pipe& pipe) {
 	if (dup2(pipe[IN_FILENO], STDIN_FILENO) == FAIL)
 		throw Dup2Exception(SYS_DUP2);
 	pipe.closeRead();
-	
-	execve(cgi_->binary, nullptr, envp);
+
+	execve(cgi_->binary.c_str(), argv, envp);
 	throw CGIExecException(SYS_EXECVE);
 }
 
@@ -157,13 +145,6 @@ char**	CGIEvent::loadEnvp(StringVec& env_vec, CStringVec& c_env_vec) {
 	c_env_vec.push_back(nullptr);
 	return c_env_vec.data();
 }
-
-/*
-Authentication Enforcement: The server MUST NOT execute the script unless the client request passes all defined access controls (Section 3.1).
-If CONTENT_LENGTH is present, the server MUST make exactly that many bytes available for the script to read (Section 4.2).
-The server MUST remove any transfer-codings (like chunked) from the message body before passing it to the script
-and recalculate CONTENT_LENGTH (Section 4.2).
-*/
 
 void	CGIEvent::buildEnvVariables(StringVec& env_vec) {
 	static constexpr const char*	env_keys[] = {
@@ -299,7 +280,7 @@ int CGIEvent::waitSubProcess() {
 Response	CGIEvent::getCGIResponse() {
 	Response		res{};
 	std::string 	cgi_output{};
-	std::size_t 	bytes_read{};
+	ssize_t 		bytes_read{};
 	char			buffer[1028] = {0};
 
 	while ((bytes_read = read(pipe_[OUT_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
@@ -343,19 +324,19 @@ Pipe		CGIEvent::getPipe() const {
 
 
 //CUSTOM EXCEPTIONS-------------------------------------------------------------
-CGIEvent::Dup2Exception::Dup2Exception(const std::string& msg) {}
+CGIEvent::Dup2Exception::Dup2Exception(const std::string& msg) : msg_(msg) {}
 
 const char* CGIEvent::Dup2Exception::Dup2Exception::what() const noexcept {
 	return this->msg_.c_str();
 }
 
-CGIEvent::ForkException::ForkException(const std::string& msg) {}
+CGIEvent::ForkException::ForkException(const std::string& msg) : msg_(msg) {}
 
 const char* CGIEvent::ForkException::what() const noexcept {
 	return this->msg_.c_str();
 }
 
-CGIEvent::CGIExecException::CGIExecException(const std::string& msg) {}
+CGIEvent::CGIExecException::CGIExecException(const std::string& msg) : msg_(msg) {}
 
 const char* CGIEvent::CGIExecException::what() const noexcept {
 	return this->msg_.c_str();
@@ -432,7 +413,7 @@ bool	Pipe::getIsOutValid() const {
 }
 
 //CUSTOM EXCEPTION
-Pipe::PipeException::PipeException(const std::string& msg) {}
+Pipe::PipeException::PipeException(const std::string& msg) : msg_(msg) {}
 
 const char* Pipe::PipeException::what() const noexcept {
 	return this->msg_.c_str();

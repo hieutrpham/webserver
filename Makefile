@@ -11,7 +11,8 @@ SRC = main.cpp Server.cpp Request.cpp RequestParser.cpp \
 	ResponseBuilder.cpp \
 	GETMethod.cpp \
 	POSTMethod.cpp \
-	DELETEMethod.cpp
+	DELETEMethod.cpp \
+	CGIEvent.cpp
 
 #include
 INCLUDE = -I./src/
