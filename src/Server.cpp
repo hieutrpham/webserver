@@ -33,6 +33,9 @@ Server::Server(ConfigVec &configs) : m_configs(configs)
 		config.address.sin_port = htons(config.port);
 		memset(config.address.sin_zero, 0, sizeof(config.address.sin_zero));
 
+		int yes = 1;
+		setsockopt(config.fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(config.address));
+
 		// bind fd to the address created
 		if (bind(config.fd, (struct sockaddr*)&config.address, sizeof(config.address)) < 0) {
 			close(config.fd);
@@ -45,8 +48,6 @@ Server::Server(ConfigVec &configs) : m_configs(configs)
 			ERR(strerror(errno));
 			throw std::runtime_error("ERR: listen failed\n");
 		}
-		int yes = 1;
-		setsockopt(config.fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(config.address));
 	}
 }
 

@@ -1,5 +1,3 @@
-
-
 #include "ServerConfig.hpp"
 
 bool	ServerConfig::is_Empty() {
@@ -39,8 +37,7 @@ std::string		ServerConfig::getErrPagePath(unsigned int code) const {
 	auto ite = error_pages.find(code);
 	if (ite == error_pages.end())
 	{
-		ERR("Can not find error");
-		throw std::runtime_error("std::map::find");
+		throw std::runtime_error("Error code " + std::to_string(code) + " not found: ");
 	}
 	return ite->second;
 }
