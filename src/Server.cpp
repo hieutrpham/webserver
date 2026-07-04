@@ -53,9 +53,9 @@ Server::Server(ConfigVec &configs) : m_configs(configs)
 
 void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 {
-	int new_socket;
-	socklen_t addr_len;
-	sockaddr_in addr;
+	int new_socket = 0;
+	socklen_t addr_len = 0;
+	sockaddr_in addr = {};
 
 	if ((new_socket = accept(fd, (sockaddr *)&addr, &addr_len)) < 0) {
 		close(new_socket);
