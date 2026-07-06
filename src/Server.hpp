@@ -52,4 +52,5 @@ public:
 	bool is_server(int fd);
 	void print_endpoints();
 	void add_serverfds(std::vector<struct pollfd>& poll_fds);
+	void setPollEvents(std::vector<struct pollfd>& poll_fds, int fd, short events);
 };

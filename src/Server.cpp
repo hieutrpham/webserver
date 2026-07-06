@@ -128,67 +128,80 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
 	int bytes = recv(fd, buf, sizeof(buf), 0);
-	if (bytes <= 0) {	// No data or error
-		if (bytes < 0)
-			ERR(strerror(errno));
+	// No data or error.
+	if (bytes <= 0) {
 		if (bytes == 0)
 			LOG("connection close");
-		m_clients[fd].readBuffer.erase(fd);
+		m_clients.erase(fd);
 		close(fd);
 		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
-	} else {	// Data received
-		// Append bytes from recv() to clients request buffer.
-		m_clients[fd].readBuffer.append(buf, bytes);
-	
-		// A single recv() may contain multiple HTTP requests.
-		// Keep parsing until the buffer is empty or the next request is incomplete.
-		while (!m_clients[fd].readBuffer.empty()) {
-			Request request;
-			ParseResult result = RequestParser::parseRequest(m_clients[fd].readBuffer, request);
+		return ;
+	}
+	// Data received.
 
-			// Valid request so far, bytes missing.
-			if (result.status == PARSE_INCOMPLETE) {
-				LOG("Request parse incomplete...");
-				return ;
-			}
+	// Append bytes from recv() to clients request buffer.
+	m_clients[fd].readBuffer.append(buf, bytes);
 
-			// Malformed request, send error response, clear buffer and close connection.
-			if (result.status == PARSE_BAD_REQUEST) {
-				LOG("Bad request");
-				
-				Response response = ResponseBuilder::buildErrorResponse(result.httpStatus, getReasonPhrase(result.httpStatus));
-				std::string final_response = response.serialize();
+	// A single recv() may contain multiple HTTP requests.
+	// Keep parsing until the buffer is empty or the next request is incomplete.
+	while (!m_clients[fd].readBuffer.empty()) {
+		Request request;
+		ParseResult requestParse = RequestParser::parseRequest(m_clients[fd].readBuffer, request);
 
-				std::cout << "RESPONSE: " << final_response << std::endl;
+		// Valid request so far, bytes missing.
+		if (requestParse.status == PARSE_INCOMPLETE) {
+			LOG("Request parse incomplete...");
+			return ;
+		}
 
-				if (send(fd, final_response.c_str(), final_response.size(), 0) < 0)
-					ERR(strerror(errno));
-
-					m_clients[fd].readBuffer.erase(fd);
-				close(fd);
-				std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
-				return ;
-			}
-
-			// Request parsing complete.
-			LOG("Request succesfully parsed.");
-			// Remove only the bytes that belonged to the parsed requeest.
-			m_clients[fd].readBuffer.erase(0, result.bytesConsumed);		
-			// requestDebugPrint(request, result);
-	
-			Response response;
-			try {
-				response = ResponseBuilder::buildResponse(request, config_vector);
-			} catch (std::exception &e) {
-				ERR(e.what());
-			}
-
-			std::string final_response = response.serialize();
-
-			std::cout << "RESPONSE: " << final_response << std::endl;
+		// Malformed request, create error response.
+		if (requestParse.status == PARSE_BAD_REQUEST) {
+			LOG("Bad request");
 			
-			if (send(fd, final_response.c_str(), final_response.size(), 0) < 0)
-				ERR(strerror(errno));
+			Response response = ResponseBuilder::buildErrorResponse(requestParse.httpStatus, getReasonPhrase(requestParse.httpStatus));
+			
+			m_clients[fd].writeBuffer += response.serialize();
+			m_clients[fd].readBuffer.clear();
+			m_clients[fd].closeAfterWrite = true;
+			m_clients[fd].bytesSent = 0;
+
+			setPollEvents(poll_fds, fd, POLLOUT);
+			return ;
+		}
+
+		// Request parsing complete.
+		LOG("Request succesfully parsed.");
+
+		// Remove only the bytes that belonged to the parsed requeest.
+		m_clients[fd].readBuffer.erase(0, requestParse.bytesConsumed);		
+
+		Response response;
+		try {
+			response = ResponseBuilder::buildResponse(request, config_vector);
+		} catch (std::exception &e) {
+			ERR(e.what());
+			Response response = ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
+			m_clients[fd].closeAfterWrite = true;
+		}
+
+		// Finalize response
+		m_clients[fd].writeBuffer += response.serialize();
+		m_clients[fd].bytesSent = 0;
+		
+		// Set fd ready for writing.
+		setPollEvents(poll_fds, fd, POLLOUT);
+
+		return ;
+	}
+}
+
+void Server::setPollEvents(std::vector<struct pollfd>& poll_fds, int fd, short events)
+{
+	for (size_t i = 0; i < poll_fds.size(); ++i) {
+		if (poll_fds[i].fd == fd) {
+			poll_fds[i].events = events;
+			poll_fds[i].revents = 0;
+			return;
 		}
 	}
 }
