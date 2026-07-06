@@ -131,10 +131,8 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 	// No data or error.
 	if (bytes <= 0) {
 		if (bytes == 0)
-			LOG("connection close");
-		m_clients.erase(fd);
-		close(fd);
-		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
+			LOG("Closing connection");
+		close_client(poll_fds, fd);
 		return ;
 	}
 	// Data received.
@@ -180,7 +178,7 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 			response = ResponseBuilder::buildResponse(request, config_vector);
 		} catch (std::exception &e) {
 			ERR(e.what());
-			Response response = ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
+			response = ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
 			m_clients[fd].closeAfterWrite = true;
 		}
 
@@ -193,6 +191,13 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 
 		return ;
 	}
+}
+
+void Server::close_client(std::vector<struct pollfd>& poll_fds, int fd) {
+	m_clients.erase(fd);
+	close(fd);
+
+	std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
 }
 
 void Server::setPollEvents(std::vector<struct pollfd>& poll_fds, int fd, short events)
