@@ -124,7 +124,7 @@ static std::string getReasonPhrase(int status)
 	}
 }
 
-void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, ConfigVec& config_vector) {
+void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, ConfigVec& config_vector) {
 	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
 	int bytes = recv(fd, buf, sizeof(buf), 0);
