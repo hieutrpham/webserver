@@ -193,6 +193,30 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 	}
 }
 
+void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
+	ClientState& client = m_clients[fd];
+
+	// Send response to client.
+	int bytes = send(fd, client.writeBuffer.c_str(), client.writeBuffer.size(), 0);
+
+	// Client disconnected or send failed.
+	if (bytes <= 0) {
+		close_client(poll_fds, fd);
+		return ;
+	}
+
+	// Clear buffer.
+	client.writeBuffer.clear();
+
+	
+	if (client.closeAfterWrite) {
+		close_client(poll_fds, fd);
+		return ;
+	}
+
+	setPollEvents(poll_fds, fd, POLLIN);
+}
+
 void Server::close_client(std::vector<struct pollfd>& poll_fds, int fd) {
 	m_clients.erase(fd);
 	close(fd);

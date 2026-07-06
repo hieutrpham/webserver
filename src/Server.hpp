@@ -48,6 +48,7 @@ public:
 	std::vector<int> m_server_fds;
 	Server(ConfigVec &);
 	void handle_client_read(std::vector<struct pollfd>&, int, ConfigVec&);
+	void handle_client_write(std::vector<struct pollfd>&, int);
 	void handle_new_connection(std::vector<struct pollfd>&, int);
 	bool is_server(int fd);
 	void print_endpoints();
