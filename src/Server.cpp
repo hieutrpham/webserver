@@ -131,7 +131,6 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 	// No data or error.
 	if (bytes <= 0) {
 		if (bytes == 0)
-			LOG("Closing connection");
 		close_client(poll_fds, fd);
 		return ;
 	}
@@ -148,7 +147,7 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 
 		// Valid request so far, bytes missing.
 		if (requestParse.status == PARSE_INCOMPLETE) {
-			LOG("Request parse incomplete...");
+			LOG("Request parse incomplete");
 			return ;
 		}
 
@@ -168,7 +167,8 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 		}
 
 		// Request parsing complete.
-		LOG("Request succesfully parsed.");
+		LOG("Request succesfully parsed");
+		requestDebugPrint(request, requestParse);
 
 		// Remove only the bytes that belonged to the parsed requeest.
 		m_clients[fd].readBuffer.erase(0, requestParse.bytesConsumed);		
@@ -186,6 +186,8 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 		m_clients[fd].writeBuffer += response.serialize();
 		m_clients[fd].bytesSent = 0;
 		
+		LOG("Response built");
+
 		// Set fd ready for writing.
 		setPollEvents(poll_fds, fd, POLLOUT);
 
@@ -205,6 +207,10 @@ void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 		return ;
 	}
 
+	// Debug
+	LOG("Response succesfully sent");
+	std::cout << "\n" << client.writeBuffer << std::endl;
+
 	// Clear buffer.
 	client.writeBuffer.clear();
 
@@ -218,6 +224,8 @@ void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 }
 
 void Server::close_client(std::vector<struct pollfd>& poll_fds, int fd) {
+	LOG("Closing connection to fd " + std::to_string(fd));
+
 	m_clients.erase(fd);
 	close(fd);
 
