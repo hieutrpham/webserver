@@ -9,6 +9,18 @@
 #include <stdexcept>
 #include <cmath>
 #include "ResponseBuilder.hpp"
+#include <fcntl.h>
+
+void setNonBlockFlags(int fd) {
+	// Save current flags
+	int flags = fcntl(fd, F_GETFL, 0);
+	if (flags == -1)
+		throw std::runtime_error("fcntl F_GETFL failed");
+	
+	// Set nonblocking flag
+	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+		throw std::runtime_error("fcnt F_SETFL failed");
+}
 
 Server::Server(ConfigVec &configs) : m_configs(configs)
 {
@@ -21,6 +33,9 @@ Server::Server(ConfigVec &configs) : m_configs(configs)
 		config.fd = socket(AF_INET, SOCK_STREAM, 0);
 		if (config.fd < 0)
 			throw std::runtime_error("ERR: socket creation failed\n");
+
+		// Set socket fd flags to non blocking
+		setNonBlockFlags(config.fd);
 
 		m_server_fds.push_back(config.fd);
 		// configuring the address
@@ -53,15 +68,18 @@ Server::Server(ConfigVec &configs) : m_configs(configs)
 
 void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 {
-	int new_socket;
-	socklen_t addr_len;
 	sockaddr_in addr;
-
-	if ((new_socket = accept(fd, (sockaddr *)&addr, &addr_len)) < 0) {
-		close(new_socket);
-		ERR(strerror(errno));
-		throw std::runtime_error("ERR: unacceptable\n");
+	socklen_t addr_len = sizeof(addr);
+	
+	int new_socket = accept(fd, (sockaddr *)&addr, &addr_len);
+	if (new_socket < 0) {
+		LOG("accept() failed");
+		return ; // Back to poll loop
 	}
+
+	// Set client fd nonblocking flag
+	setNonBlockFlags(new_socket);
+
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
 }
 
