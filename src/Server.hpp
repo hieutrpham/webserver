@@ -32,10 +32,18 @@ enum HttpStatus {
 	HTTP_HTTP_VERSION_NOT_SUPPORTED  = 505
 };
 
+struct ClientState {
+	std::string readBuffer;
+	std::string writeBuffer;
+	size_t bytesSent = 0;
+	bool closeAfterWrite = false;
+};
+
 class Server {
 private:
 	ConfigVec m_configs;
-	std::map<int, std::string> m_clientBuffers; // Per-client buffer
+	// std::map<int, std::string> m_clientBuffers; // Per-client buffer
+	std::map<int, ClientState> m_clients;
 public:
 	std::vector<int> m_server_fds;
 	Server(ConfigVec &);

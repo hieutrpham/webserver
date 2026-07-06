@@ -80,6 +80,9 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 	// Set client fd nonblocking flag
 	setNonBlockFlags(new_socket);
 
+	// Create state for new client
+	m_clients[new_socket];
+
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
 }
 
@@ -130,18 +133,18 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 			ERR(strerror(errno));
 		if (bytes == 0)
 			LOG("connection close");
-		m_clientBuffers.erase(fd);
+		m_clients[fd].readBuffer.erase(fd);
 		close(fd);
 		std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
 	} else {	// Data received
 		// Append bytes from recv() to clients request buffer.
-		m_clientBuffers[fd].append(buf, bytes);
+		m_clients[fd].readBuffer.append(buf, bytes);
 	
 		// A single recv() may contain multiple HTTP requests.
 		// Keep parsing until the buffer is empty or the next request is incomplete.
-		while (!m_clientBuffers[fd].empty()) {
+		while (!m_clients[fd].readBuffer.empty()) {
 			Request request;
-			ParseResult result = RequestParser::parseRequest(m_clientBuffers[fd], request);
+			ParseResult result = RequestParser::parseRequest(m_clients[fd].readBuffer, request);
 
 			// Valid request so far, bytes missing.
 			if (result.status == PARSE_INCOMPLETE) {
@@ -161,7 +164,7 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 				if (send(fd, final_response.c_str(), final_response.size(), 0) < 0)
 					ERR(strerror(errno));
 
-				m_clientBuffers.erase(fd);
+					m_clients[fd].readBuffer.erase(fd);
 				close(fd);
 				std::erase_if(poll_fds, [fd](struct pollfd pfd) { return pfd.fd == fd; });
 				return ;
@@ -170,7 +173,7 @@ void Server::handle_client_data(std::vector<struct pollfd>& poll_fds, int fd, Co
 			// Request parsing complete.
 			LOG("Request succesfully parsed.");
 			// Remove only the bytes that belonged to the parsed requeest.
-			m_clientBuffers[fd].erase(0, result.bytesConsumed);		
+			m_clients[fd].readBuffer.erase(0, result.bytesConsumed);		
 			// requestDebugPrint(request, result);
 	
 			Response response;
