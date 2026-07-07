@@ -79,9 +79,9 @@ int main(int ac, char **av) {
 		}
 	}
 
+	LOG("Shutting down server");
 	for (auto pfd : poll_fds) {
-		LOG("Shutting down server");
-		LOG("Closing fd");
+		LOG("Closing fd " + std::to_string(pfd.fd));
 		close(pfd.fd);
 	}
 }
