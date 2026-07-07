@@ -131,6 +131,9 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 	// No data or error.
 	if (bytes <= 0) {
 		if (bytes == 0)
+			LOG("Client disconnected");
+		else
+			LOG("recv() failed");
 		close_client(poll_fds, fd);
 		return ;
 	}
