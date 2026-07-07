@@ -198,8 +198,12 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 	ClientState& client = m_clients[fd];
 
+	// Calculate how much of the response is left to send.
+	size_t remaining = client.writeBuffer.size() - client.bytesSent;
+	const char* data = client.writeBuffer.c_str() + client.bytesSent;
+
 	// Send response to client.
-	int bytes = send(fd, client.writeBuffer.c_str(), client.writeBuffer.size(), 0);
+	int bytes = send(fd, data, remaining, 0);
 
 	// Client disconnected or send failed.
 	if (bytes <= 0) {
@@ -207,19 +211,26 @@ void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 		return ;
 	}
 
+	client.bytesSent += bytes;
+
+	// Not everything was sent yet. Stay in POLLOUT & continue later.
+	if (client.bytesSent < client.writeBuffer.size())
+		return ;
+
 	// Debug
-	LOG("Response succesfully sent");
+	LOG("Response successfully sent");
 	std::cout << "\n" << client.writeBuffer << std::endl;
 
-	// Clear buffer.
+	// Response fully sent. Clear state.
 	client.writeBuffer.clear();
-
+	client.bytesSent = 0;
 	
 	if (client.closeAfterWrite) {
 		close_client(poll_fds, fd);
 		return ;
 	}
 
+	// Response finished. Switch back to read mode.
 	setPollEvents(poll_fds, fd, POLLIN);
 }
 
