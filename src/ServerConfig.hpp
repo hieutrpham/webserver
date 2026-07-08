@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <optional>
 
+#define CGI_EXT ".py"
+
 typedef enum e_allowed {
 	GET,
 	POST,
@@ -17,6 +19,7 @@ typedef enum e_allowed {
 
 struct CGIData {
 	std::string		directory;
+	std::string		extension = CGI_EXT;
 	std::string		binary;
 };
 

@@ -44,26 +44,45 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 
 //non-event-queue implementation:
 Response CGIEvent::handleCGI() {
-	Response 	response;
+	std::string 	prior_cwd{FileOperation::getCWD()};
+	Response 		response;
 
 	try {
 		executeCGI(); //forks and execs the CGI script, sets up a pipe
 		response = getCGIResponse(); //reads the CGI output from a pipe during child processing, but leaves it unreaped
 		waitSubProcess(); //waits for the child process to exit, then reaps it
 		return response;
+	} catch (CGIEvent::CGIInvalidDirectory &e) {
+		ERR(e.what());
+		return ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
+	} catch (CGIEvent::CGINotFound &e) {
+		ERR(e.what());
+		FileOperation::changeDirAbsolute(prior_cwd);
+		return ResponseBuilder::buildErrorResponse(404, "Not Found");
 	} catch (std::exception &e) {
 		ERR(e.what());
+		FileOperation::changeDirAbsolute(prior_cwd);
 		return ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
 	}
 }
 
-void	CGIEvent::executeCGI() {
-	std::string 	prior_cwd{FileOperation::getCWD()};
+/*
+	TODO:
+	Reverting back to no trailing / in location path
+	Check which parts of CGIHandler were designed around the trailing /
+
+	HTTP codes:
+	any other HTTP codes needed in CGI besides 200, 404, 500?
+	(other needed codes: 403, 405, 501, 502, 503, 504 (GITHUB COPILOT...))
+*/
+
+void	CGIEvent::executeCGI(std::string prior_cwd) {
 	pid_t			pid;
 
-	checkCGIData();
-
+	checkCGIDir();
 	FileOperation::changeDirRelative(cgi_->directory);
+	cgi_->binary = matchCGIRequest();
+	
 	pid = fork();
 	if (pid == FAIL)
 		throw ForkException(SYS_FORK);
@@ -79,36 +98,40 @@ void	CGIEvent::executeCGI() {
 	return;
 }
 
-void	CGIEvent::checkCGIData() {
+void	CGIEvent::checkCGIDir() {
 	cgi_ = config_.getCGI();
 
 	if (!cgi_.has_value())
-		throw CGIExecException(NO_CGI);
+		throw CGIInvalidDirectory(NO_CGI);
 
 	if (!FileOperation::isValidDir(cgi_->directory))
-		throw CGIExecException(INVALID_CGI_DIR);
-
-	cgi_->binary = matchCGIRequest();
+		throw CGIInvalidDirectory(INVALID_CGI_DIR);
 }
 
 std::string	CGIEvent::matchCGIRequest() {
 	std::string 	target_path = req_.getPath();
 	std::string 	bin_path{};
-	std::size_t		dir_pos{};
 	
-	dir_pos = target_path.find(cgi_->directory);
+	std::size_t dir_pos = target_path.find(cgi_->directory);
 	if (dir_pos == std::string::npos)
-		throw CGIExecException(INVALID_DIR_REQ);
+		throw CGINotFound(INVALID_DIR_REQ);
 
-	if (std::size_t bin_pos = target_path.find(cgi_->binary) != std::string::npos) {
+	std::size_t ext_pos = target_path.find(cgi_->extension);
+	if (ext_pos == std::string::npos)
+		throw CGINotFound(INVALID_BIN_REQ);
+
+	std::size_t bin_pos = target_path.rfind('/', ext_pos) + 1;
+	if (bin_pos != std::string::npos) {
 		std::size_t	bin_pos_end = bin_pos + cgi_->binary.length();
 		std::size_t dir_pos_end = dir_pos + cgi_->directory.length();
 		bin_path = target_path.substr(dir_pos_end, bin_pos_end);
+		if (!FileOperation::isValidPythonFile(bin_path))
+			throw CGINotFound(INVALID_BIN_REQ);
 	}
 	else
-		throw CGIExecException(INVALID_BIN_REQ);
+		throw CGINotFound(INVALID_BIN_REQ);
 
-	return bin_path;
+	return bin_path; 
 }
 
 void	CGIEvent::execChildProcess() {
@@ -354,6 +377,12 @@ Pipe		CGIEvent::getC2PPipe() const {
 
 
 //CUSTOM EXCEPTIONS-------------------------------------------------------------
+CGIEvent::CGIInvalidDirectory::CGIInvalidDirectory(const std::string& msg) : msg_(msg) {}
+
+const char* CGIEvent::CGIInvalidDirectory::what() const noexcept {
+	return this->msg_.c_str();
+}
+
 CGIEvent::Dup2Exception::Dup2Exception(const std::string& msg) : msg_(msg) {}
 
 const char* CGIEvent::Dup2Exception::Dup2Exception::what() const noexcept {
@@ -369,6 +398,12 @@ const char* CGIEvent::ForkException::what() const noexcept {
 CGIEvent::CGIExecException::CGIExecException(const std::string& msg) : msg_(msg) {}
 
 const char* CGIEvent::CGIExecException::what() const noexcept {
+	return this->msg_.c_str();
+}
+
+CGIEvent::CGINotFound::CGINotFound(const std::string& msg) : msg_(msg) {}
+
+const char* CGIEvent::CGINotFound::what() const noexcept {
 	return this->msg_.c_str();
 }
 //------------------------------------------------------------------------------

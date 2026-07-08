@@ -41,6 +41,18 @@ bool	FileOperation::isValidDir(std::string path) {
 	return std::filesystem::is_directory(dir_path);
 }
 
+bool	FileOperation::isValidPythonFile(std::string path) {
+	std::filesystem::path	 file_path(absoluteToRelative(path));
+
+	if (!std::filesystem::exists(file_path)) {
+		return false;
+	}
+	if (file_path.extension() != ".py") {
+		return false;
+	}
+	return std::filesystem::is_regular_file(file_path);
+}
+
 std::string	FileOperation::getCWD() {
 	return std::filesystem::current_path().string();
 }

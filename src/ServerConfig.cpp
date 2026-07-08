@@ -46,15 +46,13 @@ std::optional<CGIData>	ServerConfig::getCGI() const {
 	for (const auto& [uri, location_obj] : locations) {
 		if (location_obj.cgi) {
 			std::string dir{};
-			std::string	bin{};
+			std::string bin{};
 			if (location_obj.root.size())
 				dir = location_obj.root;
 			else
 				dir = uri;
 			if (location_obj.index.size())
 				bin = location_obj.index;
-			else if (location_obj.cgi_script.size())
-				bin = location_obj.cgi_script;
 			return CGIData{ .directory = dir, .binary = bin };
 		}
 	}

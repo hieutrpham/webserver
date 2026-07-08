@@ -94,7 +94,7 @@ class CGIEvent {
 		pid_t			pid_;
 		
 		void			execChildProcess();
-		void			checkCGIData();
+		void			checkCGIDir();
 		std::string		matchCGIRequest();
 		void			provideBody();
 		Response		respond(std::string cgi_output);
@@ -123,7 +123,7 @@ class CGIEvent {
 		//INTERFACE-----------------------------//
 		Response	handleCGI();				//
 		//QUEUE IMPLEMENTATION INTERFACE--------//
-		void		executeCGI();				//
+		void		executeCGI(std::string prior_cwd);				//
 		int			waitSubProcessNH();			//
 		int			waitSubProcess();			//
 		Response	getCGIResponse();			//
@@ -138,6 +138,13 @@ class CGIEvent {
 		Pipe			getC2PPipe() const;
 
 		//EXCEPTION SUB CLASSES
+		class CGIInvalidDirectory : public std::exception {
+				std::string		msg_;
+			public:
+				CGIInvalidDirectory(const std::string& msg);
+				const char* what() const noexcept override;
+		};
+
 		class Dup2Exception : public std::exception {
 				std::string		msg_;
 			public:
@@ -156,6 +163,13 @@ class CGIEvent {
 				std::string		msg_;
 			public:
 				CGIExecException(const std::string& msg);
+				const char* what() const noexcept override;
+		};
+
+		class CGINotFound : public std::exception {
+				std::string		msg_;
+			public:
+				CGINotFound(const std::string& msg);
 				const char* what() const noexcept override;
 		};
 

@@ -26,6 +26,7 @@ class FileOperation {
 		static void			changeDirRelative(std::string destination);
 		static void			changeDirAbsolute(std::string destination);
 		static bool			isValidDir(std::string path);
+		static bool			isValidPythonFile(std::string path);
 		static std::string	getCWD();
 
 	class FileException : public std::exception {
