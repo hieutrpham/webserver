@@ -188,6 +188,8 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 		// Finalize response
 		m_clients[fd].writeBuffer += response.serialize();
 		m_clients[fd].bytesSent = 0;
+		if (request.getHeader("connection") == "close")
+			m_clients[fd].closeAfterWrite = true;
 		
 		LOG("Response built");
 
