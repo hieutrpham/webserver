@@ -68,7 +68,7 @@ Server::Server(ConfigVec &configs) : m_configs(configs)
 
 void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 {
-	sockaddr_in addr;
+	sockaddr_in addr = {};
 	socklen_t addr_len = sizeof(addr);
 	
 	int new_socket = accept(fd, (sockaddr *)&addr, &addr_len);
