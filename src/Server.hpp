@@ -32,16 +32,27 @@ enum HttpStatus {
 	HTTP_HTTP_VERSION_NOT_SUPPORTED  = 505
 };
 
+struct ClientState {
+	std::string readBuffer;
+	std::string writeBuffer;
+	size_t bytesSent = 0;
+	bool closeAfterWrite = false;
+};
+
 class Server {
 private:
 	ConfigVec m_configs;
-	std::map<int, std::string> m_clientBuffers; // Per-client buffer
+	// std::map<int, std::string> m_clientBuffers; // Per-client buffer
+	std::map<int, ClientState> m_clients;
 public:
 	std::vector<int> m_server_fds;
 	Server(ConfigVec &);
-	void handle_client_data(std::vector<struct pollfd>&, int, ConfigVec&);
+	void handle_client_read(std::vector<struct pollfd>&, int, ConfigVec&);
+	void handle_client_write(std::vector<struct pollfd>&, int);
 	void handle_new_connection(std::vector<struct pollfd>&, int);
 	bool is_server(int fd);
 	void print_endpoints();
 	void add_serverfds(std::vector<struct pollfd>& poll_fds);
+	void setPollEvents(std::vector<struct pollfd>& poll_fds, int fd, short events);
+	void close_client(std::vector<struct pollfd>& poll_fds, int fd);
 };
