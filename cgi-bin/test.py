@@ -29,7 +29,7 @@ def main():
             print("<ul>")
             for key in form.keys():
                 value = form.getvalue(key)
-                print(f"<li>{cgi.escape(key)}: {cgi.escape(value)}</li>")
+                print(f"<li>{key}: {value}</li>")
             print("</ul>")
         else:
             print("<p>No form data received.</p>")

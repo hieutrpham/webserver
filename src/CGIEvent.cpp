@@ -78,7 +78,6 @@ void	CGIEvent::executeCGI(std::string prior_cwd) {
 	pid = fork();
 	if (pid == FAIL)
 		throw ForkException(SYS_FORK);
-	LOG(cgi_->binary);
 	if (pid == CHILD_SELF_ID)
 		execChildProcess();
 	pid_ = pid;
@@ -213,17 +212,14 @@ std::string	CGIEvent::getQueryString() {
 }
 
 std::string	CGIEvent::getRequestMethod() {
-	LOG("req method: " + req_.getMethod());
 	return req_.getMethod();
 }
 
 std::string	CGIEvent::getContentType() {
-	LOG("req cnte type: " + req_.getHeader("content-type"));
 	return req_.getHeader("content-type");
 }
 
 std::string	CGIEvent::getContentLength() {
-	LOG("req content length: " + req_.getHeader("content-length"));
 	return req_.getHeader("content-length");
 }
 

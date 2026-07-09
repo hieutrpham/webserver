@@ -15,7 +15,6 @@ Response ResponseBuilder::buildResponse(ClientState& client, Request& request, C
 
 	if (isCGI(request, server_config)) {
 		CGIEvent cgi_event(server_config, request, client);
-		LOG("req cnte type in respo bulder: " + request.getHeader("content-type"));
 		return (cgi_event.handleCGI());
 	}
 
@@ -68,9 +67,11 @@ bool ResponseBuilder::isCGI(Request& request, ServerConfig& config) {
 
 	if (cgi_conf.has_value()) {
 		std::string target = request.getPath();
-		std::string cgi_bin = cgi_conf->binary;
-		std::size_t found_pos = target.find(cgi_bin.data(), 0);
-		if (found_pos != std::string::npos)
+		std::size_t extension_pos = target.find(CGI_EXT, 0);
+		if (extension_pos != std::string::npos)
+			return true;
+		std::size_t dir_pos = target.find(cgi_conf->directory, 0);
+		if (dir_pos != std::string::npos)
 			return true;
 	}
     return false;
