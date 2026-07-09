@@ -86,6 +86,7 @@ void	CGIEvent::executeCGI(std::string prior_cwd) {
 	pid = fork();
 	if (pid == FAIL)
 		throw ForkException(SYS_FORK);
+	LOG(cgi_->binary);
 	if (pid == CHILD_SELF_ID)
 		execChildProcess();
 	pid_ = pid;
@@ -123,8 +124,7 @@ std::string	CGIEvent::matchCGIRequest() {
 	std::size_t bin_pos = target_path.rfind('/', ext_pos) + 1;
 	if (bin_pos != std::string::npos) {
 		std::size_t	bin_pos_end = bin_pos + cgi_->binary.length();
-		std::size_t dir_pos_end = dir_pos + cgi_->directory.length();
-		bin_path = target_path.substr(dir_pos_end, bin_pos_end);
+		bin_path = target_path.substr(bin_pos, bin_pos_end);
 		if (!FileOperation::isValidPythonFile(bin_path))
 			throw CGINotFound(INVALID_BIN_REQ);
 	}
@@ -151,7 +151,7 @@ void	CGIEvent::execChildProcess() {
 		throw Dup2Exception(SYS_DUP2);
 	c2p_pipe_.closeWrite();
 
-	execve(cgi_->binary.c_str(), argv, envp);
+	execve(executable, argv, envp);
 	_exit(1);
 }
 
@@ -221,14 +221,17 @@ std::string	CGIEvent::getQueryString() {
 }
 
 std::string	CGIEvent::getRequestMethod() {
+	LOG("req method: " + req_.getMethod());
 	return req_.getMethod();
 }
 
 std::string	CGIEvent::getContentType() {
+	LOG("req cnte type: " + req_.getHeader("content-type"));
 	return req_.getHeader("content-type");
 }
 
 std::string	CGIEvent::getContentLength() {
+	LOG("req content length: " + req_.getHeader("content-length"));
 	return req_.getHeader("content-length");
 }
 
@@ -249,6 +252,7 @@ std::string	CGIEvent::getServerProtocol() {
 }
 
 std::string	CGIEvent::getRemoteAddr() {
+	LOG(req_.getHeader("remote-addr"));
 	return req_.getHeader("remote-addr");
 }
 //------------------------------------------------------------
@@ -329,6 +333,8 @@ Response	CGIEvent::respond(std::string cgi_output) {
 
 	res.setVersion(req_.getVersion());
 	res.setStatus(200, "OK");
+
+	//set headers
 	while (std::getline(ss, line) && !line.empty()) {
 		std::string key = line.substr(0, line.find(":"));
 		if (key == "Status") {
@@ -339,8 +345,15 @@ Response	CGIEvent::respond(std::string cgi_output) {
 		else
 		res.setHeader(key, line.substr(line.find(":") + 2));
 	}
-	cgi_output = cgi_output.substr(cgi_output.find("<html>"));
-	res.setBody(cgi_output);
+
+	//set body
+	std::string body{};
+	std::size_t body_pos = cgi_output.find("<html>");
+	if (body_pos != std::string::npos)
+		body = cgi_output.substr(body_pos);
+	if (body.empty())
+		body = "<html><body><h1>CGI script did not return a valid HTML response</h1></body></html>";
+	res.setBody(body);
 
 	return res;
 }

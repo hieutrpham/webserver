@@ -5,10 +5,7 @@ bool	ServerConfig::is_Empty() {
 }
 
 Location	ServerConfig::getLocation(std::string uri) const {
-	std::size_t last_slash_pos = uri.find_last_of('/');
-	std::string location_path = uri.substr(0, last_slash_pos + 1);
-
-	auto ite = locations.find(location_path);
+	auto ite = locations.find(uri);
 
 	if (ite == locations.end())
 	{

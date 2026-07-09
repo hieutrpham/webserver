@@ -63,6 +63,8 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 		throw std::runtime_error("ERR: unacceptable\n");
 	}
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
+	std::cout << "New connection on fd: " << addr.sin_port << std::endl;
+	std::cout << "New connection on fd: " << inet_ntoa(addr.sin_addr) << std::endl;
 }
 
 void requestDebugPrint(Request& request, ParseResult& result) {

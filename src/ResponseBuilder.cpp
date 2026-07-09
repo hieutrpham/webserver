@@ -15,6 +15,7 @@ Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vect
 
 	if (isCGI(request, server_config)) {
 		CGIEvent cgi_event(server_config, request);
+		LOG("req cnte type in respo bulder: " + request.getHeader("content-type"));
 		return (cgi_event.handleCGI());
 	}
 
