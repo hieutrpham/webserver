@@ -45,7 +45,6 @@
 #define I_UPLOADPATH 12
 #define I_RETURN 14
 #define I_CGI 17
-#define I_CGISCRIPT 19
 
 typedef enum e_dir_names {
 	LISTEN,
@@ -59,7 +58,6 @@ typedef enum e_dir_names {
 	UPLOADPATH,
 	RETURN,
 	CGI,
-	CGISCRIPT,
 	DIR_COUNT
 }	t_dir_names;
 

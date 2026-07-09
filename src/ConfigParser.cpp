@@ -156,9 +156,6 @@ bool	ConfigParser::matchLocationBlockDirective(std::regex& engine) {
 		else if (matches_[I_CGI].matched) {
 			directive_name_ = matches_[I_CGI];
 		}
-		else if (matches_[I_CGISCRIPT].matched) {
-			directive_name_ = matches_[I_CGISCRIPT];
-		}
 		return true;
 	}
 	return false;
@@ -172,8 +169,7 @@ void	ConfigParser::configPutValue() {
 	static constexpr std::string_view	directive_names[DIR_COUNT] = {
 		"listen", "client_max_body_size", "error_page", 
 		"server_name", "root", "index", "autoindex",
-		"file_uploads", "upload_store", "return", "cgi",
-		"cgi_script"
+		"file_uploads", "upload_store", "return", "cgi"
 	};
 	t_dir_names		dir_name = DIR_COUNT;
 
@@ -204,8 +200,6 @@ void	ConfigParser::configPutValue() {
 			return configPutRedirection();
 		case CGI:
 			return configPutCGIOn();
-		case CGISCRIPT:
-			return configPutCGIScript();
 		default:
 			throw ContentException(ERR_DIR);
 	}
@@ -459,7 +453,6 @@ void	ConfigParser::buildLocationBEngine() {
 		R"(|(upload_store)\s+(/[^;]+);\s*)"
 		R"(|(return)\s+(30\d)\s+([^;]+);\s*)"
 		R"(|(cgi)\s+(on|off);\s*)"
-		R"(|(cgi_script)\s+([^;]+\.py);\s*)"
 	};
 	lhead_engine_ = std::regex(locah_pattern.data());
 	lblock_engine_ = std::regex(locab_pattern.data());
