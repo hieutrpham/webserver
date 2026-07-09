@@ -15,30 +15,6 @@ int main(int ac, char **av) {
 		ERR("Empty config vector! Configuration file not parsed correctly.\n\n");
 		return 1;
 	}
-		//SOME NEW GETTERS:
-	// for (const ServerConfig& conf : config_vector) {
-	// 	Location loc = conf.getLocation("/images");
-	// 	Methods met = loc.getMethods();
-	// 	LOG(met.is_MethodAllowed("GET"));
-
-	// 	met = conf.getMethods("/upload");
-	// 	LOG(met.is_MethodAllowed("GET"));
-
-
-	// 	std::string err_page_path = conf.getErrPagePath(404);
-
-	// 	std::optional<CGIData> cgi = conf.getCGI();
-	// 	if (cgi) {
-	// 		LOG(cgi->directory);
-	// 		LOG(cgi->index);
-	// 	}
-
-	// 	bool is_route_redirected = loc.is_Redirected();
-	// 	if (is_route_redirected == true) {
-	// 		loc.getRedirCode();
-	// 		loc.getRedirPath();
-	// 	}
-	// }
 
 	std::unique_ptr<Server> s;
 	try {
@@ -59,30 +35,53 @@ int main(int ac, char **av) {
 	while (true) {
 		if (sa.sa_flags == SIGINT)
 			break;
-		LOG("about to poll");
+		LOG("Waiting for socket events...");
 		ready = poll(poll_fds.data(), poll_fds.size(), -1);
 		if (ready < 0) {
+			LOG("poll() failed");
 			break;
 		}
-		LOG("got something new to read");
-		// iterate the poll fds array to check if there are anything new to read
-		for (auto pfd : poll_fds) {
-			if (pfd.revents & (POLLIN | POLLHUP)) {
-				if (s->is_server(pfd.fd)) {// new connection
-					try {
-						s->handle_new_connection(poll_fds, pfd.fd);
-					} catch (std::exception &e) {
-						ERR(e.what());
-						break;
-					}
-				} else {// handle client data
-					s->handle_client_data(poll_fds, pfd.fd, config_vector);
-				}
+		// Iterate the poll fds array for new events.
+		for (size_t i = 0; i < poll_fds.size(); i++) {
+			struct pollfd pfd = poll_fds[i];
+
+			// No new event, skip.
+			if (pfd.revents == 0)
+				continue ;
+
+			// Client disconnected / error.
+			if (pfd.revents & (POLLHUP | POLLERR | POLLNVAL)) {
+				if (!s->is_server(pfd.fd))
+					s->close_client(poll_fds, pfd.fd);
+				continue ;
+			}
+
+			// Listening (server) socket ready
+			// Accept new connection.
+			if (s->is_server(pfd.fd)) {
+				LOG("Incoming connection");
+				if (pfd.revents & POLLIN)
+					s->handle_new_connection(poll_fds, pfd.fd);
+				continue ;
+			}
+
+			// Client socket incoming request.
+			if (pfd.revents & POLLIN) {
+				LOG("Client request ready");
+				s->handle_client_read(poll_fds, pfd.fd, config_vector);
+			}
+
+			// Client socket ready to write.
+			if (pfd.revents & POLLOUT) {
+				LOG("Client socket ready for writing");
+				s->handle_client_write(poll_fds, pfd.fd);
 			}
 		}
 	}
+
+	LOG("Shutting down server");
 	for (auto pfd : poll_fds) {
-		LOG("closing fd");
+		LOG("Closing fd " + std::to_string(pfd.fd));
 		close(pfd.fd);
 	}
 }
