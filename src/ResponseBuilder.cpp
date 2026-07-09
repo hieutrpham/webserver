@@ -7,14 +7,14 @@
 #include "DELETEMethod.hpp"
 #include "CGIEvent.hpp"
 
-Response ResponseBuilder::buildResponse(Request& request, ConfigVec& config_vector) {
+Response ResponseBuilder::buildResponse(ClientState& client, Request& request, ConfigVec& config_vector) {
 	ServerConfig server_config = getConfig(request, config_vector);
 
 	if (isRedirect(request, server_config))
 		return (handleRedirection(request, server_config));
 
 	if (isCGI(request, server_config)) {
-		CGIEvent cgi_event(server_config, request);
+		CGIEvent cgi_event(server_config, request, client);
 		LOG("req cnte type in respo bulder: " + request.getHeader("content-type"));
 		return (cgi_event.handleCGI());
 	}

@@ -1,5 +1,4 @@
 
-
 #include "CGIEvent.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
@@ -10,13 +9,14 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-CGIEvent::CGIEvent(ServerConfig& config, Request& request) : 
+CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) : 
 	config_(config),
 	req_(request),
 	cgi_(std::nullopt),
 	p2c_pipe_(),
 	c2p_pipe_(),
-	pid_(-1)
+	pid_(-1),
+	client_address_(client.remoteAddr)
 {}
 
 CGIEvent::CGIEvent(const CGIEvent& other) : 
@@ -25,7 +25,8 @@ CGIEvent::CGIEvent(const CGIEvent& other) :
 	cgi_(other.getCGIData()),
 	p2c_pipe_(other.getP2CPipe()),
 	c2p_pipe_(other.getC2PPipe()),
-	pid_(other.getPid())
+	pid_(other.getPid()),
+	client_address_(other.getClientAddress())
 {}
 
 CGIEvent::~CGIEvent() {}
@@ -38,6 +39,7 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 		p2c_pipe_ = other.getP2CPipe();
 		c2p_pipe_ = other.getC2PPipe();
 		pid_ = other.getPid();
+		client_address_ = other.getClientAddress();
 	}
 	return *this;
 }
@@ -65,16 +67,6 @@ Response CGIEvent::handleCGI() {
 		return ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
 	}
 }
-
-/*
-	TODO:
-	Reverting back to no trailing `/` in location path
-	Check which parts of CGIHandler were designed around the trailing /
-
-	HTTP codes:
-	any other HTTP codes needed in CGI besides 200, 404, 500?
-	(other needed codes: 403, 405, 501, 502, 503, 504 (GITHUB COPILOT...))
-*/
 
 void	CGIEvent::executeCGI(std::string prior_cwd) {
 	pid_t			pid;
@@ -252,8 +244,7 @@ std::string	CGIEvent::getServerProtocol() {
 }
 
 std::string	CGIEvent::getRemoteAddr() {
-	LOG(req_.getHeader("remote-addr"));
-	return req_.getHeader("remote-addr");
+	return this->client_address_;
 }
 //------------------------------------------------------------
 
@@ -384,6 +375,10 @@ Pipe		CGIEvent::getP2CPipe() const {
 
 Pipe		CGIEvent::getC2PPipe() const {
 	return c2p_pipe_;
+}
+
+std::string	CGIEvent::getClientAddress() const {
+	return client_address_;
 }
 //------------------------------------------------------------
 

@@ -6,6 +6,7 @@
 #include "ConfigParser.hpp"
 #include "ServerConfig.hpp"
 #include "Response.hpp"
+#include "Server.hpp"
 
 #define CGI_VERSION 	"CGI/1.1"
 #define CGI_EXT			".py"
@@ -92,6 +93,7 @@ class CGIEvent {
 		Pipe			p2c_pipe_;
 		Pipe			c2p_pipe_;
 		pid_t			pid_;
+		std::string		client_address_;
 		
 		void			execChildProcess();
 		void			checkCGIDir();
@@ -115,7 +117,7 @@ class CGIEvent {
 		
 	public:
 		CGIEvent() = delete;
-		CGIEvent(ServerConfig& config, Request& request);
+		CGIEvent(ServerConfig& config, Request& request, ClientState& client);
 		CGIEvent(const CGIEvent& other);
 		~CGIEvent();
 		CGIEvent&	operator=(const CGIEvent& other);
@@ -123,7 +125,7 @@ class CGIEvent {
 		//INTERFACE-----------------------------//
 		Response	handleCGI();				//
 		//QUEUE IMPLEMENTATION INTERFACE--------//
-		void		executeCGI(std::string prior_cwd);				//
+		void		executeCGI(std::string prior_cwd);			//
 		int			waitSubProcessNH();			//
 		int			waitSubProcess();			//
 		Response	getCGIResponse();			//
@@ -136,6 +138,7 @@ class CGIEvent {
 		pid_t			getPid() const;
 		Pipe			getP2CPipe() const;
 		Pipe			getC2PPipe() const;
+		std::string		getClientAddress() const;
 
 		//EXCEPTION SUB CLASSES
 		class CGIInvalidDirectory : public std::exception {
