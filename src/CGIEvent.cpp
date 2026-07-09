@@ -48,7 +48,7 @@ Response CGIEvent::handleCGI() {
 	Response 		response;
 
 	try {
-		executeCGI(); //forks and execs the CGI script, sets up a pipe
+		executeCGI(prior_cwd); //forks and execs the CGI script, sets up a pipe
 		response = getCGIResponse(); //reads the CGI output from a pipe during child processing, but leaves it unreaped
 		waitSubProcess(); //waits for the child process to exit, then reaps it
 		return response;
@@ -68,7 +68,7 @@ Response CGIEvent::handleCGI() {
 
 /*
 	TODO:
-	Reverting back to no trailing / in location path
+	Reverting back to no trailing `/` in location path
 	Check which parts of CGIHandler were designed around the trailing /
 
 	HTTP codes:
