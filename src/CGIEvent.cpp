@@ -16,8 +16,10 @@ CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) 
 	p2c_pipe_(),
 	c2p_pipe_(),
 	pid_(-1),
+	poll_fd_(),
+	cgi_output_(""),
 	client_address_(client.remoteAddr)
-{}
+{poll_fd_.fd = -1; poll_fd_.events = 0; poll_fd_.revents = 0;}
 
 CGIEvent::CGIEvent(const CGIEvent& other) : 
 	config_(other.getConfig()),
@@ -26,6 +28,8 @@ CGIEvent::CGIEvent(const CGIEvent& other) :
 	p2c_pipe_(other.getP2CPipe()),
 	c2p_pipe_(other.getC2PPipe()),
 	pid_(other.getPid()),
+	poll_fd_(other.getPollFd()),
+	cgi_output_(other.getCgiOutput()),
 	client_address_(other.getClientAddress())
 {}
 
@@ -39,10 +43,25 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 		p2c_pipe_ = other.getP2CPipe();
 		c2p_pipe_ = other.getC2PPipe();
 		pid_ = other.getPid();
+		poll_fd_ = other.getPollFd();
+		cgi_output_ = other.getCgiOutput();
 		client_address_ = other.getClientAddress();
 	}
 	return *this;
 }
+
+
+//TODO: 
+//	implement event-queue version of CGI handling, 
+//	which will allow for non-blocking CGI execution and response retrieval. 
+//	This will involve modifying the executeCGI, 
+//	waitSubProcessNH, and getCGIResponse methods 
+//	to work with an event-driven architecture, 
+//	potentially using epoll or select to monitor the pipes for readiness.
+
+//TODO:
+//	implement the correct 'root' for cgi-bin directory (not project root)
+
 
 //non-event-queue implementation:
 Response CGIEvent::handleCGI() {
@@ -86,6 +105,9 @@ void	CGIEvent::executeCGI(std::string prior_cwd) {
 	provideBody();
 	p2c_pipe_.closeWrite();
 	FileOperation::changeDirAbsolute(prior_cwd);
+
+	poll_fd_.fd = c2p_pipe_[IN_FILENO];
+	poll_fd_.events = POLLIN;
 
 	return;
 }
@@ -297,25 +319,53 @@ int CGIEvent::waitSubProcess() {
 
 
 
-//get RESPONSE FROM CGI OUTPUT--------------------------------
-Response	CGIEvent::getCGIResponse() {
-	std::string 	cgi_output{};
+//get RESPONSE STATUS FROM CGI OUTPUT-------------------------
+int	CGIEvent::getCGIResponse() {
 	ssize_t 		bytes_read{};
 	char			buffer[1028] = {0};
+	int				ready{};
 
-	while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
-		cgi_output += std::string(buffer);
+	ready = poll(&poll_fd_, POLLIN, 0);
+
+	if (ready > 0) {
+		//read from pipe if there is data.
+		if (poll_fd_.revents & POLLIN) {
+			while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
+				cgi_output_ += std::string(buffer);
+			}
+			if (bytes_read == -1)
+				return INTERNAL_SERVER_ERROR;
+		}
+		//child is done. read until EOF if there's data and call it complete.
+		if (poll_fd_.revents & POLLHUP) {
+			while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
+				cgi_output_ += std::string(buffer);
+			}
+			if (bytes_read == -1)
+				return INTERNAL_SERVER_ERROR;
+			c2p_pipe_.closeRead();
+			return COMPLETE;
+		}
+		//poll error
+		if (poll_fd_.revents & POLLERR) {
+			return INTERNAL_SERVER_ERROR;
+		}
+		//child didn't hang up yet... keep waiting for more.
+		return INCOMPLETE;
 	}
-	c2p_pipe_.closeRead();
-	if (bytes_read == -1)
-		return ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
-	
-	return respond(cgi_output);
+
+	//no data to read
+	if (ready == 0)
+		return INCOMPLETE;
+
+	// poll error
+	return INTERNAL_SERVER_ERROR;
 }
 
-Response	CGIEvent::respond(std::string cgi_output) {
+//construct response object
+Response	CGIEvent::respond() {
 	Response			res{};
-	std::stringstream 	ss(cgi_output);
+	std::stringstream 	ss(cgi_output_);
 	std::string 		line;
 
 	res.setVersion(req_.getVersion());
@@ -335,9 +385,9 @@ Response	CGIEvent::respond(std::string cgi_output) {
 
 	//set body
 	std::string body{};
-	std::size_t body_pos = cgi_output.find("<html>");
+	std::size_t body_pos = cgi_output_.find("<html>");
 	if (body_pos != std::string::npos)
-		body = cgi_output.substr(body_pos);
+		body = cgi_output_.substr(body_pos);
 	if (body.empty())
 		body = "<html><body><h1>CGI script did not return a valid HTML response</h1></body></html>";
 	res.setBody(body);
@@ -371,6 +421,14 @@ Pipe		CGIEvent::getP2CPipe() const {
 
 Pipe		CGIEvent::getC2PPipe() const {
 	return c2p_pipe_;
+}
+
+pollfd		CGIEvent::getPollFd() const {
+	return poll_fd_;
+}
+
+std::string	CGIEvent::getCgiOutput() const {
+	return cgi_output_;
 }
 
 std::string	CGIEvent::getClientAddress() const {

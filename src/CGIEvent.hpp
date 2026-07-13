@@ -7,6 +7,7 @@
 #include "ServerConfig.hpp"
 #include "Response.hpp"
 #include "Server.hpp"
+#include <poll.h>
 
 #define CGI_VERSION 	"CGI/1.1"
 #define CGI_EXT			".py"
@@ -37,6 +38,11 @@
 #define OUT_FILENO		1
 #define CHILD_SELF_ID	0
 #define NULL_OPTION		0
+
+//for non-blocking output poller/constructor
+#define COMPLETE	1
+#define INCOMPLETE	0
+#define INTERNAL_SERVER_ERROR	500
 
 enum e_param_keys {
 	SCRIPT_FILENAME,
@@ -93,13 +99,15 @@ class CGIEvent {
 		Pipe			p2c_pipe_;
 		Pipe			c2p_pipe_;
 		pid_t			pid_;
+		pollfd			poll_fd_;
+		std::string		cgi_output_;
 		std::string		client_address_;
 		
 		void			execChildProcess();
 		void			checkCGIDir();
 		std::string		matchCGIRequest();
 		void			provideBody();
-		Response		respond(std::string cgi_output);
+		Response		respond();
 
 		char**			loadEnvp(StringVec& env_vec, CStringVec& c_env_vec);
 		void			buildEnvVariables(StringVec& env_vec);
@@ -128,7 +136,7 @@ class CGIEvent {
 		void		executeCGI(std::string prior_cwd);			//
 		int			waitSubProcessNH();			//
 		int			waitSubProcess();			//
-		Response	getCGIResponse();			//
+		int			getCGIResponse();			//
 		//--------------------------------------//
 
 		//GETTERS
@@ -138,6 +146,8 @@ class CGIEvent {
 		pid_t			getPid() const;
 		Pipe			getP2CPipe() const;
 		Pipe			getC2PPipe() const;
+		pollfd			getPollFd() const;
+		std::string		getCgiOutput() const;
 		std::string		getClientAddress() const;
 
 		//EXCEPTION SUB CLASSES

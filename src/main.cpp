@@ -71,6 +71,9 @@ int main(int ac, char **av) {
 				s->handle_client_read(poll_fds, pfd.fd, config_vector);
 			}
 
+			//CGI: COULD HAVE A SERVER.CPP METHOD TO CHECK M_CLIENTS WITH FD FOR CGI EXISTENCE AND STATE IF EXISTS
+			//caveat: handle_client_read requires atm a response to be built immediately.
+
 			// Client socket ready to write.
 			if (pfd.revents & POLLOUT) {
 				LOG("Client socket ready for writing");
