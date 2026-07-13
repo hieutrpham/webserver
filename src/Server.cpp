@@ -27,6 +27,7 @@ Server::Server(ConfigVec &configs) : m_configs(configs)
 #ifdef DEBUG
 	LOG("server constructed");
 #endif //  DEBUG
+	int yes = 1;
 
 	for (auto config : configs)
 	{
@@ -48,7 +49,6 @@ Server::Server(ConfigVec &configs) : m_configs(configs)
 		config.address.sin_port = htons(config.port);
 		memset(config.address.sin_zero, 0, sizeof(config.address.sin_zero));
 
-		int yes = 1;
 		setsockopt(config.fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(config.address));
 
 		// bind fd to the address created
