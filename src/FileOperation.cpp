@@ -1,14 +1,3 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   FileOperation.cpp                                  :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/05/25 15:16:02 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/08 15:56:06 by jvalkama         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
 
 #include "FileOperation.hpp"
 #include "main.hpp"
@@ -31,11 +20,48 @@ void   FileOperation::openOutFStream(std::ofstream& out, std::string out_fname) 
     }
 }
 
-void   FileOperation::changeDir(std::string destination) {
+void   FileOperation::changeDirRelative(std::string destination) {
+	destination = absoluteToRelative(destination);
 	std::filesystem::current_path(destination);
 }
-//--------------------------------------------------
 
+void	FileOperation::changeDirAbsolute(std::string destination) {
+	std::filesystem::current_path(destination);
+}
+
+bool	FileOperation::isValidDir(std::string path) {
+	if (path[0] == '/' && path.length() == 1)
+		return true;
+
+	std::filesystem::path	 dir_path(absoluteToRelative(path));
+
+	if (!std::filesystem::exists(dir_path)) {
+		return false;
+	}
+	return std::filesystem::is_directory(dir_path);
+}
+
+bool	FileOperation::isValidPythonFile(std::string path) {
+	std::filesystem::path	 file_path(absoluteToRelative(path));
+
+	if (!std::filesystem::exists(file_path)) {
+		return false;
+	}
+	if (file_path.extension() != ".py") {
+		return false;
+	}
+	return std::filesystem::is_regular_file(file_path);
+}
+
+std::string	FileOperation::getCWD() {
+	return std::filesystem::current_path().string();
+}
+
+std::string FileOperation::absoluteToRelative(std::string path) {
+	if (path[0] == '/' && path.length() > 1)
+		path.erase(0, 1);
+	return path;
+}
 
 //CUSTOM FILE EXCEPTION
 FileOperation::FileException::FileException(const std::string& msg) : msg_(msg) {}

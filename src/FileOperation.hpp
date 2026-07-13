@@ -1,19 +1,12 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   FileOperation.hpp                                  :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: jvalkama <jvalkama@student.hive.fi>        +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/05/25 15:14:46 by jvalkama          #+#    #+#             */
-/*   Updated: 2026/06/08 15:56:29 by jvalkama         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
+
 
 #pragma once
 
 #include <fstream>
 #include <memory>
+
+#define SUCCESS		0
+#define ERROR		1
 
 using InStreamPtr = std::unique_ptr<std::ifstream>;
 using OutStreamPtr = std::unique_ptr<std::ofstream>;
@@ -25,10 +18,16 @@ class FileOperation {
 		~FileOperation() = delete;
 		FileOperation&	operator=(const FileOperation& other) = delete;
 
+		static std::string	absoluteToRelative(std::string path);
+
 	public:
-		static void	openInFStream(std::ifstream& instream, std::string in_fname);
-		static void	openOutFStream(std::ofstream& out, std::string out_fname);
-		static void	changeDir(std::string destination);
+		static void			openInFStream(std::ifstream& instream, std::string in_fname);
+		static void			openOutFStream(std::ofstream& out, std::string out_fname);
+		static void			changeDirRelative(std::string destination);
+		static void			changeDirAbsolute(std::string destination);
+		static bool			isValidDir(std::string path);
+		static bool			isValidPythonFile(std::string path);
+		static std::string	getCWD();
 
 	class FileException : public std::exception {
 			std::string		msg_;

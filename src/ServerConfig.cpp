@@ -6,19 +6,25 @@ bool	ServerConfig::is_Empty() {
 
 Location	ServerConfig::getLocation(std::string uri) const {
 	auto ite = locations.find(uri);
+
 	if (ite == locations.end())
 	{
-		throw std::runtime_error("Location not found: " + uri);
+		ERR("Can not find location!");
+		throw std::runtime_error("std::map::find");
 	}
 	return ite->second;
 }
 
 Methods		ServerConfig::getMethods(std::string uri) const {
-	auto ite = locations.find(uri);
+	std::size_t last_slash_pos = uri.find_last_of('/');
+	std::string location_path = uri.substr(0, last_slash_pos + 1);
+
+	auto ite = locations.find(location_path);
 
 	if (ite == locations.end())
 	{
-		throw std::runtime_error("Location not found: " + uri);
+		ERR("Can not find methods");
+		throw std::runtime_error("std::map::find");
 	}
 	Location location = ite->second;
 	return location.methods;
@@ -37,11 +43,14 @@ std::optional<CGIData>	ServerConfig::getCGI() const {
 	for (const auto& [uri, location_obj] : locations) {
 		if (location_obj.cgi) {
 			std::string dir{};
+			std::string bin{};
 			if (location_obj.root.size())
 				dir = location_obj.root;
 			else
 				dir = uri;
-			return CGIData{ .directory = dir, .index = location_obj.index };
+			if (location_obj.index.size())
+				bin = location_obj.index;
+			return CGIData{ .directory = dir, .binary = bin };
 		}
 	}
 	return std::nullopt;

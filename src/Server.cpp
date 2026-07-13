@@ -27,6 +27,7 @@ Server::Server(ConfigVec &configs) : m_configs(configs)
 #ifdef DEBUG
 	LOG("server constructed");
 #endif //  DEBUG
+	int yes = 1;
 
 	for (auto config : configs)
 	{
@@ -48,7 +49,6 @@ Server::Server(ConfigVec &configs) : m_configs(configs)
 		config.address.sin_port = htons(config.port);
 		memset(config.address.sin_zero, 0, sizeof(config.address.sin_zero));
 
-		int yes = 1;
 		setsockopt(config.fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(config.address));
 
 		// bind fd to the address created
@@ -83,6 +83,7 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 	// Create state for new client
 	m_clients[new_socket];
 
+	m_clients[new_socket].remoteAddr = inet_ntoa(addr.sin_addr);
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
 }
 
@@ -178,7 +179,8 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 
 		Response response;
 		try {
-			response = ResponseBuilder::buildResponse(request, config_vector);
+			ClientState& client = m_clients[fd];
+			response = ResponseBuilder::buildResponse(client, request, config_vector);
 		} catch (std::exception &e) {
 			ERR(e.what());
 			response = ResponseBuilder::buildErrorResponse(500, "Internal Server Error");

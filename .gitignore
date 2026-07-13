@@ -4,6 +4,7 @@
 # whitelist directory
 !*/
 !html/*
+!cgi-bin/*
 
 # whitelist hpp, cpp
 !*.*pp

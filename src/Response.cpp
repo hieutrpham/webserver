@@ -58,10 +58,14 @@ void Response::setHeader(const std::string& key, const std::string& value) {
 	m_headers[key] = value;
 }
 
+
+
 std::string Response::getResponseBody()
 {
 	return m_response_body;
 }
+
+
 
 std::string Response::serialize() const {
 	std::ostringstream out;

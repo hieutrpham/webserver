@@ -9,6 +9,7 @@
 #include <regex>
 #include <fstream>
 #include <stdexcept>
+#include <vector>
 
 //PARSER MAIN FLOW-------------------------------------------------------------------
 ConfigVec	ConfigParser::parse(std::string conf_fname) {
@@ -24,7 +25,7 @@ ConfigVec	ConfigParser::parse(std::string conf_fname) {
 		if (instream_.bad())
 			throw FileOperation::FileException(ERR_IO);
 	} catch (std::exception& e) {
-		std::cerr << C_RED << "Config ERR: " << C_RST << e.what();
+		std::cerr << C_RED << "Config Error: " << C_RST << e.what();
 		return std::vector<ServerConfig>();
 	}
 	return server_configs_;
@@ -61,7 +62,7 @@ void	ConfigParser::parseServerBlock() {
 			continue;
 		}
 		if (line_.back() == ';') { 
-			if (!matchSimpleDirective(sblock_engine_)) {
+			if (!matchServerBlockDirective(sblock_engine_)) {
 				throw ContentException(ERR_SERV_DIR);
 			}
 			configPutValue();
@@ -84,7 +85,7 @@ void	ConfigParser::parseLocationBlock() {
 			continue;
 		}
 		if (line_.back() == ';') {
-			if (!matchSimpleDirective(lblock_engine_))
+			if (!matchLocationBlockDirective(lblock_engine_))
 				throw ContentException(ERR_LOCB_DIR);
 			configPutValue();
 			continue;
@@ -113,34 +114,53 @@ void	ConfigParser::parseLimex() {
 	}
 }
 
-bool	ConfigParser::matchSimpleDirective(std::regex& engine) {
+bool	ConfigParser::matchServerBlockDirective(std::regex& engine) {
 	if (std::regex_match(line_, matches_, engine)) {
-		if (matches_[1].matched) {
-			directive_name_ = matches_[1];
+		if (matches_[I_LISTEN].matched) {
+			directive_name_ = matches_[I_LISTEN];
 		}
-		else if (matches_[4].matched)  {
-			directive_name_ = matches_[4];
+		else if (matches_[I_CLMAXBSIZE].matched)  {
+			directive_name_ = matches_[I_CLMAXBSIZE];
 		}
-		else if (matches_[7].matched) {
-			directive_name_ = matches_[7];
+		else if (matches_[I_ERRPAGE].matched) {
+			directive_name_ = matches_[I_ERRPAGE];
 		}
-		else if (matches_[10].matched) {
-			directive_name_ = matches_[10];
-		}
-		else if (matches_[12].matched) {
-			directive_name_ = matches_[12];
-		}
-		else if (matches_[14].matched) {
-			directive_name_ = matches_[14];
-		}
-		else if (matches_[17].matched) {
-			directive_name_ = matches_[17];
+		else if (matches_[I_SERVNAME].matched) {
+			directive_name_ = matches_[I_SERVNAME];
 		}
 		return true;
 	}
 	return false;
 }
-//----------------------------------------------------------------------------------
+
+bool	ConfigParser::matchLocationBlockDirective(std::regex& engine) {
+	if (std::regex_match(line_, matches_, engine)) {
+		if (matches_[I_ROOT].matched) {
+			directive_name_ = matches_[I_ROOT];
+		}
+		else if (matches_[I_INDEX].matched)  {
+			directive_name_ = matches_[I_INDEX];
+		}
+		else if (matches_[I_AUINDEX].matched) {
+			directive_name_ = matches_[I_AUINDEX];
+		}
+		else if (matches_[I_FILEUPLOADS].matched) {
+			directive_name_ = matches_[I_FILEUPLOADS];
+		}
+		else if (matches_[I_UPLOADPATH].matched) {
+			directive_name_ = matches_[I_UPLOADPATH];
+		}
+		else if (matches_[I_RETURN].matched) {
+			directive_name_ = matches_[I_RETURN];
+		}
+		else if (matches_[I_CGI].matched) {
+			directive_name_ = matches_[I_CGI];
+		}
+		return true;
+	}
+	return false;
+}
+//-----------------------------------------------------------------------------------
 
 
 
@@ -179,7 +199,7 @@ void	ConfigParser::configPutValue() {
 		case RETURN:
 			return configPutRedirection();
 		case CGI:
-			return configPutCGIPath();
+			return configPutCGIOn();
 		default:
 			throw ContentException(ERR_DIR);
 	}
@@ -312,7 +332,7 @@ void	ConfigParser::configPutRedirection() {
 	location.redirection = Redir{uintConverter(matches_[15]), matches_[16]};
 }
 
-void	ConfigParser::configPutCGIPath() {
+void	ConfigParser::configPutCGIOn() {
 	ServerConfig&		server = server_configs_.back();
 	auto 				it = server.locations.find(current_location_);
 	Location&			location = it->second;
@@ -321,7 +341,15 @@ void	ConfigParser::configPutCGIPath() {
 		location.cgi = true;
 	}
 }
-//----------------------------------------------------------------------------------
+
+void	ConfigParser::configPutCGIScript() {
+	ServerConfig&		server = server_configs_.back();
+	auto 				it = server.locations.find(current_location_);
+	Location&			location = it->second;
+
+	location.cgi_script = matches_[20];
+}
+//-----------------------------------------------------------------------------------
 
 
 
@@ -404,11 +432,8 @@ void	ConfigParser::buildServerBEngine() {
 	{
 		R"((listen)\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+);\s*)"
 		R"(|(client_max_body_size)\s+(\d{1,7})([kmKM])?;\s*)"
-		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/\w{1,13}\.html);\s*)"
+		R"(|(error_page)\s+((?:[45]\d{2}\s+)+)(/\w{1,18}\.html);\s*)"
 		R"(|(server_name)\s+([^;]+);\s*)"
-		R"(|()())"
-		R"(|()())"	//R"(|(return)\s+(30\d)\s+([^;]+);\s*)"
-		R"(|()())"
 	};
 	shead_engine_ = std::regex(servh_pattern.data());
 	sblock_engine_ = std::regex(servb_pattern.data());
@@ -422,7 +447,7 @@ void	ConfigParser::buildLocationBEngine() {
 	constexpr std::string_view	locab_pattern
 	{
 		R"((root)\s+(/[^;]+);\s*())"
-		R"(|(index)\s+(index\.html?|[^;]+\.php);\s*())"
+		R"(|(index)\s+(index\.html?|[^;]+\.py);\s*())"
 		R"(|(autoindex)\s+(on|off);\s*())"
 		R"(|(file_uploads)\s+(yes|no);\s*)"
 		R"(|(upload_store)\s+(/[^;]+);\s*)"

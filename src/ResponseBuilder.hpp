@@ -8,20 +8,16 @@
 
 class ResponseBuilder {
 	private:
-		static bool		       isCgi(Request& request, ServerConfig& config);
-		static Response        handleCgi(Request& request, ServerConfig& config);
-		static Response        handleGet(Request& request, ServerConfig& config);
-		static Response        handlePost(Request& request, ServerConfig& config);
-		static Response        handleDelete(Request& request, ServerConfig& config);
-		static Response        handleRedirection(Request& request, ServerConfig& config);
-		static ServerConfig    getConfig(const Request& request, const ConfigVec& config_vector);
+		static bool				isCGI(Request& request, ServerConfig& config);
+		static ServerConfig		getConfig(const Request& request, const ConfigVec& config_vector);
 
 	public:
-		static Response buildResponse(Request& request, ConfigVec& config);
-		static Response buildErrorResponse(int code, const std::string& reason);
-		static Response buildErrorResponse(int code, const std::string& reason, ServerConfig& config);
-		static Location        getLocation(const Request& request, const ServerConfig& config);
-		static bool            isRedirect(Request& request, ServerConfig& config);
+		static Response 	buildResponse(ClientState& client, Request& request, ConfigVec& config);
+		static Response 	buildErrorResponse(int code, const std::string& reason);
+		static Response 	buildErrorResponse(int code, const std::string& reason, ServerConfig& config);
+		static Location		getLocation(const Request& request, const ServerConfig& config);
+		static bool			isRedirect(Request& request, ServerConfig& config);
+		static Response		handleRedirection(Request& request, ServerConfig& config);
 };
 
 #endif

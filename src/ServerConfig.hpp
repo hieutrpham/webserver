@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <optional>
 
+#define CGI_EXT ".py"
+
 typedef enum e_allowed {
 	GET,
 	POST,
@@ -17,7 +19,8 @@ typedef enum e_allowed {
 
 struct CGIData {
 	std::string		directory;
-	std::string		index;
+	std::string		extension = CGI_EXT;
+	std::string		binary;
 };
 
 struct Methods {
@@ -35,16 +38,20 @@ struct Redir {
 	std::string		actual_path;
 };
 
+using OptStr = std::optional<std::string>;
+using OptRedir = std::optional<Redir>;
+
 struct Location {
-	std::string				uri;
-	std::string				root = "";
-	std::string				index = "index.html";
-	std::optional<Redir>	redirection = std::nullopt;
-	bool					autoindex = false;
-	Methods					methods = {};
-	bool					allow_file_uploads = false;
-	std::string				upload_store = "";
-	bool					cgi = false;
+	std::string		uri;
+	std::string		root = "";
+	std::string		index = "";
+	OptRedir		redirection = std::nullopt;
+	bool			autoindex = false;
+	Methods			methods = {};
+	bool			allow_file_uploads = false;
+	std::string		upload_store = "";
+	bool			cgi = false;
+	std::string		cgi_script = "";
 
 	bool			is_Redirected();
 	Methods			getMethods() const;
