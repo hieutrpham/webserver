@@ -28,6 +28,8 @@ Response POSTMethod::handleFileUpload(std::string &content_type, Request& reques
 	Response response;
 	response.setStatus(202, "Accepted");
 	response.setHeader("Location", name);
+	response.setHeader("Content-Type", "text/html");
+	response.setBody("Success!");
 	return response;
 }
 
@@ -40,13 +42,14 @@ std::string POSTMethod::get_file_name(std::string &body)
 	// get name of the file
 	while (std::getline(body_stream, line))
 	{
-		if (line.find("name") != std::string::npos)
+		if (line.find("filename") != std::string::npos)
 		{
-			name = line.substr(line.find("\"") + 1);
-			name = name.substr(0, name.find("\""));
+			name = line.substr(line.find("filename=\""));
+			name = name.substr(10, name.find("\"") - 1);
 			break;
 		}
 	}
+
 	return name;
 }
 
