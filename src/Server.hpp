@@ -39,21 +39,25 @@ struct ClientState {
 	size_t bytesSent = 0;
 	bool closeAfterWrite = false;
 	std::optional<CGIEvent>	cgi = std::nullopt;
+	int	socket_fd;
 };
 
 class Server {
 private:
 	ConfigVec m_configs;
 	// std::map<int, std::string> m_clientBuffers; // Per-client buffer
-	std::map<int, ClientState> m_clients;
+	std::map<int, ClientState>	m_clients;
+	std::map<int, ClientState>	m_cgiEvents;
 public:
 	std::vector<int> m_server_fds;
 	Server(ConfigVec &);
 	void handle_client_read(std::vector<struct pollfd>&, int, ConfigVec&);
 	void handle_client_write(std::vector<struct pollfd>&, int);
 	void handle_new_connection(std::vector<struct pollfd>&, int);
+	void update_cgi_event(std::vector<struct pollfd>&, int);
 	bool is_server(int fd);
-	bool isCGI(Request& request, ServerConfig& config);
+	bool is_ongoing_cgi(int fd);
+	bool is_cgi_request(Request& request, ServerConfig& config);
 	void print_endpoints();
 	void add_serverfds(std::vector<struct pollfd>& poll_fds);
 	void setPollEvents(std::vector<struct pollfd>& poll_fds, int fd, short events);

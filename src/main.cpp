@@ -49,6 +49,13 @@ int main(int ac, char **av) {
 			if (pfd.revents == 0)
 				continue ;
 
+			if (s->is_ongoing_cgi(pfd.fd)) {
+				LOG("CGI event update");
+				if (pfd.revents & (POLLIN | POLLHUP)) {
+					s->update_cgi_event(poll_fds, pfd.fd);
+				continue ;
+			}
+
 			// Client disconnected / error.
 			if (pfd.revents & (POLLHUP | POLLERR | POLLNVAL)) {
 				if (!s->is_server(pfd.fd))
@@ -70,12 +77,7 @@ int main(int ac, char **av) {
 				LOG("Client request ready");
 				s->handle_client_read(poll_fds, pfd.fd, config_vector);
 			}
-
-
 			
-			//CGI: COULD HAVE A SERVER.CPP METHOD TO CHECK M_CLIENTS WITH FD FOR CGI EXISTENCE AND STATE IF EXISTS
-			//caveat: handle_client_read requires atm a response to be built immediately.
-
 			// Client socket ready to write.
 			if (pfd.revents & POLLOUT) {
 				LOG("Client socket ready for writing");

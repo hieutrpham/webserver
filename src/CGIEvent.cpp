@@ -66,15 +66,14 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 //non-event-queue implementation:
 void CGIEvent::initiateCGI() {
 	std::string 	prior_cwd{FileOperation::getCWD()};
-	Response 		response;
 
 	try {
 		checkCGIDir();
 		FileOperation::changeDirRelative(cgi_->directory);
-		CGI(prior_cwd); //forks and execs the CGI script, sets up a pipe
-		response = getCGIResponse(); //reads the CGI output from a pipe during child processing, but leaves it unreaped
-		waitSubProcess(); //waits for the child process to exit, then reaps it
-		return response;
+
+		initCGIProcess(); //forks and execs the CGI script, sets up a pipe
+
+		FileOperation::changeDirAbsolute(prior_cwd);
 	} catch (CGIEvent::CGIInvalidDirectory &e) {
 		ERR(e.what());
 		return ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
@@ -89,7 +88,7 @@ void CGIEvent::initiateCGI() {
 	}
 }
 
-void	CGIEvent::executeCGI(std::string prior_cwd) {
+void	CGIEvent::initCGIProcess() {
 	pid_t			pid;
 
 	cgi_->binary = matchCGIRequest();
@@ -104,8 +103,7 @@ void	CGIEvent::executeCGI(std::string prior_cwd) {
 	c2p_pipe_.closeWrite();
 	provideBody();
 	p2c_pipe_.closeWrite();
-	FileOperation::changeDirAbsolute(prior_cwd);
-
+	
 	poll_fd_.fd = c2p_pipe_[IN_FILENO];
 	poll_fd_.events = POLLIN;
 
@@ -325,8 +323,6 @@ int	CGIEvent::getCGIResponse() {
 	char			buffer[1028] = {0};
 	int				ready{};
 
-	ready = poll(&poll_fd_, POLLIN, 0);
-
 	if (ready > 0) {
 		//read from pipe if there is data.
 		if (poll_fd_.revents & POLLIN) {
@@ -334,7 +330,7 @@ int	CGIEvent::getCGIResponse() {
 				cgi_output_ += std::string(buffer);
 			}
 			if (bytes_read == -1)
-				return INTERNAL_SERVER_ERROR;
+				return cgi_status = INTERNAL_SERVER_ERROR;
 		}
 		//child is done. read until EOF if there's data and call it complete.
 		if (poll_fd_.revents & POLLHUP) {
@@ -342,24 +338,24 @@ int	CGIEvent::getCGIResponse() {
 				cgi_output_ += std::string(buffer);
 			}
 			if (bytes_read == -1)
-				return INTERNAL_SERVER_ERROR;
+				return cgi_status = INTERNAL_SERVER_ERROR;
 			c2p_pipe_.closeRead();
-			return COMPLETE;
+			return cgi_status = COMPLETE;
 		}
 		//poll error
 		if (poll_fd_.revents & POLLERR) {
-			return INTERNAL_SERVER_ERROR;
+			return cgi_status = INTERNAL_SERVER_ERROR;
 		}
 		//child didn't hang up yet... keep waiting for more.
-		return INCOMPLETE;
+		return cgi_status = INCOMPLETE;
 	}
 
 	//no data to read
 	if (ready == 0)
-		return INCOMPLETE;
+		return cgi_status = INCOMPLETE;
 
 	// poll error
-	return INTERNAL_SERVER_ERROR;
+	return cgi_status = INTERNAL_SERVER_ERROR;
 }
 
 //construct response object

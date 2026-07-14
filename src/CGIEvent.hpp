@@ -41,7 +41,7 @@
 
 //for non-blocking output poller/constructor
 #define COMPLETE	1
-#define INCOMPLETE	0
+#define INCOMPLETE	2
 #define INTERNAL_SERVER_ERROR	500
 
 enum e_param_keys {
@@ -103,6 +103,8 @@ class CGIEvent {
 		std::string		cgi_output_;
 		std::string		client_address_;
 		
+		
+		void			initCGIProcess();
 		void			execChildProcess();
 		void			checkCGIDir();
 		std::string		matchCGIRequest();
@@ -130,10 +132,11 @@ class CGIEvent {
 		~CGIEvent();
 		CGIEvent&	operator=(const CGIEvent& other);
 
+		int	cgi_status = INCOMPLETE;
+
 		//INTERFACE-----------------------------//
-		Response	handleCGI();				//
+		void		initiateCGI();				//
 		//QUEUE IMPLEMENTATION INTERFACE--------//
-		void		executeCGI(std::string prior_cwd);			//
 		int			waitSubProcessNH();			//
 		int			waitSubProcess();			//
 		int			getCGIResponse();			//
