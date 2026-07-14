@@ -38,6 +38,7 @@ struct ClientState {
 	std::string remoteAddr;
 	size_t bytesSent = 0;
 	bool closeAfterWrite = false;
+	std::optional<CGIEvent>	cgi = std::nullopt;
 };
 
 class Server {
@@ -52,6 +53,7 @@ public:
 	void handle_client_write(std::vector<struct pollfd>&, int);
 	void handle_new_connection(std::vector<struct pollfd>&, int);
 	bool is_server(int fd);
+	bool isCGI(Request& request, ServerConfig& config);
 	void print_endpoints();
 	void add_serverfds(std::vector<struct pollfd>& poll_fds);
 	void setPollEvents(std::vector<struct pollfd>& poll_fds, int fd, short events);

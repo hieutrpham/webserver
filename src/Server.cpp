@@ -4,6 +4,7 @@
 #include "Response.hpp"
 #include "main.hpp"
 #include "RequestParser.hpp"
+#include "CGIEvent.hpp"
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -177,10 +178,21 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 		// Remove only the bytes that belonged to the parsed requeest.
 		m_clients[fd].readBuffer.erase(0, requestParse.bytesConsumed);		
 
+		ClientState& client = m_clients[fd];
+		ServerConfig server_config = ResponseBuilder::getConfig(request, config_vector);
+		if (isCGI(request, server_config)) {
+			try {
+				client.cgi = CGIEvent(server_config, request, client);
+				client.cgi->handleCGI();
+				return ;
+			} catch (std::exception &e) {
+
+			}
+		}
+
 		Response response;
 		try {
-			ClientState& client = m_clients[fd];
-			response = ResponseBuilder::buildResponse(client, request, config_vector);
+			response = ResponseBuilder::buildResponse(request, server_config);
 		} catch (std::exception &e) {
 			ERR(e.what());
 			response = ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
@@ -259,6 +271,21 @@ void Server::setPollEvents(std::vector<struct pollfd>& poll_fds, int fd, short e
 			return;
 		}
 	}
+}
+
+bool Server::isCGI(Request& request, ServerConfig& config) {
+	std::optional<CGIData> cgi_conf = config.getCGI();
+
+	if (cgi_conf.has_value()) {
+		std::string target = request.getPath();
+		std::size_t extension_pos = target.find(CGI_EXT, 0);
+		if (extension_pos != std::string::npos)
+			return true;
+		std::size_t dir_pos = target.find(cgi_conf->directory, 0);
+		if (dir_pos != std::string::npos)
+			return true;
+	}
+    return false;
 }
 
 bool Server::is_server(int fd)

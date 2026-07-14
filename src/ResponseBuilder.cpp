@@ -7,16 +7,9 @@
 #include "DELETEMethod.hpp"
 #include "CGIEvent.hpp"
 
-Response ResponseBuilder::buildResponse(ClientState& client, Request& request, ConfigVec& config_vector) {
-	ServerConfig server_config = getConfig(request, config_vector);
-
+Response ResponseBuilder::buildResponse(Request& request, ServerConfig& server_config) {
 	if (isRedirect(request, server_config))
 		return (handleRedirection(request, server_config));
-
-	if (isCGI(request, server_config)) {
-		CGIEvent cgi_event(server_config, request, client);
-		return (cgi_event.handleCGI());
-	}
 
 	if (request.getMethod() == "GET")
 		return (GetMethod::handleGet(request, server_config));
@@ -62,20 +55,7 @@ bool ResponseBuilder::isRedirect(Request& request, ServerConfig& config)
 	return loc.is_Redirected();
 }
 
-bool ResponseBuilder::isCGI(Request& request, ServerConfig& config) {
-	std::optional<CGIData> cgi_conf = config.getCGI();
 
-	if (cgi_conf.has_value()) {
-		std::string target = request.getPath();
-		std::size_t extension_pos = target.find(CGI_EXT, 0);
-		if (extension_pos != std::string::npos)
-			return true;
-		std::size_t dir_pos = target.find(cgi_conf->directory, 0);
-		if (dir_pos != std::string::npos)
-			return true;
-	}
-    return false;
-}
 
 ServerConfig ResponseBuilder::getConfig(const Request& request, const ConfigVec& config_vector)
 {

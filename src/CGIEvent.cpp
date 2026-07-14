@@ -64,12 +64,14 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 
 
 //non-event-queue implementation:
-Response CGIEvent::handleCGI() {
+void CGIEvent::initiateCGI() {
 	std::string 	prior_cwd{FileOperation::getCWD()};
 	Response 		response;
 
 	try {
-		executeCGI(prior_cwd); //forks and execs the CGI script, sets up a pipe
+		checkCGIDir();
+		FileOperation::changeDirRelative(cgi_->directory);
+		CGI(prior_cwd); //forks and execs the CGI script, sets up a pipe
 		response = getCGIResponse(); //reads the CGI output from a pipe during child processing, but leaves it unreaped
 		waitSubProcess(); //waits for the child process to exit, then reaps it
 		return response;
@@ -90,8 +92,6 @@ Response CGIEvent::handleCGI() {
 void	CGIEvent::executeCGI(std::string prior_cwd) {
 	pid_t			pid;
 
-	checkCGIDir();
-	FileOperation::changeDirRelative(cgi_->directory);
 	cgi_->binary = matchCGIRequest();
 	
 	pid = fork();
