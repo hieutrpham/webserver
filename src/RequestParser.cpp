@@ -1,10 +1,11 @@
 #include "Request.hpp"
 #include "RequestParser.hpp"
+#include "ResponseBuilder.hpp"
 #include <sstream> //istringstream
 #include <cctype> //isdigit
 #include <iostream>
 
-ParseResult RequestParser::parseRequest(const std::string& rawBuffer, Request& request) {
+ParseResult RequestParser::parseRequest(const std::string& rawBuffer, Request& request, const ConfigVec& configVec) {
 	ParseResult result;
 
 	result = parseRequestLine(rawBuffer, request);
@@ -15,11 +16,12 @@ ParseResult RequestParser::parseRequest(const std::string& rawBuffer, Request& r
 	if (result.status != PARSE_COMPLETE)
 		return (result);
 
+	ServerConfig config = ResponseBuilder::getConfig(request, configVec);
+	
 	if (request.getHeader("transfer-encoding") == "chunked") {
-		result = parseRequestBodyChunked(rawBuffer, request);
-	}
-	else {
-		result = parseRequestBody(rawBuffer, request);
+		result = parseRequestBodyChunked(rawBuffer, request, config);
+	} else {
+		result = parseRequestBody(rawBuffer, request, config);
 	}
 
 	if (result.status != PARSE_COMPLETE)
@@ -158,7 +160,7 @@ ParseResult RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 	return ((ParseResult){PARSE_COMPLETE, HTTP_OK});
 }
 
-ParseResult RequestParser::parseRequestBody(const std::string& rawBuffer, Request& request) {
+ParseResult RequestParser::parseRequestBody(const std::string& rawBuffer, Request& request, const ServerConfig& config) {
 	size_t headersEnd = rawBuffer.find("\r\n\r\n");
 	if (headersEnd == std::string::npos)
 		return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE});
@@ -174,7 +176,7 @@ ParseResult RequestParser::parseRequestBody(const std::string& rawBuffer, Reques
 	u_long contentLength = std::atol(lenStr.c_str());
 	
 	// Body too large error.
-	if (contentLength > MAX_BODY_SIZE)
+	if (contentLength > config.client_max_bodysize)
 		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_PAYLOAD_TOO_LARGE, 0});
 	
 	std::string body = rawBuffer.substr(bodyStart);
@@ -199,7 +201,7 @@ ParseResult RequestParser::parseRequestBody(const std::string& rawBuffer, Reques
 // 		0\r\n
 // 		\r\n
 // Zero chunk marks the end of the body.
-ParseResult RequestParser::parseRequestBodyChunked(const std::string& rawBuffer, Request& request) {
+ParseResult RequestParser::parseRequestBodyChunked(const std::string& rawBuffer, Request& request, const ServerConfig& config) {
 	size_t headersEnd = rawBuffer.find("\r\n\r\n");
 	if (headersEnd == std::string::npos)
 		return ((ParseResult){PARSE_INCOMPLETE, HTTP_NONE});
@@ -251,7 +253,7 @@ ParseResult RequestParser::parseRequestBodyChunked(const std::string& rawBuffer,
 
 		pos += chunkSize + 2;
 
-		if (body.size() > MAX_BODY_SIZE)
+		if (body.size() > config.client_max_bodysize)
 			return ((ParseResult){PARSE_BAD_REQUEST, HTTP_PAYLOAD_TOO_LARGE});
 	}
 }
