@@ -23,6 +23,16 @@ Response GetMethod::handleGet(Request& request, ServerConfig& config) {
 
 	// If path leads to directory
 	if (isDirectory(finalPath)) {
+		// Directory requested without trailing slash
+		if (!request.getPath().empty() && request.getPath()[request.getPath().length() - 1] != '/') {
+			Response response;
+			response.setVersion("HTTP/1.1");
+			response.setStatus(301, "Moved Permanently");
+			response.setHeader("Location", request.getPath() + "/");
+			response.setHeader("Content-Length", "0");
+			return response;
+		}
+
 		// Try index file from directory
 		std::string indexPath = finalPath;
 		if (!indexPath.empty() && indexPath[indexPath.length() - 1] != '/')
