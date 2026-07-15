@@ -9,9 +9,9 @@
 class ResponseBuilder {
 	private:
 		static bool				isCGI(Request& request, ServerConfig& config);
-		static ServerConfig		getConfig(const Request& request, const ConfigVec& config_vector);
-
+		
 	public:
+		static ServerConfig		getConfig(const Request& request, const ConfigVec& config_vector);
 		static Response 	buildResponse(ClientState& client, Request& request, ConfigVec& config);
 		static Response 	buildErrorResponse(int code, const std::string& reason);
 		static Response 	buildErrorResponse(int code, const std::string& reason, ServerConfig& config);
