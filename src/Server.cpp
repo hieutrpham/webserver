@@ -224,7 +224,7 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 	// Keep parsing until the buffer is empty or the next request is incomplete.
 	while (!m_clients[fd].readBuffer.empty()) {
 		Request request;
-		ParseResult requestParse = RequestParser::parseRequest(m_clients[fd].readBuffer, request);
+		ParseResult requestParse = RequestParser::parseRequest(m_clients[fd].readBuffer, request, config_vector);
 
 		// Valid request so far, bytes missing.
 		if (requestParse.status == PARSE_INCOMPLETE) {

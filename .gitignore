@@ -3,8 +3,8 @@
 
 # whitelist directory
 !*/
-!html/*
 !cgi-bin/*
+!websites/*
 
 # whitelist hpp, cpp
 !*.*pp
