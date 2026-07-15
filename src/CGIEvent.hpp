@@ -42,6 +42,8 @@
 //for non-blocking output poller/constructor
 #define COMPLETE	1
 #define INCOMPLETE	2
+#define REAPED		3
+#define PROC_UNINIT	4
 #define INTERNAL_SERVER_ERROR	500
 
 enum e_param_keys {
@@ -93,27 +95,30 @@ class CGIEvent {
 		using CStringVec = std::vector<char*>;
 		typedef std::string (CGIEvent::*FunPtr)(void);
 
+		//INTERNAL STATE---------------------------------------------------
 		ServerConfig	config_;
 		Request			req_;
 		OptCgi			cgi_;
 		Pipe			p2c_pipe_;
 		Pipe			c2p_pipe_;
 		pid_t			pid_;
-		pollfd			poll_fd_;
+		pollfd			read_poll_fd_;
+		pollfd			write_poll_fd_;
 		std::string		cgi_output_;
 		std::string		client_address_;
 		
-		
+		//CGI SCRIPT PROCESS LAUNCHER--------------------------------------
 		void			initCGIProcess();
 		void			execChildProcess();
 		void			checkCGIDir();
 		std::string		matchCGIRequest();
 		void			provideBody();
-		Response		respond();
 
+		//ENVIRONMENT BUILDER-----------------------------------------------
 		char**			loadEnvp(StringVec& env_vec, CStringVec& c_env_vec);
 		void			buildEnvVariables(StringVec& env_vec);
 
+		//GETTERS-----------------------------------------------------------
 		std::string		getScriptName();
 		std::string		getQueryString();
 		std::string		getRequestMethod();
@@ -132,24 +137,27 @@ class CGIEvent {
 		~CGIEvent();
 		CGIEvent&	operator=(const CGIEvent& other);
 
+		//EXTERNAL STATE-------------------------
 		int	cgi_status = INCOMPLETE;
+		int	reap_status = PROC_UNINIT;
 
 		//INTERFACE-----------------------------//
-		void		initiateCGI();				//
-		//QUEUE IMPLEMENTATION INTERFACE--------//
-		int			waitSubProcessNH();			//
-		int			waitSubProcess();			//
+		int			initiateCGI();				//
+		void		provideBody();				//
 		int			getCGIResponse();			//
+		Response	respond();					//
+		int			waitSubProcessNH();			//
 		//--------------------------------------//
 
-		//GETTERS
+		//GETTERS---------------------------------
 		ServerConfig	getConfig() const;
 		Request			getRequest() const;
 		OptCgi			getCGIData() const;
 		pid_t			getPid() const;
 		Pipe			getP2CPipe() const;
 		Pipe			getC2PPipe() const;
-		pollfd			getPollFd() const;
+		pollfd			getReadPollFd() const;
+		pollfd			getWritePollFd() const;
 		std::string		getCgiOutput() const;
 		std::string		getClientAddress() const;
 

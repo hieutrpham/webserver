@@ -8,6 +8,7 @@
 #include <string>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <exception>
 
 CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) : 
 	config_(config),
@@ -16,10 +17,12 @@ CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) 
 	p2c_pipe_(),
 	c2p_pipe_(),
 	pid_(-1),
-	poll_fd_(),
+	read_poll_fd_(),
+	write_poll_fd_(),
 	cgi_output_(""),
 	client_address_(client.remoteAddr)
-{poll_fd_.fd = -1; poll_fd_.events = 0; poll_fd_.revents = 0;}
+{read_poll_fd_.fd = -1; read_poll_fd_.events = 0; read_poll_fd_.revents = 0;
+write_poll_fd_.fd = -1; write_poll_fd_.events = 0; write_poll_fd_.revents = 0;}
 
 CGIEvent::CGIEvent(const CGIEvent& other) : 
 	config_(other.getConfig()),
@@ -28,7 +31,8 @@ CGIEvent::CGIEvent(const CGIEvent& other) :
 	p2c_pipe_(other.getP2CPipe()),
 	c2p_pipe_(other.getC2PPipe()),
 	pid_(other.getPid()),
-	poll_fd_(other.getPollFd()),
+	read_poll_fd_(other.getReadPollFd()),
+	write_poll_fd_(other.getWritePollFd()),
 	cgi_output_(other.getCgiOutput()),
 	client_address_(other.getClientAddress())
 {}
@@ -43,7 +47,8 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 		p2c_pipe_ = other.getP2CPipe();
 		c2p_pipe_ = other.getC2PPipe();
 		pid_ = other.getPid();
-		poll_fd_ = other.getPollFd();
+		read_poll_fd_ = other.getReadPollFd();
+		write_poll_fd_ = other.getWritePollFd();
 		cgi_output_ = other.getCgiOutput();
 		client_address_ = other.getClientAddress();
 	}
@@ -51,41 +56,33 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 }
 
 
-//TODO: 
-//	implement event-queue version of CGI handling, 
-//	which will allow for non-blocking CGI execution and response retrieval. 
-//	This will involve modifying the executeCGI, 
-//	waitSubProcessNH, and getCGIResponse methods 
-//	to work with an event-driven architecture, 
-//	potentially using epoll or select to monitor the pipes for readiness.
-
+//!!!!!!!!!!!!!!!!!!!!!!!
 //TODO:
-//	implement the correct 'root' for cgi-bin directory (not project root)
+//	implement the correct website/route 'root' for cgi-bin directory (not project root)
 
 
-//non-event-queue implementation:
-void CGIEvent::initiateCGI() {
+
+int CGIEvent::initiateCGI() {
 	std::string 	prior_cwd{FileOperation::getCWD()};
 
 	try {
 		checkCGIDir();
 		FileOperation::changeDirRelative(cgi_->directory);
-
 		initCGIProcess(); //forks and execs the CGI script, sets up a pipe
-
 		FileOperation::changeDirAbsolute(prior_cwd);
 	} catch (CGIEvent::CGIInvalidDirectory &e) {
 		ERR(e.what());
-		return ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
+		return 500;
 	} catch (CGIEvent::CGINotFound &e) {
 		ERR(e.what());
 		FileOperation::changeDirAbsolute(prior_cwd);
-		return ResponseBuilder::buildErrorResponse(404, "Not Found");
+		return 404;
 	} catch (std::exception &e) {
 		ERR(e.what());
 		FileOperation::changeDirAbsolute(prior_cwd);
-		return ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
+		return 500;
 	}
+	return 0;
 }
 
 void	CGIEvent::initCGIProcess() {
@@ -101,12 +98,13 @@ void	CGIEvent::initCGIProcess() {
 	pid_ = pid;
 	p2c_pipe_.closeRead();
 	c2p_pipe_.closeWrite();
-	provideBody();
-	p2c_pipe_.closeWrite();
 	
-	poll_fd_.fd = c2p_pipe_[IN_FILENO];
-	poll_fd_.events = POLLIN;
+	write_poll_fd_.fd = p2c_pipe_[OUT_FILENO];
+	write_poll_fd_.events = POLLOUT;
+	read_poll_fd_.fd = c2p_pipe_[IN_FILENO];
+	read_poll_fd_.events = POLLIN;
 
+	reap_status = STILL_RUNNING;
 	return;
 }
 
@@ -173,6 +171,7 @@ void	CGIEvent::provideBody() {
 	if (!len_str.empty()) {
 		content_len = std::atol(len_str.c_str());
 		std::size_t bytes = write(p2c_pipe_[OUT_FILENO], req_.getBody().c_str(), content_len);
+		p2c_pipe_.closeWrite();
 		if (bytes != content_len)
 			throw CGIExecException(SYS_WRITE);
 	}
@@ -284,75 +283,44 @@ int	CGIEvent::waitSubProcessNH() {
 		int exit_status = WEXITSTATUS(status);
 		if (exit_status != SUCCESS)
 			throw CGIExecException(SYS_SUBEXIT);
-		return SUCCESS;
+		return REAPED;
 	}
 	else if (WIFSIGNALED(status)) {
 		throw CGIExecException(SYS_SIGTERM);
 	}
 	throw CGIExecException(SYS_WUNKNOWN);
 }
-
-//blocking version of reaper for non-event-queue implementation.
-int CGIEvent::waitSubProcess() {
-	int		status{};
-
-	if (pid_ == -1)
-		throw CGIExecException(NO_CGI);
-	pid_t result = waitpid(pid_, &status, 0);
-	if (result == -1)
-		throw CGIExecException(SYS_WAITPID);
-
-	if (WIFEXITED(status)) {
-		int exit_status = WEXITSTATUS(status);
-		if (exit_status != SUCCESS)
-			throw CGIExecException(SYS_SUBEXIT);
-		return SUCCESS;
-	}
-	else if (WIFSIGNALED(status)) {
-		throw CGIExecException(SYS_SIGTERM);
-	}
-	throw CGIExecException(SYS_WUNKNOWN);
-}
-//------------------------------------------------------------
-
 
 
 //get RESPONSE STATUS FROM CGI OUTPUT-------------------------
 int	CGIEvent::getCGIResponse() {
 	ssize_t 		bytes_read{};
 	char			buffer[1028] = {0};
-	int				ready{};
 
-	if (ready > 0) {
-		//read from pipe if there is data.
-		if (poll_fd_.revents & POLLIN) {
-			while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
-				cgi_output_ += std::string(buffer);
-			}
-			if (bytes_read == -1)
-				return cgi_status = INTERNAL_SERVER_ERROR;
+	//read from pipe if there is data.
+	if (read_poll_fd_.revents & POLLIN) {
+		while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
+			cgi_output_ += std::string(buffer);
 		}
-		//child is done. read until EOF if there's data and call it complete.
-		if (poll_fd_.revents & POLLHUP) {
-			while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
-				cgi_output_ += std::string(buffer);
-			}
-			if (bytes_read == -1)
-				return cgi_status = INTERNAL_SERVER_ERROR;
-			c2p_pipe_.closeRead();
-			return cgi_status = COMPLETE;
-		}
-		//poll error
-		if (poll_fd_.revents & POLLERR) {
+		if (bytes_read == -1)
 			return cgi_status = INTERNAL_SERVER_ERROR;
-		}
-		//child didn't hang up yet... keep waiting for more.
-		return cgi_status = INCOMPLETE;
 	}
-
-	//no data to read
-	if (ready == 0)
-		return cgi_status = INCOMPLETE;
+	//child is done. read until EOF if there's data and call it complete.
+	if (read_poll_fd_.revents & POLLHUP) {
+		while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
+			cgi_output_ += std::string(buffer);
+		}
+		if (bytes_read == -1)
+			return cgi_status = INTERNAL_SERVER_ERROR;
+		c2p_pipe_.closeRead();
+		return cgi_status = COMPLETE;
+	}
+	//poll error
+	if (read_poll_fd_.revents & POLLERR) {
+		return cgi_status = INTERNAL_SERVER_ERROR;
+	}
+	//child didn't hang up yet... keep waiting for more.
+	return cgi_status = INCOMPLETE;
 
 	// poll error
 	return cgi_status = INTERNAL_SERVER_ERROR;
@@ -419,8 +387,12 @@ Pipe		CGIEvent::getC2PPipe() const {
 	return c2p_pipe_;
 }
 
-pollfd		CGIEvent::getPollFd() const {
-	return poll_fd_;
+pollfd		CGIEvent::getReadPollFd() const {
+	return read_poll_fd_;
+}
+
+pollfd		CGIEvent::getWritePollFd() const {
+	return write_poll_fd_;
 }
 
 std::string	CGIEvent::getCgiOutput() const {

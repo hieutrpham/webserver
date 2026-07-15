@@ -51,7 +51,7 @@ int main(int ac, char **av) {
 
 			if (s->is_ongoing_cgi(pfd.fd)) {
 				LOG("CGI event update");
-				if (pfd.revents & (POLLIN | POLLHUP)) {
+				if (pfd.revents & (POLLOUT | POLLIN | POLLHUP))
 					s->update_cgi_event(poll_fds, pfd.fd);
 				continue ;
 			}

@@ -89,33 +89,44 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 }
 
 //TODO: make sure integrations function
-void	Server::update_cgi_event(std::vector<struct pollfd>& poll_fds, int fd) {
+void	Server::update_cgi_event(std::vector<struct pollfd>& poll_fds, int fd)
+{
 	ClientState& client = m_cgiEvents[fd];
 	CGIEvent& cgi_obj = m_cgiEvents[fd].cgi.value();
-	int reap_status = STILL_RUNNING;
+
+	//provide body
+	if (poll_fds[fd].revents & POLLOUT)
+		cgi_obj.provideBody();
 
 	//read pipe (if incomplete)
-	cgi_obj.getCGIResponse();
+	if (cgi_obj.cgi_status == INCOMPLETE)
+		cgi_obj.getCGIResponse();
 
 	//try reap (if complete)
-	if (cgi_obj.cgi_status == COMPLETE)
-		reap_status = cgi_obj.waitSubProcessNH();  
-	//DOES THE CHLD EVER GET REAPED IF the reading completed, 
-	//but the child  was still running the frist time we got here,
-
-	//close pipe and remove from poll_fds if complete
-	if (reap_status == SUCCESS) {
-		cgi_obj.getC2PPipe().closeRead();
-		for (size_t i = 0; i < poll_fds.size(); i++) {
-			if (poll_fds[i].fd == fd) {
-				poll_fds.erase(poll_fds.begin() + i);
-				break;
-			}
-		}
-		m_cgiEvents.erase(fd);
+	if (cgi_obj.cgi_status == COMPLETE) {
+		erase_cgipipe_pollfd(poll_fds, fd);
+		client.writeBuffer += cgi_obj.respond().serialize();
+		setPollEvents(poll_fds, client.socket_fd, POLLOUT);
+		cgi_obj.reap_status = cgi_obj.waitSubProcessNH();
 	}
 
-	setPollEvents(poll_fds, client.socket_fd, POLLOUT);
+	//DOES THE CHILD EVER GET REAPED IF the reading completed,
+	//but the child was still running the frist time we got here,
+
+	//close pipe and remove from poll_fds if complete
+	if (cgi_obj.reap_status == REAPED) {
+		cgi_obj.getC2PPipe().closeRead();
+		m_cgiEvents.erase(fd);
+	}
+}
+
+void	Server::erase_cgipipe_pollfd(std::vector<struct pollfd>& poll_fds, int fd) {
+	for (size_t i = 0; i < poll_fds.size(); i++) {
+		if (poll_fds[i].fd == fd) {
+			poll_fds.erase(poll_fds.begin() + i);
+			break;
+		}
+	}
 }
 
 void requestDebugPrint(Request& request, ParseResult& result) {
@@ -154,6 +165,41 @@ static std::string getReasonPhrase(int status)
 		default:
 			return "Bad Request";
 	}
+}
+
+void	Server::spawn_cgi_event(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd) {
+	client.cgi = CGIEvent(server_config, request, client);
+
+	int status = client.cgi->initiateCGI();
+	if (status == 404) {
+		Response response = ResponseBuilder::buildErrorResponse(status, "Not Found");
+		m_clients[fd].writeBuffer += response.serialize();
+		m_clients[fd].readBuffer.clear();
+		m_clients[fd].closeAfterWrite = true;
+		m_clients[fd].bytesSent = 0;
+		setPollEvents(poll_fds, fd, POLLOUT);
+		return ;
+	}
+	else if (status == 500) {
+		Response response = ResponseBuilder::buildErrorResponse(status, "Internal Server Error");
+		m_clients[fd].writeBuffer += response.serialize();
+		m_clients[fd].readBuffer.clear();
+		m_clients[fd].closeAfterWrite = true;
+		m_clients[fd].bytesSent = 0;
+		setPollEvents(poll_fds, fd, POLLOUT);
+		return ;
+	}
+
+	client.socket_fd = fd;
+
+	pollfd cgi_readpipe_pfd = client.cgi->getReadPollFd();
+	poll_fds.emplace_back(cgi_readpipe_pfd);
+	m_cgiEvents[cgi_readpipe_pfd.fd] = client;
+
+	pollfd cgi_writepipe_pfd = client.cgi->getWritePollFd();
+	poll_fds.emplace_back(cgi_writepipe_pfd);
+	m_cgiEvents[cgi_writepipe_pfd.fd] = client;
+	return ;
 }
 
 void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, ConfigVec& config_vector) {
@@ -208,20 +254,11 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 		// Remove only the bytes that belonged to the parsed request.
 		m_clients[fd].readBuffer.erase(0, requestParse.bytesConsumed);
 
+		//CGI REQUEST HANDLING
 		ClientState& client = m_clients[fd];
 		ServerConfig server_config = ResponseBuilder::getConfig(request, config_vector);
 		if (is_cgi_request(request, server_config)) {
-			try {
-				client.cgi = CGIEvent(server_config, request, client);
-				client.cgi->initiateCGI();
-				client.socket_fd = fd;
-				pollfd cgi_pipe_pollfd = client.cgi->getPollFd();
-				poll_fds.emplace_back(cgi_pipe_pollfd);
-				m_cgiEvents[cgi_pipe_pollfd.fd] = client;
-			} catch (std::exception &e) {
-				// CGI initiation failed
-			}
-			return ;
+			return spawn_cgi_event(server_config, client, request, poll_fds, fd);
 		}
 
 		Response response;

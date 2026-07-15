@@ -55,6 +55,8 @@ public:
 	void handle_client_write(std::vector<struct pollfd>&, int);
 	void handle_new_connection(std::vector<struct pollfd>&, int);
 	void update_cgi_event(std::vector<struct pollfd>&, int);
+	void spawn_cgi_event(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd);
+	void erase_cgipipe_pollfd(std::vector<struct pollfd>& poll_fds, int fd);
 	bool is_server(int fd);
 	bool is_ongoing_cgi(int fd);
 	bool is_cgi_request(Request& request, ServerConfig& config);
