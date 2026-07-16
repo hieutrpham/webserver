@@ -35,7 +35,9 @@ int main(int ac, char **av) {
 	while (true) {
 		if (sa.sa_flags == SIGINT)
 			break;
-		LOG("Waiting for socket events...");
+		//try reap if there's hanging zombie CGI that has reap_status==still_running and cgi_status==complete
+		s->reapZombieCGIProcs();
+		//LOG("Waiting for socket events...");
 		ready = poll(poll_fds.data(), poll_fds.size(), -1);
 		if (ready < 0) {
 			LOG("poll() failed");
@@ -49,12 +51,17 @@ int main(int ac, char **av) {
 			if (pfd.revents == 0)
 				continue ;
 
-			if (s->is_ongoing_cgi(pfd.fd)) {
-				LOG("CGI event update");
-				if (pfd.revents & (POLLOUT | POLLIN | POLLHUP))
-					s->update_cgi_event(poll_fds, pfd.fd);
-				continue ;
-			}
+			// LOG("POLL FD: " + std::to_string(pfd.fd));
+			// LOG("POLL EVENT: " + std::to_string(pfd.events));
+			// LOG("POLL REVENT: " + std::to_string(pfd.revents));
+			// LOG("(POLL REVENT 17: POLLIN & POLLHUP: there is data to read and peer hung up)");
+			// // Update CGI process.
+			// if (s->isOngoingCGI(pfd.fd)) {
+			// 	//LOG("CGI event update");
+			// 	if (pfd.revents & (POLLIN | POLLHUP))
+			// 		s->updateCGIEvent(poll_fds, pfd.fd);
+			// 	continue ;
+			// }
 
 			// Client disconnected / error.
 			if (pfd.revents & (POLLHUP | POLLERR | POLLNVAL)) {

@@ -6,7 +6,7 @@
 #include "ConfigParser.hpp"
 #include "ServerConfig.hpp"
 #include "Response.hpp"
-#include "Server.hpp"
+// #include "Server.hpp"
 #include <poll.h>
 
 #define CGI_VERSION 	"CGI/1.1"
@@ -40,11 +40,16 @@
 #define NULL_OPTION		0
 
 //for non-blocking output poller/constructor
-#define COMPLETE	1
-#define INCOMPLETE	2
+#define UNPROVIDED	-1
+#define INCOMPLETE	1
+#define COMPLETE	2
 #define REAPED		3
 #define PROC_UNINIT	4
+
+#define NOT_FOUND				404
 #define INTERNAL_SERVER_ERROR	500
+
+struct ClientState;
 
 enum e_param_keys {
 	SCRIPT_FILENAME,
@@ -68,10 +73,11 @@ class Pipe {
 	public:
 		Pipe();
 		Pipe(const Pipe& other);
-		~Pipe();
+		// ~Pipe();
 		Pipe&	operator=(const Pipe& other);
 		int		operator[](int i);
 
+		void	invalidate();
 		void	closeRead();
 		void	closeWrite();
 		int		getIn() const;
@@ -103,7 +109,6 @@ class CGIEvent {
 		Pipe			c2p_pipe_;
 		pid_t			pid_;
 		pollfd			read_poll_fd_;
-		pollfd			write_poll_fd_;
 		std::string		cgi_output_;
 		std::string		client_address_;
 		
@@ -138,12 +143,12 @@ class CGIEvent {
 		CGIEvent&	operator=(const CGIEvent& other);
 
 		//EXTERNAL STATE-------------------------
-		int	cgi_status = INCOMPLETE;
+		int	cgi_status = UNPROVIDED;
 		int	reap_status = PROC_UNINIT;
 
 		//INTERFACE-----------------------------//
 		int			initiateCGI();				//
-		void		provideBody();				//
+		void		provideBodyToScript();		//
 		int			getCGIResponse();			//
 		Response	respond();					//
 		int			waitSubProcessNH();			//
@@ -157,7 +162,6 @@ class CGIEvent {
 		Pipe			getP2CPipe() const;
 		Pipe			getC2PPipe() const;
 		pollfd			getReadPollFd() const;
-		pollfd			getWritePollFd() const;
 		std::string		getCgiOutput() const;
 		std::string		getClientAddress() const;
 

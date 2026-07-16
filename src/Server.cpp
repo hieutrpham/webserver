@@ -88,39 +88,69 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
 }
 
-//TODO: make sure integrations function
-void	Server::update_cgi_event(std::vector<struct pollfd>& poll_fds, int fd)
+void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, int fd)
 {
 	ClientState& client = m_cgiEvents[fd];
-	CGIEvent& cgi_obj = m_cgiEvents[fd].cgi.value();
+	CGIEvent& cgi_process = client.cgi.value();
 
-	//provide body
-	if (poll_fds[fd].revents & POLLOUT)
-		cgi_obj.provideBody();
-
+LOG("here2");
+LOG(std::to_string(fd));
+if (cgi_process.cgi_status == UNPROVIDED) LOG("UNPROVIDED");
+if (cgi_process.cgi_status == COMPLETE) LOG("COMPLETE");
+if (cgi_process.cgi_status == INCOMPLETE) LOG("INCOMPLETE");
+if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR) LOG("INTERNAL_SERVER_ERROR");
+if (cgi_process.reap_status == STILL_RUNNING) LOG("PROCESS STILL RUNNING");
+if (cgi_process.reap_status == REAPED) LOG("PROCESS REAPED");
 	//read pipe (if incomplete)
-	if (cgi_obj.cgi_status == INCOMPLETE)
-		cgi_obj.getCGIResponse();
-
+	if (poll_fds[fd].revents & (POLLIN | POLLHUP) && cgi_process.cgi_status == INCOMPLETE)
+		cgi_process.getCGIResponse();
+LOG("here3");
+LOG(std::to_string(fd));
+if (cgi_process.cgi_status == UNPROVIDED) LOG("UNPROVIDED");
+if (cgi_process.cgi_status == COMPLETE) LOG("COMPLETE");
+if (cgi_process.cgi_status == INCOMPLETE) LOG("INCOMPLETE");
+if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR) LOG("INTERNAL_SERVER_ERROR");
+if (cgi_process.reap_status == STILL_RUNNING) LOG("PROCESS STILL RUNNING");
+if (cgi_process.reap_status == REAPED) LOG("PROCESS REAPED");
 	//try reap (if complete)
-	if (cgi_obj.cgi_status == COMPLETE) {
-		erase_cgipipe_pollfd(poll_fds, fd);
-		client.writeBuffer += cgi_obj.respond().serialize();
+	if (cgi_process.cgi_status == COMPLETE && cgi_process.reap_status == STILL_RUNNING) {
+		eraseCGIPipePollfd(poll_fds, fd);
+		client.writeBuffer += cgi_process.respond().serialize();
+
+		//sets the client SOCKET FD up for writing a response, then closes the PIPE read-end FD
 		setPollEvents(poll_fds, client.socket_fd, POLLOUT);
-		cgi_obj.reap_status = cgi_obj.waitSubProcessNH();
+		cgi_process.getC2PPipe().closeRead();
+		
+		//try to reap immediately; if unsuccessful, zombie reaper function at end of mainloop checks & reaps subprocesses
+		cgi_process.reap_status = cgi_process.waitSubProcessNH();
 	}
-
-	//DOES THE CHILD EVER GET REAPED IF the reading completed,
-	//but the child was still running the frist time we got here,
-
+LOG("here4");
+LOG(std::to_string(fd));
+if (cgi_process.cgi_status == UNPROVIDED) LOG("UNPROVIDED");
+if (cgi_process.cgi_status == COMPLETE) LOG("COMPLETE");
+if (cgi_process.cgi_status == INCOMPLETE) LOG("INCOMPLETE");
+if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR) LOG("INTERNAL_SERVER_ERROR");
+if (cgi_process.reap_status == STILL_RUNNING) LOG("PROCESS STILL RUNNING");
+if (cgi_process.reap_status == REAPED) LOG("PROCESS REAPED");
+	//see if any of the CGIEvent methods ran into a system failure or another error:
+	if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR) {
+		setClientErrorState(INTERNAL_SERVER_ERROR, "Internal Server Error", poll_fds, fd);
+	}
+LOG("here5");
+LOG(std::to_string(fd));
+if (cgi_process.cgi_status == UNPROVIDED) LOG("UNPROVIDED");
+if (cgi_process.cgi_status == COMPLETE) LOG("COMPLETE");
+if (cgi_process.cgi_status == INCOMPLETE) LOG("INCOMPLETE");
+if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR) LOG("INTERNAL_SERVER_ERROR");
+if (cgi_process.reap_status == STILL_RUNNING) LOG("PROCESS STILL RUNNING");
+if (cgi_process.reap_status == REAPED) LOG("PROCESS REAPED");
 	//close pipe and remove from poll_fds if complete
-	if (cgi_obj.reap_status == REAPED) {
-		cgi_obj.getC2PPipe().closeRead();
+	if (cgi_process.reap_status == REAPED) {
 		m_cgiEvents.erase(fd);
 	}
 }
 
-void	Server::erase_cgipipe_pollfd(std::vector<struct pollfd>& poll_fds, int fd) {
+void	Server::eraseCGIPipePollfd(std::vector<struct pollfd>& poll_fds, int fd) {
 	for (size_t i = 0; i < poll_fds.size(); i++) {
 		if (poll_fds[i].fd == fd) {
 			poll_fds.erase(poll_fds.begin() + i);
@@ -167,28 +197,14 @@ static std::string getReasonPhrase(int status)
 	}
 }
 
-void	Server::spawn_cgi_event(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd) {
-	client.cgi = CGIEvent(server_config, request, client);
+void	Server::spawnCGIEvent(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd) {
+	client.cgi.emplace(server_config, request, client);
 
 	int status = client.cgi->initiateCGI();
-	if (status == 404) {
-		Response response = ResponseBuilder::buildErrorResponse(status, "Not Found");
-		m_clients[fd].writeBuffer += response.serialize();
-		m_clients[fd].readBuffer.clear();
-		m_clients[fd].closeAfterWrite = true;
-		m_clients[fd].bytesSent = 0;
-		setPollEvents(poll_fds, fd, POLLOUT);
-		return ;
-	}
-	else if (status == 500) {
-		Response response = ResponseBuilder::buildErrorResponse(status, "Internal Server Error");
-		m_clients[fd].writeBuffer += response.serialize();
-		m_clients[fd].readBuffer.clear();
-		m_clients[fd].closeAfterWrite = true;
-		m_clients[fd].bytesSent = 0;
-		setPollEvents(poll_fds, fd, POLLOUT);
-		return ;
-	}
+	if (status == NOT_FOUND)
+		return setClientErrorState(NOT_FOUND, "Not Found", poll_fds, fd);
+	else if (status == INTERNAL_SERVER_ERROR)
+		return setClientErrorState(INTERNAL_SERVER_ERROR, "Internal Server Error", poll_fds, fd);
 
 	client.socket_fd = fd;
 
@@ -196,9 +212,17 @@ void	Server::spawn_cgi_event(ServerConfig& server_config, ClientState& client, R
 	poll_fds.emplace_back(cgi_readpipe_pfd);
 	m_cgiEvents[cgi_readpipe_pfd.fd] = client;
 
-	pollfd cgi_writepipe_pfd = client.cgi->getWritePollFd();
-	poll_fds.emplace_back(cgi_writepipe_pfd);
-	m_cgiEvents[cgi_writepipe_pfd.fd] = client;
+	LOG("ending CGI spawner");
+	return ;
+}
+
+void	Server::setClientErrorState(int code, const std::string& reason, std::vector<struct pollfd>& poll_fds, int fd) {
+	Response response = ResponseBuilder::buildErrorResponse(code, reason);
+	m_clients[fd].writeBuffer += response.serialize();
+	m_clients[fd].readBuffer.clear();
+	m_clients[fd].closeAfterWrite = true;
+	m_clients[fd].bytesSent = 0;
+	setPollEvents(poll_fds, fd, POLLOUT);
 	return ;
 }
 
@@ -257,8 +281,9 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 		//CGI REQUEST HANDLING
 		ClientState& client = m_clients[fd];
 		ServerConfig server_config = ResponseBuilder::getConfig(request, config_vector);
-		if (is_cgi_request(request, server_config)) {
-			return spawn_cgi_event(server_config, client, request, poll_fds, fd);
+		if (isCGIRequest(request, server_config)) {
+			LOG("going to CGI spawner");
+			return spawnCGIEvent(server_config, client, request, poll_fds, fd);
 		}
 
 		Response response;
@@ -344,7 +369,7 @@ void Server::setPollEvents(std::vector<struct pollfd>& poll_fds, int fd, short e
 	}
 }
 
-bool Server::is_cgi_request(Request& request, ServerConfig& config)
+bool Server::isCGIRequest(Request& request, ServerConfig& config)
 {
 	std::optional<CGIData> cgi_conf = config.getCGI();
 
@@ -370,14 +395,30 @@ bool Server::is_server(int fd)
 	return false;
 }
 
-bool Server::is_ongoing_cgi(int fd)
+bool Server::isOngoingCGI(int fd)
 {
 	auto ite = m_cgiEvents.find(fd);
 	if (ite != m_cgiEvents.end()) {
-		if (ite->second.cgi.has_value())
+		LOG("fd found in cgiEvents map");
+		if (ite->second.cgi.has_value()) {
+			LOG("cgiEvents.cgi has a value: FD of C2P read-end: " + std::to_string(ite->second.cgi->getC2PPipe().getIn()));
+			LOG("cgiEvents.cgi has a value: FD of pollfd read: " + std::to_string(ite->second.cgi->getReadPollFd().fd));
 			return true;
+		}
 	}
 	return false;
+}
+
+void Server::reapZombieCGIProcs() {
+	for (auto cgi_ite : m_cgiEvents) {
+		CGIEvent& cgi_process = cgi_ite.second.cgi.value();
+		if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR || (cgi_process.cgi_status == COMPLETE && cgi_process.reap_status == STILL_RUNNING)) {
+			cgi_process.reap_status = cgi_process.waitSubProcessNH();
+			if (cgi_process.reap_status == REAPED)
+				m_cgiEvents.erase(cgi_ite.first);
+		}
+	}
+	return ;
 }
 
 void Server::print_endpoints()

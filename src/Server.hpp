@@ -1,6 +1,7 @@
 #pragma once
 #include "ConfigParser.hpp"
 #include "ServerConfig.hpp"
+#include "CGIEvent.hpp"
 #include "main.hpp"
 #include <map>
 #include "Request.hpp"
@@ -54,12 +55,14 @@ public:
 	void handle_client_read(std::vector<struct pollfd>&, int, ConfigVec&);
 	void handle_client_write(std::vector<struct pollfd>&, int);
 	void handle_new_connection(std::vector<struct pollfd>&, int);
-	void update_cgi_event(std::vector<struct pollfd>&, int);
-	void spawn_cgi_event(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd);
-	void erase_cgipipe_pollfd(std::vector<struct pollfd>& poll_fds, int fd);
+	void updateCGIEvent(std::vector<struct pollfd>&, int);
+	void spawnCGIEvent(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd);
+	void setClientErrorState(int code, const std::string& reason, std::vector<struct pollfd>& poll_fds, int fd);
+	void eraseCGIPipePollfd(std::vector<struct pollfd>& poll_fds, int fd);
 	bool is_server(int fd);
-	bool is_ongoing_cgi(int fd);
-	bool is_cgi_request(Request& request, ServerConfig& config);
+	bool isOngoingCGI(int fd);
+	bool isCGIRequest(Request& request, ServerConfig& config);
+	void reapZombieCGIProcs();
 	void print_endpoints();
 	void add_serverfds(std::vector<struct pollfd>& poll_fds);
 	void setPollEvents(std::vector<struct pollfd>& poll_fds, int fd, short events);

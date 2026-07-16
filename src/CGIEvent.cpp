@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <exception>
+#include <string>
+#include <fcntl.h>
 
 CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) : 
 	config_(config),
@@ -18,11 +20,9 @@ CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) 
 	c2p_pipe_(),
 	pid_(-1),
 	read_poll_fd_(),
-	write_poll_fd_(),
 	cgi_output_(""),
 	client_address_(client.remoteAddr)
-{read_poll_fd_.fd = -1; read_poll_fd_.events = 0; read_poll_fd_.revents = 0;
-write_poll_fd_.fd = -1; write_poll_fd_.events = 0; write_poll_fd_.revents = 0;}
+{read_poll_fd_.fd = -1; read_poll_fd_.events = 0; read_poll_fd_.revents = 0;}
 
 CGIEvent::CGIEvent(const CGIEvent& other) : 
 	config_(other.getConfig()),
@@ -32,7 +32,6 @@ CGIEvent::CGIEvent(const CGIEvent& other) :
 	c2p_pipe_(other.getC2PPipe()),
 	pid_(other.getPid()),
 	read_poll_fd_(other.getReadPollFd()),
-	write_poll_fd_(other.getWritePollFd()),
 	cgi_output_(other.getCgiOutput()),
 	client_address_(other.getClientAddress())
 {}
@@ -48,7 +47,6 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 		c2p_pipe_ = other.getC2PPipe();
 		pid_ = other.getPid();
 		read_poll_fd_ = other.getReadPollFd();
-		write_poll_fd_ = other.getWritePollFd();
 		cgi_output_ = other.getCgiOutput();
 		client_address_ = other.getClientAddress();
 	}
@@ -89,21 +87,21 @@ void	CGIEvent::initCGIProcess() {
 	pid_t			pid;
 
 	cgi_->binary = matchCGIRequest();
-	
+
 	pid = fork();
 	if (pid == FAIL)
 		throw ForkException(SYS_FORK);
+
 	if (pid == CHILD_SELF_ID)
 		execChildProcess();
 	pid_ = pid;
 	p2c_pipe_.closeRead();
 	c2p_pipe_.closeWrite();
 	
-	write_poll_fd_.fd = p2c_pipe_[OUT_FILENO];
-	write_poll_fd_.events = POLLOUT;
 	read_poll_fd_.fd = c2p_pipe_[IN_FILENO];
 	read_poll_fd_.events = POLLIN;
 
+	provideBodyToScript();
 	reap_status = STILL_RUNNING;
 	return;
 }
@@ -143,6 +141,7 @@ std::string	CGIEvent::matchCGIRequest() {
 	return bin_path; 
 }
 
+
 void	CGIEvent::execChildProcess() {
 	StringVec	env_vec{};
 	CStringVec	c_env_vec{};
@@ -151,23 +150,29 @@ void	CGIEvent::execChildProcess() {
 	char*		argv[2] = {executable, nullptr};
 	
 	p2c_pipe_.closeWrite();
-	if (dup2(p2c_pipe_[IN_FILENO], STDIN_FILENO) == FAIL)
-		throw Dup2Exception(SYS_DUP2);
+	c2p_pipe_.closeRead();
+
+	if (dup2(p2c_pipe_[IN_FILENO], STDIN_FILENO) == FAIL) {
+		perror("dup2");
+		_exit(1);
+	}
 	p2c_pipe_.closeRead();
 
-	c2p_pipe_.closeRead();
-	if (dup2(c2p_pipe_[OUT_FILENO], STDOUT_FILENO) == FAIL)
-		throw Dup2Exception(SYS_DUP2);
+	if (dup2(c2p_pipe_[OUT_FILENO], STDOUT_FILENO) == FAIL) {
+		perror("dup2");
+		_exit(1);
+	}
 	c2p_pipe_.closeWrite();
 
 	execve(executable, argv, envp);
 	_exit(1);
 }
 
-void	CGIEvent::provideBody() {
+void	CGIEvent::provideBodyToScript() {
 	u_long		content_len;
 
 	std::string len_str = req_.getHeader("content-length");
+	LOG(len_str);
 	if (!len_str.empty()) {
 		content_len = std::atol(len_str.c_str());
 		std::size_t bytes = write(p2c_pipe_[OUT_FILENO], req_.getBody().c_str(), content_len);
@@ -175,6 +180,7 @@ void	CGIEvent::provideBody() {
 		if (bytes != content_len)
 			throw CGIExecException(SYS_WRITE);
 	}
+	cgi_status = INCOMPLETE;
 }
 
 //ENV BUILDER------------------------------------------------------
@@ -272,22 +278,31 @@ int	CGIEvent::waitSubProcessNH() {
 
 	if (pid_ == -1)
 		throw CGIExecException(NO_CGI);
-	pid_t result = waitpid(pid_, &status, WNOHANG);
-	if (result == 0)
-		return STILL_RUNNING;
 
+	//try to reap once: WNOHANG doesn't block
+	pid_t result = waitpid(pid_, &status, WNOHANG);
+
+	//process hasn't exited
+	if (result == 0)
+		return reap_status = STILL_RUNNING;
+
+	//system call failure
 	else if (result == -1)
 		throw CGIExecException(SYS_WAITPID);
 
+	//sub process exited: process reaped.
 	if (WIFEXITED(status)) {
 		int exit_status = WEXITSTATUS(status);
 		if (exit_status != SUCCESS)
 			throw CGIExecException(SYS_SUBEXIT);
-		return REAPED;
+		return reap_status = REAPED;
 	}
+
+	//signal terminated sub process
 	else if (WIFSIGNALED(status)) {
 		throw CGIExecException(SYS_SIGTERM);
 	}
+	//shouldn't get here
 	throw CGIExecException(SYS_WUNKNOWN);
 }
 
@@ -391,10 +406,6 @@ pollfd		CGIEvent::getReadPollFd() const {
 	return read_poll_fd_;
 }
 
-pollfd		CGIEvent::getWritePollFd() const {
-	return write_poll_fd_;
-}
-
 std::string	CGIEvent::getCgiOutput() const {
 	return cgi_output_;
 }
@@ -441,7 +452,7 @@ const char* CGIEvent::CGINotFound::what() const noexcept {
 
 //RAII WRAPPER FOR PIPE----------------------------------------------------	
 Pipe::Pipe() {
-	if (pipe(fds_) != SUCCESS){
+	if (pipe(fds_) == FAIL) {
 		if (errno == EMFILE) {
 			throw PipeException(PIPE_ERRFDN);
 		}
@@ -456,10 +467,11 @@ Pipe::Pipe(const Pipe& other) {
 	this->is_valid_[OUT_FILENO] = other.getIsOutValid();
 }
 
-Pipe::~Pipe() {
-	closeRead();
-	closeWrite();
-}
+// Pipe::~Pipe() {
+// 	//LOG("Pipe destructor runs");
+// 	closeRead();
+// 	closeWrite();
+// }
 
 Pipe&	Pipe::operator=(const Pipe& other) {
 	if (this != &other) {
@@ -475,6 +487,11 @@ int		Pipe::operator[](int i) {
 	if (i < 0 || i > 1)
 		throw PipeException(PIPE_IDX);
 	return fds_[i];
+}
+
+void	Pipe::invalidate() {
+	is_valid_[IN_FILENO] = false;
+	is_valid_[OUT_FILENO] = false;
 }
 
 void	Pipe::closeRead() {
