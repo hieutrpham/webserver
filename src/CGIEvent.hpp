@@ -108,6 +108,7 @@ class CGIEvent {
 		Pipe			p2c_pipe_;
 		Pipe			c2p_pipe_;
 		pid_t			pid_;
+		pollfd			write_poll_fd_;
 		pollfd			read_poll_fd_;
 		std::string		cgi_output_;
 		std::string		client_address_;
@@ -161,6 +162,7 @@ class CGIEvent {
 		pid_t			getPid() const;
 		Pipe			getP2CPipe() const;
 		Pipe			getC2PPipe() const;
+		pollfd			getWritePollFd() const;
 		pollfd			getReadPollFd() const;
 		std::string		getCgiOutput() const;
 		std::string		getClientAddress() const;

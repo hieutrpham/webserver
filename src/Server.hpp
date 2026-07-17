@@ -39,16 +39,17 @@ struct ClientState {
 	std::string remoteAddr;
 	size_t bytesSent = 0;
 	bool closeAfterWrite = false;
-	std::optional<CGIEvent>	cgi = std::nullopt;
+	std::shared_ptr<CGIEvent> active_cgi_ptr = nullptr;
 	int	socket_fd;
 };
 
 class Server {
 private:
 	ConfigVec m_configs;
+	std::map<int, std::shared_ptr<CGIEvent>> m_active_cgis;
 	// std::map<int, std::string> m_clientBuffers; // Per-client buffer
 	std::map<int, ClientState>	m_clients;
-	std::map<int, ClientState>	m_cgiEvents;
+	std::map<int, ClientState>	m_cgi_per_client;
 public:
 	std::vector<int> m_server_fds;
 	Server(ConfigVec &);

@@ -24,7 +24,8 @@ CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) 
 	client_address_(client.remoteAddr),
 	cgi_status(UNPROVIDED),
 	reap_status(PROC_UNINIT)
-{read_poll_fd_.fd = -1; read_poll_fd_.events = 0; read_poll_fd_.revents = 0;}
+{read_poll_fd_.fd = -1; read_poll_fd_.events = 0; read_poll_fd_.revents = 0;
+write_poll_fd_.fd = -1; write_poll_fd_.events = 0; write_poll_fd_.revents = 0;}
 
 CGIEvent::CGIEvent(const CGIEvent& other) : 
 	config_(other.getConfig()),
@@ -33,6 +34,7 @@ CGIEvent::CGIEvent(const CGIEvent& other) :
 	p2c_pipe_(other.getP2CPipe()),
 	c2p_pipe_(other.getC2PPipe()),
 	pid_(other.getPid()),
+	write_poll_fd_(other.getReadPollFd()),
 	read_poll_fd_(other.getReadPollFd()),
 	cgi_output_(other.getCgiOutput()),
 	client_address_(other.getClientAddress()),
@@ -50,6 +52,7 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 		p2c_pipe_ = other.getP2CPipe();
 		c2p_pipe_ = other.getC2PPipe();
 		pid_ = other.getPid();
+		write_poll_fd_ = other.getReadPollFd();
 		read_poll_fd_ = other.getReadPollFd();
 		cgi_output_ = other.getCgiOutput();
 		client_address_ = other.getClientAddress();
@@ -104,10 +107,12 @@ void	CGIEvent::initCGIProcess() {
 	p2c_pipe_.closeRead();
 	c2p_pipe_.closeWrite();
 	
+	write_poll_fd_.fd = p2c_pipe_[OUT_FILENO];
+	write_poll_fd_.events = POLLOUT;
+
 	read_poll_fd_.fd = c2p_pipe_[IN_FILENO];
 	read_poll_fd_.events = POLLIN;
 
-	provideBodyToScript();
 	reap_status = STILL_RUNNING;
 	return;
 }
@@ -402,6 +407,10 @@ Pipe		CGIEvent::getP2CPipe() const {
 
 Pipe		CGIEvent::getC2PPipe() const {
 	return c2p_pipe_;
+}
+
+pollfd		CGIEvent::getWritePollFd() const {
+	return write_poll_fd_;
 }
 
 pollfd		CGIEvent::getReadPollFd() const {

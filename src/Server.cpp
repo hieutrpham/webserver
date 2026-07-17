@@ -11,6 +11,7 @@
 #include <cmath>
 #include "ResponseBuilder.hpp"
 #include <fcntl.h>
+#include <memory>
 
 void setNonBlockFlags(int fd) {
 	// Save current flags
@@ -90,12 +91,21 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 
 void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd pfd)
 {
-	ClientState& CGIEventClientObj = m_cgiEvents[pfd.fd];
-	CGIEvent& cgi_process = CGIEventClientObj.cgi.value();
+	ClientState& CGIEventClientObj = m_cgi_per_client[pfd.fd];
+	CGIEvent& cgi_process = *CGIEventClientObj.active_cgi_ptr;
 
-	//read pipe (if incomplete)
+	//provide body to script via pipe A
+	if (pfd.revents & POLLOUT && cgi_process.cgi_status == UNPROVIDED) {
+		cgi_process.provideBodyToScript();
+		eraseCGIPipePollfd(poll_fds, pfd.fd);
+		m_cgi_per_client.erase(pfd.fd);
+		LOG("Request body written to CGI subprocess pipe A");
+	}
+
+	//read pipe (if incomplete) via pipe B
 	if (pfd.revents & (POLLIN | POLLHUP) && cgi_process.cgi_status == INCOMPLETE) {
 		cgi_process.getCGIResponse(pfd);
+		LOG("Script response read from CGI subprocess pipe B");
 	}
 
 	//try reap (if complete)
@@ -113,13 +123,15 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd pfd)
 	}
 
 	//see if any of the CGIEvent methods ran into a system failure or another error:
-	if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR) {
+	if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR)
 		setClientErrorState(INTERNAL_SERVER_ERROR, "Internal Server Error", poll_fds, pfd.fd);
-	}
 
-	//close pipe and remove from poll_fds if complete
+	//If complete, close pipe and erase active CGI from server object and the client from pollfd table
 	if (cgi_process.reap_status == REAPED) {
-		m_cgiEvents.erase(pfd.fd);
+		ClientState& client = m_clients[CGIEventClientObj.socket_fd];
+		m_active_cgis[client.socket_fd];
+		m_cgi_per_client.erase(pfd.fd);
+		LOG("CGI subprocess reaped and event cleared from active table");
 	}
 }
 
@@ -171,9 +183,13 @@ static std::string getReasonPhrase(int status)
 }
 
 void	Server::spawnCGIEvent(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd) {
-	client.cgi.emplace(server_config, request, client);
+	//construct one shared cgi object per event
+	m_active_cgis.emplace(fd, std::make_shared<CGIEvent>(server_config, request, client));
+	//client object has a pointer to it (client object is later copied to two places because of TWO pipes per event => two pollfds)
+	client.active_cgi_ptr = m_active_cgis[fd];
+	//destroy shared cgi in server obj after event is done!!
 
-	int status = client.cgi->initiateCGI();
+	int status = client.active_cgi_ptr->initiateCGI();
 	if (status == NOT_FOUND)
 		return setClientErrorState(NOT_FOUND, "Not Found", poll_fds, fd);
 	else if (status == INTERNAL_SERVER_ERROR)
@@ -182,9 +198,13 @@ void	Server::spawnCGIEvent(ServerConfig& server_config, ClientState& client, Req
 
 	client.socket_fd = fd;
 
-	pollfd cgi_readpipe_pfd = client.cgi->getReadPollFd();
+	pollfd cgi_writepipe_pfd = client.active_cgi_ptr->getWritePollFd();
+	poll_fds.emplace_back(cgi_writepipe_pfd);
+	m_cgi_per_client[cgi_writepipe_pfd.fd] = client; //COPY 1
+
+	pollfd cgi_readpipe_pfd = client.active_cgi_ptr->getReadPollFd();
 	poll_fds.emplace_back(cgi_readpipe_pfd);
-	m_cgiEvents[cgi_readpipe_pfd.fd] = client;
+	m_cgi_per_client[cgi_readpipe_pfd.fd] = client; //COPY 2
 
 	poll_fds[fd].revents = 0;
 	m_clients[fd].writeBuffer.clear();
@@ -375,22 +395,24 @@ bool Server::is_server(int fd)
 
 bool Server::isOngoingCGI(int fd)
 {
-	auto ite = m_cgiEvents.find(fd);
-	if (ite != m_cgiEvents.end()) {
-		if (ite->second.cgi.has_value()) {
+	auto ite = m_cgi_per_client.find(fd);
+	if (ite != m_cgi_per_client.end()) {
+		if (ite->second.active_cgi_ptr != nullptr) {
 			return true;
 		}
 	}
 	return false;
 }
 
-void Server::reapZombieCGIProcs() {
-	for (auto cgi_ite : m_cgiEvents) {
-		CGIEvent& cgi_process = cgi_ite.second.cgi.value();
+void Server::reapZombieCGIProcs()
+{
+	for (auto cgi_ite : m_cgi_per_client) {
+		CGIEvent& cgi_process = *cgi_ite.second.active_cgi_ptr;
 		if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR || (cgi_process.cgi_status == COMPLETE && cgi_process.reap_status == STILL_RUNNING)) {
 			cgi_process.reap_status = cgi_process.waitSubProcessNH();
-			if (cgi_process.reap_status == REAPED)
-				m_cgiEvents.erase(cgi_ite.first);
+			if (cgi_process.reap_status == REAPED) {
+				m_cgi_per_client.erase(cgi_ite.first);
+			}
 		}
 	}
 	return ;

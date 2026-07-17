@@ -37,7 +37,7 @@ int main(int ac, char **av) {
 			break;
 		//try reap if there's hanging zombie CGI that has reap_status==still_running and cgi_status==complete
 		s->reapZombieCGIProcs();
-		
+
 		LOG("Waiting for socket events...");
 		ready = poll(poll_fds.data(), poll_fds.size(), -1);
 		if (ready < 0) {
@@ -55,7 +55,7 @@ int main(int ac, char **av) {
 			// Update CGI process.
 			if (s->isOngoingCGI(pfd.fd)) {
 				LOG("CGI event update");
-				if (pfd.revents & (POLLIN | POLLHUP))
+				if (pfd.revents & (POLLOUT | POLLIN | POLLHUP))
 					s->updateCGIEvent(poll_fds, pfd);
 				continue ;
 			}
