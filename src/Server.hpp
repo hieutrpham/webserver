@@ -55,7 +55,7 @@ public:
 	void handle_client_read(std::vector<struct pollfd>&, int, ConfigVec&);
 	void handle_client_write(std::vector<struct pollfd>&, int);
 	void handle_new_connection(std::vector<struct pollfd>&, int);
-	void updateCGIEvent(std::vector<struct pollfd>&, int);
+	void updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd pfd);
 	void spawnCGIEvent(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd);
 	void setClientErrorState(int code, const std::string& reason, std::vector<struct pollfd>& poll_fds, int fd);
 	void eraseCGIPipePollfd(std::vector<struct pollfd>& poll_fds, int fd);

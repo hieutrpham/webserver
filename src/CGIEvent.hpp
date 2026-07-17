@@ -143,13 +143,13 @@ class CGIEvent {
 		CGIEvent&	operator=(const CGIEvent& other);
 
 		//EXTERNAL STATE-------------------------
-		int	cgi_status = UNPROVIDED;
-		int	reap_status = PROC_UNINIT;
+		int	cgi_status;
+		int	reap_status;
 
 		//INTERFACE-----------------------------//
 		int			initiateCGI();				//
 		void		provideBodyToScript();		//
-		int			getCGIResponse();			//
+		int			getCGIResponse(pollfd pfd); //
 		Response	respond();					//
 		int			waitSubProcessNH();			//
 		//--------------------------------------//

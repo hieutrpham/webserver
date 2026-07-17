@@ -21,7 +21,9 @@ CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) 
 	pid_(-1),
 	read_poll_fd_(),
 	cgi_output_(""),
-	client_address_(client.remoteAddr)
+	client_address_(client.remoteAddr),
+	cgi_status(UNPROVIDED),
+	reap_status(PROC_UNINIT)
 {read_poll_fd_.fd = -1; read_poll_fd_.events = 0; read_poll_fd_.revents = 0;}
 
 CGIEvent::CGIEvent(const CGIEvent& other) : 
@@ -33,7 +35,9 @@ CGIEvent::CGIEvent(const CGIEvent& other) :
 	pid_(other.getPid()),
 	read_poll_fd_(other.getReadPollFd()),
 	cgi_output_(other.getCgiOutput()),
-	client_address_(other.getClientAddress())
+	client_address_(other.getClientAddress()),
+	cgi_status(other.cgi_status),
+	reap_status(other.reap_status)
 {}
 
 CGIEvent::~CGIEvent() {}
@@ -49,6 +53,8 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 		read_poll_fd_ = other.getReadPollFd();
 		cgi_output_ = other.getCgiOutput();
 		client_address_ = other.getClientAddress();
+		cgi_status = other.cgi_status;
+		reap_status = other.reap_status;
 	}
 	return *this;
 }
@@ -172,7 +178,6 @@ void	CGIEvent::provideBodyToScript() {
 	u_long		content_len;
 
 	std::string len_str = req_.getHeader("content-length");
-	LOG(len_str);
 	if (!len_str.empty()) {
 		content_len = std::atol(len_str.c_str());
 		std::size_t bytes = write(p2c_pipe_[OUT_FILENO], req_.getBody().c_str(), content_len);
@@ -308,12 +313,12 @@ int	CGIEvent::waitSubProcessNH() {
 
 
 //get RESPONSE STATUS FROM CGI OUTPUT-------------------------
-int	CGIEvent::getCGIResponse() {
+int	CGIEvent::getCGIResponse(pollfd pfd) {
 	ssize_t 		bytes_read{};
 	char			buffer[1028] = {0};
 
 	//read from pipe if there is data.
-	if (read_poll_fd_.revents & POLLIN) {
+	if (pfd.revents & POLLIN) {
 		while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
 			cgi_output_ += std::string(buffer);
 		}
@@ -321,7 +326,7 @@ int	CGIEvent::getCGIResponse() {
 			return cgi_status = INTERNAL_SERVER_ERROR;
 	}
 	//child is done. read until EOF if there's data and call it complete.
-	if (read_poll_fd_.revents & POLLHUP) {
+	if (pfd.revents & POLLHUP) {
 		while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
 			cgi_output_ += std::string(buffer);
 		}
@@ -331,14 +336,11 @@ int	CGIEvent::getCGIResponse() {
 		return cgi_status = COMPLETE;
 	}
 	//poll error
-	if (read_poll_fd_.revents & POLLERR) {
+	if (pfd.revents & POLLERR) {
 		return cgi_status = INTERNAL_SERVER_ERROR;
 	}
 	//child didn't hang up yet... keep waiting for more.
 	return cgi_status = INCOMPLETE;
-
-	// poll error
-	return cgi_status = INTERNAL_SERVER_ERROR;
 }
 
 //construct response object
