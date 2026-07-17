@@ -2,6 +2,7 @@
 #include "ConfigParser.hpp"
 #include "ServerConfig.hpp"
 #include "CGIEvent.hpp"
+#include "Pipe.hpp"
 #include "main.hpp"
 #include <map>
 #include "Request.hpp"

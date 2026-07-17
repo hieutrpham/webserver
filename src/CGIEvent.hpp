@@ -1,20 +1,14 @@
-
-
 #pragma once
 
 #include "Request.hpp"
 #include "ConfigParser.hpp"
 #include "ServerConfig.hpp"
 #include "Response.hpp"
-// #include "Server.hpp"
-#include <poll.h>
+#include "Pipe.hpp"
 
 #define CGI_VERSION 	"CGI/1.1"
 #define CGI_EXT			".py"
 
-#define PIPE_ERRFDN 		"CGI Pipe: Maximum number of open FDs reached: Dropping CGI execution"
-#define PIPE_ERRGEN 		"CGI Pipe: Syscall failure: Dropping CGI Execution"
-#define PIPE_IDX			"Pipe operator[]: index access beyond memory"
 #define NO_CGI 				"No CGI set up in configuration file!"
 #define SYS_FORK			"CGI fork: Fork() Syscall failure: Dropping CGI execution"
 #define SYS_DUP2			"CGI dup2: Dup2() Syscall failure: Dropping CGI execution"
@@ -63,34 +57,6 @@ enum e_param_keys {
 	SERVER_PROTOCOL,
 	REMOTE_ADDR,
 	KEY_COUNT
-};
-
-//RAII wrapper for pipes
-class Pipe {
-	private:
-		int		fds_[2];
-		bool	is_valid_[2]{true, true};
-	public:
-		Pipe();
-		Pipe(const Pipe& other);
-		// ~Pipe();
-		Pipe&	operator=(const Pipe& other);
-		int		operator[](int i);
-
-		void	invalidate();
-		void	closeRead();
-		void	closeWrite();
-		int		getIn() const;
-		int		getOut() const;
-		bool	getIsInValid() const;
-		bool	getIsOutValid() const;
-
-		class PipeException : public std::exception {
-				std::string		msg_;
-			public:
-				PipeException(const std::string& msg);
-				const char* what() const noexcept override;
-		};
 };
 
 using OptCgi = std::optional<CGIData>;

@@ -97,6 +97,7 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd pfd)
 	//provide body to script via pipe A
 	if (pfd.revents & POLLOUT && cgi_process.cgi_status == UNPROVIDED) {
 		cgi_process.provideBodyToScript();
+		cgi_process.getP2CPipe().closeWrite();
 		eraseCGIPipePollfd(poll_fds, pfd.fd);
 		m_cgi_per_client.erase(pfd.fd);
 		LOG("Request body written to CGI subprocess pipe A");

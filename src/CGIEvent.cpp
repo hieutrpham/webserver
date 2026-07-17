@@ -1,16 +1,14 @@
-
 #include "CGIEvent.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
-#include "ResponseBuilder.hpp"
 #include "FileOperation.hpp"
 #include "ServerConfig.hpp"
+#include "Server.hpp"
+#include "Pipe.hpp"
 #include <string>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <exception>
-#include <string>
-#include <fcntl.h>
 
 CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) : 
 	config_(config),
@@ -19,6 +17,7 @@ CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) 
 	p2c_pipe_(),
 	c2p_pipe_(),
 	pid_(-1),
+	write_poll_fd_(),
 	read_poll_fd_(),
 	cgi_output_(""),
 	client_address_(client.remoteAddr),
@@ -186,7 +185,7 @@ void	CGIEvent::provideBodyToScript() {
 	if (!len_str.empty()) {
 		content_len = std::atol(len_str.c_str());
 		std::size_t bytes = write(p2c_pipe_[OUT_FILENO], req_.getBody().c_str(), content_len);
-		p2c_pipe_.closeWrite();
+		
 		if (bytes != content_len)
 			throw CGIExecException(SYS_WRITE);
 	}
@@ -459,86 +458,3 @@ const char* CGIEvent::CGINotFound::what() const noexcept {
 	return this->msg_.c_str();
 }
 //------------------------------------------------------------------------------
-
-
-//RAII WRAPPER FOR PIPE----------------------------------------------------	
-Pipe::Pipe() {
-	if (pipe(fds_) == FAIL) {
-		if (errno == EMFILE) {
-			throw PipeException(PIPE_ERRFDN);
-		}
-		throw PipeException(PIPE_ERRGEN);
-	}
-}
-
-Pipe::Pipe(const Pipe& other) {
-	this->fds_[IN_FILENO] = other.getIn();
-	this->fds_[OUT_FILENO] = other.getOut();
-	this->is_valid_[IN_FILENO] = other.getIsInValid();
-	this->is_valid_[OUT_FILENO] = other.getIsOutValid();
-}
-
-// Pipe::~Pipe() {
-// 	//LOG("Pipe destructor runs");
-// 	closeRead();
-// 	closeWrite();
-// }
-
-Pipe&	Pipe::operator=(const Pipe& other) {
-	if (this != &other) {
-		this->fds_[IN_FILENO] = other.getIn();
-		this->fds_[OUT_FILENO] = other.getOut();
-		this->is_valid_[IN_FILENO] = other.getIsInValid();
-		this->is_valid_[OUT_FILENO] = other.getIsOutValid();
-	}
-	return *this;
-}
-
-int		Pipe::operator[](int i) {
-	if (i < 0 || i > 1)
-		throw PipeException(PIPE_IDX);
-	return fds_[i];
-}
-
-void	Pipe::invalidate() {
-	is_valid_[IN_FILENO] = false;
-	is_valid_[OUT_FILENO] = false;
-}
-
-void	Pipe::closeRead() {
-	if (is_valid_[IN_FILENO] == true) {
-		close(fds_[IN_FILENO]);
-		is_valid_[IN_FILENO] = false;
-	}
-}
-
-void	Pipe::closeWrite() {
-	if (is_valid_[OUT_FILENO] == true) {
-		close(fds_[OUT_FILENO]);
-		is_valid_[OUT_FILENO] = false;
-	}
-}
-
-int		Pipe::getIn() const {
-	return fds_[IN_FILENO];
-};
-
-int		Pipe::getOut() const {
-	return fds_[OUT_FILENO];
-};
-
-bool	Pipe::getIsInValid() const {
-	return is_valid_[IN_FILENO];
-}
-
-bool	Pipe::getIsOutValid() const {
-	return is_valid_[OUT_FILENO];
-}
-
-//CUSTOM EXCEPTION
-Pipe::PipeException::PipeException(const std::string& msg) : msg_(msg) {}
-
-const char* Pipe::PipeException::what() const noexcept {
-	return this->msg_.c_str();
-}
-//------------------------------------------------------------------------

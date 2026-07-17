@@ -62,6 +62,7 @@ int main(int ac, char **av) {
 
 			// Client disconnected / error.
 			if (pfd.revents & (POLLHUP | POLLERR | POLLNVAL)) {
+				LOG("Client disconnected / error");
 				if (!s->is_server(pfd.fd))
 					s->close_client(poll_fds, pfd.fd);
 				continue ;
