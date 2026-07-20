@@ -130,7 +130,7 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd pfd)
 	//If complete, close pipe and erase active CGI from server object and the client from pollfd table
 	if (cgi_process.reap_status == REAPED) {
 		ClientState& client = m_clients[CGIEventClientObj.socket_fd];
-		m_active_cgis[client.socket_fd];
+		m_active_cgis.erase(client.socket_fd);
 		m_cgi_per_client.erase(pfd.fd);
 		LOG("CGI subprocess reaped and event cleared from active table");
 	}
