@@ -19,8 +19,10 @@ typedef enum e_allowed {
 
 struct CGIData {
 	std::string		directory;
+	std::string		route;
 	std::string		extension = CGI_EXT;
 	std::string		binary;
+	std::string		full_path;
 };
 
 struct Methods {

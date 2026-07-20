@@ -73,7 +73,7 @@ int CGIEvent::initiateCGI() {
 
 	try {
 		checkCGIDir();
-		FileOperation::changeDirRelative(cgi_->directory);
+		FileOperation::changeDirRelative(cgi_->full_path);
 		initCGIProcess(); //forks and execs the CGI script, sets up a pipe
 		FileOperation::changeDirAbsolute(prior_cwd);
 	} catch (CGIEvent::CGIInvalidDirectory &e) {
@@ -122,7 +122,7 @@ void	CGIEvent::checkCGIDir() {
 	if (!cgi_.has_value())
 		throw CGIInvalidDirectory(NO_CGI);
 
-	if (!FileOperation::isValidDir(cgi_->directory))
+	if (!FileOperation::isValidDir(cgi_->full_path))
 		throw CGIInvalidDirectory(INVALID_CGI_DIR);
 }
 
@@ -148,7 +148,7 @@ std::string	CGIEvent::matchCGIRequest() {
 	else
 		throw CGINotFound(INVALID_BIN_REQ);
 
-	return bin_path; 
+	return bin_path;
 }
 
 
