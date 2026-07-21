@@ -194,7 +194,12 @@ pollfds:  fd A  &  fd B
 
 void	Server::spawnCGIEvent(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd) {
 	//construct one shared cgi object per event
-	m_active_cgis.emplace(fd, std::make_shared<CGIEvent>(server_config, request, client));
+	try {
+		m_active_cgis.emplace(fd, std::make_shared<CGIEvent>(server_config, request, client));
+	} catch (std::exception& e) {
+		return setClientErrorState(INTERNAL_SERVER_ERROR, "Internal Server Error", poll_fds, fd);
+	}
+	
 	//client object has a pointer to it (client object is later copied to two places because of TWO pipes per event => two pollfds)
 	client.active_cgi_ptr = m_active_cgis[fd];
 	//destroy shared cgi in server obj after event is done!!

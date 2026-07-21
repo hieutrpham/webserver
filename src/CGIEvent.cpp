@@ -383,23 +383,24 @@ Response	CGIEvent::respond() {
 
 	//set headers
 	while (std::getline(ss, line) && !line.empty()) {
-		std::string key = line.substr(0, line.find(":"));
+		std::size_t pos = line.find(":");
+		if (pos == std::string::npos)
+			continue ;
+		std::string key = line.substr(0, pos);
 		if (key == "Status") {
 			std::string status_code = line.substr(line.find(" ") + 1, 3);
 			std::string reason = line.substr(line.find(" ") + 5);
 			res.setStatus(std::stoi(status_code), reason);
 		}
 		else
-		res.setHeader(key, line.substr(line.find(":") + 2));
+			res.setHeader(key, line.substr(line.find(":") + 2));
 	}
 
 	//set body
 	std::string body{};
-	std::size_t body_pos = cgi_output_.find("<html>");
-	if (body_pos != std::string::npos)
-		body = cgi_output_.substr(body_pos);
-	if (body.empty())
-		body = "";
+	while (std::getline(ss, line)) {
+		body += line + '\n';
+	}
 	res.setBody(body);
 
 	return res;
