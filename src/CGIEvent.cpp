@@ -285,8 +285,10 @@ std::string	CGIEvent::getRemoteAddr() {
 int	CGIEvent::waitSubProcessNH() {
 	int		status{};
 
-	if (pid_ == -1)
-		throw CGIExecException(NO_CGI);
+	if (pid_ == -1) {
+		ERR(NO_CGI);
+		return reap_status = -1;
+	}
 
 	//try to reap once: WNOHANG doesn't block
 	pid_t result = waitpid(pid_, &status, WNOHANG);
@@ -296,23 +298,30 @@ int	CGIEvent::waitSubProcessNH() {
 		return reap_status = STILL_RUNNING;
 
 	//system call failure
-	else if (result == -1)
-		throw CGIExecException(SYS_WAITPID);
+	else if (result == -1) {
+		ERR(SYS_WAITPID);
+		return reap_status = -1;
+	}
 
 	//sub process exited: process reaped.
 	if (WIFEXITED(status)) {
 		int exit_status = WEXITSTATUS(status);
-		if (exit_status != SUCCESS)
-			throw CGIExecException(SYS_SUBEXIT);
+		if (exit_status != SUCCESS) {
+			ERR(SYS_SUBEXIT);
+			return -1;
+		}
+		LOG("Script exited successfully");
 		return reap_status = REAPED;
 	}
 
 	//signal terminated sub process
 	else if (WIFSIGNALED(status)) {
-		throw CGIExecException(SYS_SIGTERM);
+		ERR(SYS_SIGTERM);
+		return reap_status = -1;
 	}
 	//shouldn't get here
-	throw CGIExecException(SYS_WUNKNOWN);
+	ERR(SYS_WUNKNOWN);
+	return reap_status = -1;
 }
 
 

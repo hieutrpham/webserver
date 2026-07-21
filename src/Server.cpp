@@ -118,7 +118,10 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd pfd)
 
 		//Get the actual client object and set it up for writing back a response
 		ClientState& client = m_clients[CGIEventClientObj.socket_fd];
-		client.writeBuffer += cgi_process.respond().serialize();
+		if (cgi_process.reap_status == -1)
+			client.writeBuffer += ResponseBuilder::buildErrorResponse(500, "Internal Server Error").serialize();
+		else
+			client.writeBuffer += cgi_process.respond().serialize();
 		setPollEvents(poll_fds, client.socket_fd, POLLOUT);
 		LOG("CGI event finished");
 	}
@@ -128,7 +131,7 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd pfd)
 		setClientErrorState(INTERNAL_SERVER_ERROR, "Internal Server Error", poll_fds, pfd.fd);
 
 	//If complete, close pipe and erase active CGI from server object and the client from pollfd table
-	if (cgi_process.reap_status == REAPED) {
+	if (cgi_process.reap_status == REAPED || cgi_process.reap_status == SUPROCESS_ERR) {
 		ClientState& client = m_clients[CGIEventClientObj.socket_fd];
 		m_active_cgis.erase(client.socket_fd);
 		m_cgi_per_client.erase(pfd.fd);

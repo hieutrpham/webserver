@@ -37,8 +37,10 @@
 #define UNPROVIDED	-1
 #define INCOMPLETE	1
 #define COMPLETE	2
-#define REAPED		3
-#define PROC_UNINIT	4
+
+#define SUPROCESS_ERR	-1
+#define REAPED			3
+#define PROC_UNINIT		4
 
 #define NOT_FOUND				404
 #define INTERNAL_SERVER_ERROR	500
