@@ -214,14 +214,15 @@ void	Server::spawnCGIEvent(ServerConfig& server_config, ClientState& client, Req
 	client.socket_fd = fd;
 
 	pollfd cgi_writepipe_pfd = client.active_cgi_ptr->getWritePollFd();
+	cgi_writepipe_pfd.revents = 0;
 	poll_fds.emplace_back(cgi_writepipe_pfd);
 	m_cgi_per_client[cgi_writepipe_pfd.fd] = client; //COPY 1
 
 	pollfd cgi_readpipe_pfd = client.active_cgi_ptr->getReadPollFd();
+	cgi_readpipe_pfd.revents = 0;
 	poll_fds.emplace_back(cgi_readpipe_pfd);
 	m_cgi_per_client[cgi_readpipe_pfd.fd] = client; //COPY 2
 
-	poll_fds[fd].revents = 0;
 	m_clients[fd].writeBuffer.clear();
 	m_clients[fd].readBuffer.clear();
 	m_clients[fd].closeAfterWrite = true;
@@ -419,19 +420,19 @@ bool Server::isOngoingCGI(int fd)
 	return false;
 }
 
-void Server::reapZombieCGIProcs()
-{
-	for (auto cgi_ite : m_cgi_per_client) {
-		CGIEvent& cgi_process = *cgi_ite.second.active_cgi_ptr;
-		if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR || (cgi_process.cgi_status == COMPLETE && cgi_process.reap_status == STILL_RUNNING)) {
-			cgi_process.reap_status = cgi_process.waitSubProcessNH();
-			if (cgi_process.reap_status == REAPED) {
-				m_cgi_per_client.erase(cgi_ite.first);
-			}
-		}
-	}
-	return ;
-}
+// void Server::reapZombieCGIProcs()
+// {
+// 	for (auto cgi_ite : m_cgi_per_client) {
+// 		CGIEvent& cgi_process = *cgi_ite.second.active_cgi_ptr;
+// 		if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR || (cgi_process.cgi_status == COMPLETE && cgi_process.reap_status == STILL_RUNNING)) {
+// 			cgi_process.reap_status = cgi_process.waitSubProcessNH();
+// 			if (cgi_process.reap_status == REAPED) {
+// 				m_cgi_per_client.erase(cgi_ite.first);
+// 			}
+// 		}
+// 	}
+// 	return ;
+// }
 
 void Server::print_endpoints()
 {

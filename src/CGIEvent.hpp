@@ -106,9 +106,9 @@ class CGIEvent {
 	public:
 		CGIEvent() = delete;
 		CGIEvent(ServerConfig& config, Request& request, ClientState& client);
-		CGIEvent(const CGIEvent& other);
+		CGIEvent(CGIEvent& other);
 		~CGIEvent();
-		CGIEvent&	operator=(const CGIEvent& other);
+		CGIEvent&	operator=(CGIEvent& other);
 
 		//EXTERNAL STATE-------------------------
 		int	cgi_status;
@@ -127,8 +127,8 @@ class CGIEvent {
 		Request			getRequest() const;
 		OptCgi			getCGIData() const;
 		pid_t			getPid() const;
-		Pipe			getP2CPipe() const;
-		Pipe			getC2PPipe() const;
+		Pipe&			getP2CPipe();
+		Pipe&			getC2PPipe();
 		pollfd			getWritePollFd() const;
 		pollfd			getReadPollFd() const;
 		std::string		getCgiOutput() const;
