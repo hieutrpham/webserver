@@ -420,19 +420,19 @@ bool Server::isOngoingCGI(int fd)
 	return false;
 }
 
-// void Server::reapZombieCGIProcs()
-// {
-// 	for (auto cgi_ite : m_cgi_per_client) {
-// 		CGIEvent& cgi_process = *cgi_ite.second.active_cgi_ptr;
-// 		if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR || (cgi_process.cgi_status == COMPLETE && cgi_process.reap_status == STILL_RUNNING)) {
-// 			cgi_process.reap_status = cgi_process.waitSubProcessNH();
-// 			if (cgi_process.reap_status == REAPED) {
-// 				m_cgi_per_client.erase(cgi_ite.first);
-// 			}
-// 		}
-// 	}
-// 	return ;
-// }
+void Server::reapZombieCGIProcs()
+{
+	for (auto cgi_ite : m_cgi_per_client) {
+		CGIEvent& cgi_process = *cgi_ite.second.active_cgi_ptr;
+		if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR || (cgi_process.cgi_status == COMPLETE && cgi_process.reap_status == STILL_RUNNING)) {
+			cgi_process.reap_status = cgi_process.waitSubProcessNH();
+			if (cgi_process.reap_status == REAPED) {
+				m_cgi_per_client.erase(cgi_ite.first);
+			}
+		}
+	}
+	return ;
+}
 
 void Server::print_endpoints()
 {

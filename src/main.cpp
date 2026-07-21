@@ -36,7 +36,7 @@ int main(int ac, char **av) {
 		if (sa.sa_flags == SIGINT)
 			break;
 		//try reap if there's hanging zombie CGI that has reap_status==still_running and cgi_status==complete
-		// s->reapZombieCGIProcs();
+		s->reapZombieCGIProcs();
 
 		LOG("Waiting for socket events...");
 		ready = poll(poll_fds.data(), poll_fds.size(), -1);
