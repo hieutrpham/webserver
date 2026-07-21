@@ -178,7 +178,7 @@ void	CGIEvent::execChildProcess() {
 	_exit(1);
 }
 
-void	CGIEvent::provideBodyToScript() {
+int	CGIEvent::provideBodyToScript() {
 	u_long		content_len;
 
 	std::string len_str = req_.getHeader("content-length");
@@ -187,9 +187,9 @@ void	CGIEvent::provideBodyToScript() {
 		std::size_t bytes = write(p2c_pipe_[OUT_FILENO], req_.getBody().c_str(), content_len);
 		
 		if (bytes != content_len)
-			throw CGIExecException(SYS_WRITE);
+			return cgi_status = INTERNAL_SERVER_ERROR;
 	}
-	cgi_status = INCOMPLETE;
+	return cgi_status = INCOMPLETE;
 }
 
 //ENV BUILDER------------------------------------------------------

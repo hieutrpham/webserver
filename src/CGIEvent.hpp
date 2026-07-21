@@ -84,7 +84,6 @@ class CGIEvent {
 		void			execChildProcess();
 		void			checkCGIDir();
 		std::string		matchCGIRequest();
-		void			provideBody();
 
 		//ENVIRONMENT BUILDER-----------------------------------------------
 		char**			loadEnvp(StringVec& env_vec, CStringVec& c_env_vec);
@@ -115,7 +114,7 @@ class CGIEvent {
 
 		//INTERFACE-----------------------------//
 		int			initiateCGI();				//
-		void		provideBodyToScript();		//
+		int			provideBodyToScript();		//
 		int			getCGIResponse(pollfd pfd); //
 		Response	respond();					//
 		int			waitSubProcessNH();			//
