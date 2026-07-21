@@ -186,6 +186,12 @@ static std::string getReasonPhrase(int status)
 	}
 }
 
+/*
+active_cgis: cgiobj
+pollfds:  fd A  &  fd B
+
+*/
+
 void	Server::spawnCGIEvent(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd) {
 	//construct one shared cgi object per event
 	m_active_cgis.emplace(fd, std::make_shared<CGIEvent>(server_config, request, client));

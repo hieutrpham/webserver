@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <exception>
+#include <fcntl.h>
 
 CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) : 
 	config_(config),
@@ -91,6 +92,17 @@ int CGIEvent::initiateCGI() {
 	return 0;
 }
 
+void setNonBlockFlags2(int fd) {
+	// Save current flags
+	int flags = fcntl(fd, F_GETFL, 0);
+	if (flags == -1)
+		throw std::runtime_error("fcntl F_GETFL failed");
+	
+	// Set nonblocking flag
+	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+		throw std::runtime_error("fcnt F_SETFL failed");
+}
+
 void	CGIEvent::initCGIProcess() {
 	pid_t			pid;
 
@@ -105,6 +117,9 @@ void	CGIEvent::initCGIProcess() {
 	pid_ = pid;
 	p2c_pipe_.closeRead();
 	c2p_pipe_.closeWrite();
+
+	setNonBlockFlags2(p2c_pipe_[OUT_FILENO]);
+	setNonBlockFlags2(c2p_pipe_[IN_FILENO]);
 	
 	write_poll_fd_.fd = p2c_pipe_[OUT_FILENO];
 	write_poll_fd_.events = POLLOUT;
@@ -332,17 +347,18 @@ int	CGIEvent::getCGIResponse(pollfd pfd) {
 
 	//read from pipe if there is data.
 	if (pfd.revents & POLLIN) {
-		while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
+		bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1);
+		if (bytes_read > 0)
 			cgi_output_ += std::string(buffer);
-		}
 		if (bytes_read == -1)
 			return cgi_status = INTERNAL_SERVER_ERROR;
 	}
 	//child is done. read until EOF if there's data and call it complete.
 	if (pfd.revents & POLLHUP) {
-		while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
+		char buffer[1028] = {0};
+		read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1);
+		if (bytes_read > 0)
 			cgi_output_ += std::string(buffer);
-		}
 		if (bytes_read == -1)
 			return cgi_status = INTERNAL_SERVER_ERROR;
 		c2p_pipe_.closeRead();
@@ -383,7 +399,7 @@ Response	CGIEvent::respond() {
 	if (body_pos != std::string::npos)
 		body = cgi_output_.substr(body_pos);
 	if (body.empty())
-		body = "<html><body><h1>CGI script did not return a valid HTML response</h1></body></html>";
+		body = "";
 	res.setBody(body);
 
 	return res;

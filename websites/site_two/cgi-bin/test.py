@@ -3,16 +3,17 @@
 
 import cgi
 import sys
+import time
 
 def main():
-    """Main CGI handler."""
+	"""Main CGI handler."""
 
     # Parse form data
 	form = cgi.FieldStorage()
-	sleep(30)
+	
 	# Print HTTP headers
 	print("Content-Type: text/html; charset=utf-8")
-	pint()
+	print()
 	
 	# Print HTML response
 	print("<html>")
