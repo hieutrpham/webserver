@@ -89,7 +89,7 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
 }
 
-void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd pfd)
+void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd& pfd)
 {
 	ClientState& CGIEventClientObj = m_cgi_per_client[pfd.fd];
 	CGIEvent& cgi_process = *CGIEventClientObj.active_cgi_ptr;
@@ -137,6 +137,7 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd pfd)
 		m_cgi_per_client.erase(pfd.fd);
 		LOG("CGI subprocess reaped and event cleared from active table");
 	}
+	pfd.revents = 0;
 }
 
 void	Server::eraseCGIPipePollfd(std::vector<struct pollfd>& poll_fds, int fd) {
