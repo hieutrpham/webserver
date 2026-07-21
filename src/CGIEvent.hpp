@@ -1,19 +1,14 @@
-
-
 #pragma once
 
 #include "Request.hpp"
 #include "ConfigParser.hpp"
 #include "ServerConfig.hpp"
 #include "Response.hpp"
-#include "Server.hpp"
+#include "Pipe.hpp"
 
 #define CGI_VERSION 	"CGI/1.1"
 #define CGI_EXT			".py"
 
-#define PIPE_ERRFDN 		"CGI Pipe: Maximum number of open FDs reached: Dropping CGI execution"
-#define PIPE_ERRGEN 		"CGI Pipe: Syscall failure: Dropping CGI Execution"
-#define PIPE_IDX			"Pipe operator[]: index access beyond memory"
 #define NO_CGI 				"No CGI set up in configuration file!"
 #define SYS_FORK			"CGI fork: Fork() Syscall failure: Dropping CGI execution"
 #define SYS_DUP2			"CGI dup2: Dup2() Syscall failure: Dropping CGI execution"
@@ -38,6 +33,20 @@
 #define CHILD_SELF_ID	0
 #define NULL_OPTION		0
 
+//for non-blocking output poller/constructor
+#define UNPROVIDED	-1
+#define INCOMPLETE	1
+#define COMPLETE	2
+
+#define SUPROCESS_ERR	-1
+#define REAPED			3
+#define PROC_UNINIT		4
+
+#define NOT_FOUND				404
+#define INTERNAL_SERVER_ERROR	500
+
+struct ClientState;
+
 enum e_param_keys {
 	SCRIPT_FILENAME,
 	QUERY_STRING,
@@ -52,33 +61,6 @@ enum e_param_keys {
 	KEY_COUNT
 };
 
-//RAII wrapper for pipes
-class Pipe {
-	private:
-		int		fds_[2];
-		bool	is_valid_[2]{true, true};
-	public:
-		Pipe();
-		Pipe(const Pipe& other);
-		~Pipe();
-		Pipe&	operator=(const Pipe& other);
-		int		operator[](int i);
-
-		void	closeRead();
-		void	closeWrite();
-		int		getIn() const;
-		int		getOut() const;
-		bool	getIsInValid() const;
-		bool	getIsOutValid() const;
-
-		class PipeException : public std::exception {
-				std::string		msg_;
-			public:
-				PipeException(const std::string& msg);
-				const char* what() const noexcept override;
-		};
-};
-
 using OptCgi = std::optional<CGIData>;
 
 class CGIEvent {
@@ -87,23 +69,29 @@ class CGIEvent {
 		using CStringVec = std::vector<char*>;
 		typedef std::string (CGIEvent::*FunPtr)(void);
 
+		//INTERNAL STATE---------------------------------------------------
 		ServerConfig	config_;
 		Request			req_;
 		OptCgi			cgi_;
 		Pipe			p2c_pipe_;
 		Pipe			c2p_pipe_;
 		pid_t			pid_;
+		pollfd			write_poll_fd_;
+		pollfd			read_poll_fd_;
+		std::string		cgi_output_;
 		std::string		client_address_;
 		
+		//CGI SCRIPT PROCESS LAUNCHER--------------------------------------
+		void			initCGIProcess();
 		void			execChildProcess();
 		void			checkCGIDir();
 		std::string		matchCGIRequest();
-		void			provideBody();
-		Response		respond(std::string cgi_output);
 
+		//ENVIRONMENT BUILDER-----------------------------------------------
 		char**			loadEnvp(StringVec& env_vec, CStringVec& c_env_vec);
 		void			buildEnvVariables(StringVec& env_vec);
 
+		//GETTERS-----------------------------------------------------------
 		std::string		getScriptName();
 		std::string		getQueryString();
 		std::string		getRequestMethod();
@@ -122,22 +110,28 @@ class CGIEvent {
 		~CGIEvent();
 		CGIEvent&	operator=(const CGIEvent& other);
 
+		//EXTERNAL STATE-------------------------
+		int	cgi_status;
+		int	reap_status;
+
 		//INTERFACE-----------------------------//
-		Response	handleCGI();				//
-		//QUEUE IMPLEMENTATION INTERFACE--------//
-		void		executeCGI(std::string prior_cwd);			//
+		int			initiateCGI();				//
+		int			provideBodyToScript();		//
+		int			getCGIResponse(pollfd pfd); //
+		Response	respond();					//
 		int			waitSubProcessNH();			//
-		int			waitSubProcess();			//
-		Response	getCGIResponse();			//
 		//--------------------------------------//
 
-		//GETTERS
+		//GETTERS---------------------------------
 		ServerConfig	getConfig() const;
 		Request			getRequest() const;
 		OptCgi			getCGIData() const;
 		pid_t			getPid() const;
 		Pipe			getP2CPipe() const;
 		Pipe			getC2PPipe() const;
+		pollfd			getWritePollFd() const;
+		pollfd			getReadPollFd() const;
+		std::string		getCgiOutput() const;
 		std::string		getClientAddress() const;
 
 		//EXCEPTION SUB CLASSES

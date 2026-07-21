@@ -42,15 +42,17 @@ std::string		ServerConfig::getErrPagePath(unsigned int code) const {
 std::optional<CGIData>	ServerConfig::getCGI() const {
 	for (const auto& [uri, location_obj] : locations) {
 		if (location_obj.cgi) {
-			std::string dir{};
-			std::string bin{};
-			if (location_obj.root.size())
-				dir = location_obj.root;
+			CGIData	cgi;
+			cgi.directory = uri;
+			if (location_obj.root.size()) {
+				cgi.route = location_obj.root;
+				cgi.full_path = cgi.route + cgi.directory;
+			}
 			else
-				dir = uri;
+				cgi.full_path = cgi.directory;
 			if (location_obj.index.size())
-				bin = location_obj.index;
-			return CGIData{ .directory = dir, .binary = bin };
+				cgi.binary = location_obj.index;
+			return cgi;
 		}
 	}
 	return std::nullopt;

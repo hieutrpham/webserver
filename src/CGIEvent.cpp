@@ -1,13 +1,15 @@
-
 #include "CGIEvent.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
-#include "ResponseBuilder.hpp"
 #include "FileOperation.hpp"
 #include "ServerConfig.hpp"
+#include "Server.hpp"
+#include "Pipe.hpp"
 #include <string>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <exception>
+#include <fcntl.h>
 
 CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) : 
 	config_(config),
@@ -16,8 +18,14 @@ CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) 
 	p2c_pipe_(),
 	c2p_pipe_(),
 	pid_(-1),
-	client_address_(client.remoteAddr)
-{}
+	write_poll_fd_(),
+	read_poll_fd_(),
+	cgi_output_(""),
+	client_address_(client.remoteAddr),
+	cgi_status(UNPROVIDED),
+	reap_status(PROC_UNINIT)
+{read_poll_fd_.fd = -1; read_poll_fd_.events = 0; read_poll_fd_.revents = 0;
+write_poll_fd_.fd = -1; write_poll_fd_.events = 0; write_poll_fd_.revents = 0;}
 
 CGIEvent::CGIEvent(const CGIEvent& other) : 
 	config_(other.getConfig()),
@@ -26,7 +34,12 @@ CGIEvent::CGIEvent(const CGIEvent& other) :
 	p2c_pipe_(other.getP2CPipe()),
 	c2p_pipe_(other.getC2PPipe()),
 	pid_(other.getPid()),
-	client_address_(other.getClientAddress())
+	write_poll_fd_(other.getReadPollFd()),
+	read_poll_fd_(other.getReadPollFd()),
+	cgi_output_(other.getCgiOutput()),
+	client_address_(other.getClientAddress()),
+	cgi_status(other.cgi_status),
+	reap_status(other.reap_status)
 {}
 
 CGIEvent::~CGIEvent() {}
@@ -39,54 +52,82 @@ CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
 		p2c_pipe_ = other.getP2CPipe();
 		c2p_pipe_ = other.getC2PPipe();
 		pid_ = other.getPid();
+		write_poll_fd_ = other.getReadPollFd();
+		read_poll_fd_ = other.getReadPollFd();
+		cgi_output_ = other.getCgiOutput();
 		client_address_ = other.getClientAddress();
+		cgi_status = other.cgi_status;
+		reap_status = other.reap_status;
 	}
 	return *this;
 }
 
-//non-event-queue implementation:
-Response CGIEvent::handleCGI() {
+
+//!!!!!!!!!!!!!!!!!!!!!!!
+//TODO:
+//	implement the correct website/route 'root' for cgi-bin directory (not project root)
+
+
+
+int CGIEvent::initiateCGI() {
 	std::string 	prior_cwd{FileOperation::getCWD()};
-	Response 		response;
 
 	try {
-		executeCGI(prior_cwd); //forks and execs the CGI script, sets up a pipe
-		response = getCGIResponse(); //reads the CGI output from a pipe during child processing, but leaves it unreaped
-		waitSubProcess(); //waits for the child process to exit, then reaps it
-		return response;
+		checkCGIDir();
+		FileOperation::changeDirRelative(cgi_->full_path);
+		initCGIProcess(); //forks and execs the CGI script, sets up a pipe
+		FileOperation::changeDirAbsolute(prior_cwd);
 	} catch (CGIEvent::CGIInvalidDirectory &e) {
 		ERR(e.what());
-		return ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
+		return 500;
 	} catch (CGIEvent::CGINotFound &e) {
 		ERR(e.what());
 		FileOperation::changeDirAbsolute(prior_cwd);
-		return ResponseBuilder::buildErrorResponse(404, "Not Found");
+		return 404;
 	} catch (std::exception &e) {
 		ERR(e.what());
 		FileOperation::changeDirAbsolute(prior_cwd);
-		return ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
+		return 500;
 	}
+	return 0;
 }
 
-void	CGIEvent::executeCGI(std::string prior_cwd) {
+void setNonBlockFlags2(int fd) {
+	// Save current flags
+	int flags = fcntl(fd, F_GETFL, 0);
+	if (flags == -1)
+		throw std::runtime_error("fcntl F_GETFL failed");
+	
+	// Set nonblocking flag
+	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+		throw std::runtime_error("fcnt F_SETFL failed");
+}
+
+void	CGIEvent::initCGIProcess() {
 	pid_t			pid;
 
-	checkCGIDir();
-	FileOperation::changeDirRelative(cgi_->directory);
 	cgi_->binary = matchCGIRequest();
-	
+
 	pid = fork();
 	if (pid == FAIL)
 		throw ForkException(SYS_FORK);
+
 	if (pid == CHILD_SELF_ID)
 		execChildProcess();
 	pid_ = pid;
 	p2c_pipe_.closeRead();
 	c2p_pipe_.closeWrite();
-	provideBody();
-	p2c_pipe_.closeWrite();
-	FileOperation::changeDirAbsolute(prior_cwd);
 
+	setNonBlockFlags2(p2c_pipe_[OUT_FILENO]);
+	setNonBlockFlags2(c2p_pipe_[IN_FILENO]);
+	
+	write_poll_fd_.fd = p2c_pipe_[OUT_FILENO];
+	write_poll_fd_.events = POLLOUT;
+
+	read_poll_fd_.fd = c2p_pipe_[IN_FILENO];
+	read_poll_fd_.events = POLLIN;
+
+	reap_status = STILL_RUNNING;
 	return;
 }
 
@@ -96,7 +137,7 @@ void	CGIEvent::checkCGIDir() {
 	if (!cgi_.has_value())
 		throw CGIInvalidDirectory(NO_CGI);
 
-	if (!FileOperation::isValidDir(cgi_->directory))
+	if (!FileOperation::isValidDir(cgi_->full_path))
 		throw CGIInvalidDirectory(INVALID_CGI_DIR);
 }
 
@@ -122,8 +163,9 @@ std::string	CGIEvent::matchCGIRequest() {
 	else
 		throw CGINotFound(INVALID_BIN_REQ);
 
-	return bin_path; 
+	return bin_path;
 }
+
 
 void	CGIEvent::execChildProcess() {
 	StringVec	env_vec{};
@@ -133,29 +175,36 @@ void	CGIEvent::execChildProcess() {
 	char*		argv[2] = {executable, nullptr};
 	
 	p2c_pipe_.closeWrite();
-	if (dup2(p2c_pipe_[IN_FILENO], STDIN_FILENO) == FAIL)
-		throw Dup2Exception(SYS_DUP2);
+	c2p_pipe_.closeRead();
+
+	if (dup2(p2c_pipe_[IN_FILENO], STDIN_FILENO) == FAIL) {
+		perror("dup2");
+		_exit(1);
+	}
 	p2c_pipe_.closeRead();
 
-	c2p_pipe_.closeRead();
-	if (dup2(c2p_pipe_[OUT_FILENO], STDOUT_FILENO) == FAIL)
-		throw Dup2Exception(SYS_DUP2);
+	if (dup2(c2p_pipe_[OUT_FILENO], STDOUT_FILENO) == FAIL) {
+		perror("dup2");
+		_exit(1);
+	}
 	c2p_pipe_.closeWrite();
 
 	execve(executable, argv, envp);
 	_exit(1);
 }
 
-void	CGIEvent::provideBody() {
+int	CGIEvent::provideBodyToScript() {
 	u_long		content_len;
 
 	std::string len_str = req_.getHeader("content-length");
 	if (!len_str.empty()) {
 		content_len = std::atol(len_str.c_str());
 		std::size_t bytes = write(p2c_pipe_[OUT_FILENO], req_.getBody().c_str(), content_len);
+		
 		if (bytes != content_len)
-			throw CGIExecException(SYS_WRITE);
+			return cgi_status = INTERNAL_SERVER_ERROR;
 	}
+	return cgi_status = INCOMPLETE;
 }
 
 //ENV BUILDER------------------------------------------------------
@@ -251,71 +300,82 @@ std::string	CGIEvent::getRemoteAddr() {
 int	CGIEvent::waitSubProcessNH() {
 	int		status{};
 
-	if (pid_ == -1)
-		throw CGIExecException(NO_CGI);
+	if (pid_ == -1) {
+		ERR(NO_CGI);
+		return reap_status = -1;
+	}
+
+	//try to reap once: WNOHANG doesn't block
 	pid_t result = waitpid(pid_, &status, WNOHANG);
+
+	//process hasn't exited
 	if (result == 0)
-		return STILL_RUNNING;
+		return reap_status = STILL_RUNNING;
 
-	else if (result == -1)
-		throw CGIExecException(SYS_WAITPID);
+	//system call failure
+	else if (result == -1) {
+		ERR(SYS_WAITPID);
+		return reap_status = -1;
+	}
 
+	//sub process exited: process reaped.
 	if (WIFEXITED(status)) {
 		int exit_status = WEXITSTATUS(status);
-		if (exit_status != SUCCESS)
-			throw CGIExecException(SYS_SUBEXIT);
-		return SUCCESS;
+		if (exit_status != SUCCESS) {
+			ERR(SYS_SUBEXIT);
+			return -1;
+		}
+		LOG("Script exited successfully");
+		return reap_status = REAPED;
 	}
+
+	//signal terminated sub process
 	else if (WIFSIGNALED(status)) {
-		throw CGIExecException(SYS_SIGTERM);
+		ERR(SYS_SIGTERM);
+		return reap_status = -1;
 	}
-	throw CGIExecException(SYS_WUNKNOWN);
+	//shouldn't get here
+	ERR(SYS_WUNKNOWN);
+	return reap_status = -1;
 }
 
-//blocking version of reaper for non-event-queue implementation.
-int CGIEvent::waitSubProcess() {
-	int		status{};
 
-	if (pid_ == -1)
-		throw CGIExecException(NO_CGI);
-	pid_t result = waitpid(pid_, &status, 0);
-	if (result == -1)
-		throw CGIExecException(SYS_WAITPID);
-
-	if (WIFEXITED(status)) {
-		int exit_status = WEXITSTATUS(status);
-		if (exit_status != SUCCESS)
-			throw CGIExecException(SYS_SUBEXIT);
-		return SUCCESS;
-	}
-	else if (WIFSIGNALED(status)) {
-		throw CGIExecException(SYS_SIGTERM);
-	}
-	throw CGIExecException(SYS_WUNKNOWN);
-}
-//------------------------------------------------------------
-
-
-
-//get RESPONSE FROM CGI OUTPUT--------------------------------
-Response	CGIEvent::getCGIResponse() {
-	std::string 	cgi_output{};
+//get RESPONSE STATUS FROM CGI OUTPUT-------------------------
+int	CGIEvent::getCGIResponse(pollfd pfd) {
 	ssize_t 		bytes_read{};
 	char			buffer[1028] = {0};
 
-	while ((bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1)) > 0) {
-		cgi_output += std::string(buffer);
+	//read from pipe if there is data.
+	if (pfd.revents & POLLIN) {
+		bytes_read = read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1);
+		if (bytes_read > 0)
+			cgi_output_ += std::string(buffer);
+		if (bytes_read == -1)
+			return cgi_status = INTERNAL_SERVER_ERROR;
 	}
-	c2p_pipe_.closeRead();
-	if (bytes_read == -1)
-		return ResponseBuilder::buildErrorResponse(500, "Internal Server Error");
-	
-	return respond(cgi_output);
+	//child is done. read until EOF if there's data and call it complete.
+	if (pfd.revents & POLLHUP) {
+		char buffer[1028] = {0};
+		read(c2p_pipe_[IN_FILENO], buffer, sizeof(buffer) - 1);
+		if (bytes_read > 0)
+			cgi_output_ += std::string(buffer);
+		if (bytes_read == -1)
+			return cgi_status = INTERNAL_SERVER_ERROR;
+		c2p_pipe_.closeRead();
+		return cgi_status = COMPLETE;
+	}
+	//poll error
+	if (pfd.revents & POLLERR) {
+		return cgi_status = INTERNAL_SERVER_ERROR;
+	}
+	//child didn't hang up yet... keep waiting for more.
+	return cgi_status = INCOMPLETE;
 }
 
-Response	CGIEvent::respond(std::string cgi_output) {
+//construct response object
+Response	CGIEvent::respond() {
 	Response			res{};
-	std::stringstream 	ss(cgi_output);
+	std::stringstream 	ss(cgi_output_);
 	std::string 		line;
 
 	res.setVersion(req_.getVersion());
@@ -335,11 +395,11 @@ Response	CGIEvent::respond(std::string cgi_output) {
 
 	//set body
 	std::string body{};
-	std::size_t body_pos = cgi_output.find("<html>");
+	std::size_t body_pos = cgi_output_.find("<html>");
 	if (body_pos != std::string::npos)
-		body = cgi_output.substr(body_pos);
+		body = cgi_output_.substr(body_pos);
 	if (body.empty())
-		body = "<html><body><h1>CGI script did not return a valid HTML response</h1></body></html>";
+		body = "";
 	res.setBody(body);
 
 	return res;
@@ -371,6 +431,18 @@ Pipe		CGIEvent::getP2CPipe() const {
 
 Pipe		CGIEvent::getC2PPipe() const {
 	return c2p_pipe_;
+}
+
+pollfd		CGIEvent::getWritePollFd() const {
+	return write_poll_fd_;
+}
+
+pollfd		CGIEvent::getReadPollFd() const {
+	return read_poll_fd_;
+}
+
+std::string	CGIEvent::getCgiOutput() const {
+	return cgi_output_;
 }
 
 std::string	CGIEvent::getClientAddress() const {
@@ -411,80 +483,3 @@ const char* CGIEvent::CGINotFound::what() const noexcept {
 	return this->msg_.c_str();
 }
 //------------------------------------------------------------------------------
-
-
-//RAII WRAPPER FOR PIPE----------------------------------------------------	
-Pipe::Pipe() {
-	if (pipe(fds_) != SUCCESS){
-		if (errno == EMFILE) {
-			throw PipeException(PIPE_ERRFDN);
-		}
-		throw PipeException(PIPE_ERRGEN);
-	}
-}
-
-Pipe::Pipe(const Pipe& other) {
-	this->fds_[IN_FILENO] = other.getIn();
-	this->fds_[OUT_FILENO] = other.getOut();
-	this->is_valid_[IN_FILENO] = other.getIsInValid();
-	this->is_valid_[OUT_FILENO] = other.getIsOutValid();
-}
-
-Pipe::~Pipe() {
-	closeRead();
-	closeWrite();
-}
-
-Pipe&	Pipe::operator=(const Pipe& other) {
-	if (this != &other) {
-		this->fds_[IN_FILENO] = other.getIn();
-		this->fds_[OUT_FILENO] = other.getOut();
-		this->is_valid_[IN_FILENO] = other.getIsInValid();
-		this->is_valid_[OUT_FILENO] = other.getIsOutValid();
-	}
-	return *this;
-}
-
-int		Pipe::operator[](int i) {
-	if (i < 0 || i > 1)
-		throw PipeException(PIPE_IDX);
-	return fds_[i];
-}
-
-void	Pipe::closeRead() {
-	if (is_valid_[IN_FILENO] == true) {
-		close(fds_[IN_FILENO]);
-		is_valid_[IN_FILENO] = false;
-	}
-}
-
-void	Pipe::closeWrite() {
-	if (is_valid_[OUT_FILENO] == true) {
-		close(fds_[OUT_FILENO]);
-		is_valid_[OUT_FILENO] = false;
-	}
-}
-
-int		Pipe::getIn() const {
-	return fds_[IN_FILENO];
-};
-
-int		Pipe::getOut() const {
-	return fds_[OUT_FILENO];
-};
-
-bool	Pipe::getIsInValid() const {
-	return is_valid_[IN_FILENO];
-}
-
-bool	Pipe::getIsOutValid() const {
-	return is_valid_[OUT_FILENO];
-}
-
-//CUSTOM EXCEPTION
-Pipe::PipeException::PipeException(const std::string& msg) : msg_(msg) {}
-
-const char* Pipe::PipeException::what() const noexcept {
-	return this->msg_.c_str();
-}
-//------------------------------------------------------------------------

@@ -35,6 +35,9 @@ int main(int ac, char **av) {
 	while (true) {
 		if (sa.sa_flags == SIGINT)
 			break;
+		//try reap if there's hanging zombie CGI that has reap_status==still_running and cgi_status==complete
+		s->reapZombieCGIProcs();
+
 		LOG("Waiting for socket events...");
 		ready = poll(poll_fds.data(), poll_fds.size(), -1);
 		if (ready < 0) {
@@ -49,8 +52,17 @@ int main(int ac, char **av) {
 			if (pfd.revents == 0)
 				continue ;
 
+			// Update CGI process.
+			if (s->isOngoingCGI(pfd.fd)) {
+				LOG("CGI event update");
+				if (pfd.revents & (POLLOUT | POLLIN | POLLHUP))
+					s->updateCGIEvent(poll_fds, pfd);
+				continue ;
+			}
+
 			// Client disconnected / error.
 			if (pfd.revents & (POLLHUP | POLLERR | POLLNVAL)) {
+				LOG("Client disconnected / error");
 				if (!s->is_server(pfd.fd))
 					s->close_client(poll_fds, pfd.fd);
 				continue ;
@@ -70,7 +82,7 @@ int main(int ac, char **av) {
 				LOG("Client request ready");
 				s->handle_client_read(poll_fds, pfd.fd, config_vector);
 			}
-
+			
 			// Client socket ready to write.
 			if (pfd.revents & POLLOUT) {
 				LOG("Client socket ready for writing");
