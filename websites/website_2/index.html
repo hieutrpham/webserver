@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Webserv Validation Lab</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="/js/app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">Webserv Validation Lab</a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/about/">About</a>
+      <a href="/gallery/">Gallery</a>
+      <a href="/docs/">Docs</a>
+      <a href="/random/">Autoindex</a>
+      <a href="/upload.html">Uploads</a>
+      <a href="/cgi.html">CGI</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">42 WEBserv integration test site</p>
+        <h1>A normal-looking website built to test your HTTP server.</h1>
+        <p class="lead">Every section exercises a different part of a Webserv implementation: static files, routing, nested paths, directory indexes, autoindex, uploads, deletion, CGI, JavaScript, custom error pages, redirects, MIME types, and request-body limits.</p>
+        <div class="actions">
+          <a class="button primary" href="/checklist.html">Open test checklist</a>
+          <a class="button" href="/cgi-bin/echo.py?name=Hive&project=webserv">Run CGI test</a>
+        </div>
+      </div>
+      <img src="/images/server-room.svg" alt="Illustration of a server room">
+    </section>
+
+    <section class="status-panel" aria-labelledby="browser-test-title">
+      <div>
+        <h2 id="browser-test-title">Browser-side JavaScript test</h2>
+        <p>This card is filled by <code>/js/app.js</code>. If the current time and viewport appear, your server delivered and the browser executed the JavaScript file successfully.</p>
+      </div>
+      <div id="js-status" class="status-box">JavaScript has not run yet.</div>
+    </section>
+
+    <section class="grid cards">
+      <article class="card">
+        <span class="tag">Static GET</span>
+        <h2>Static content</h2>
+        <p>Tests HTML, CSS, JavaScript, SVG, PNG-style image routes, plain text, JSON, and downloadable files with appropriate content types.</p>
+        <a href="/gallery/">View static asset gallery →</a>
+      </article>
+      <article class="card">
+        <span class="tag">Routing</span>
+        <h2>Nested directories</h2>
+        <p>Tests path resolution through several directory levels and verifies that files are resolved relative to the configured root.</p>
+        <a href="/docs/guides/http/request-flow.html">Open deeply nested page →</a>
+      </article>
+      <article class="card">
+        <span class="tag">Directory listing</span>
+        <h2>Autoindex</h2>
+        <p>The <code>/random/</code>, <code>/downloads/</code>, and upload directories intentionally have no index page. Your server should generate a directory listing.</p>
+        <a href="/random/">Open autoindex directory →</a>
+      </article>
+      <article class="card">
+        <span class="tag">POST / DELETE</span>
+        <h2>File uploads</h2>
+        <p>Uses multipart form data to upload files. The uploads directory is also browsable so you can verify stored filenames and test deletion.</p>
+        <a href="/upload.html">Test file upload →</a>
+      </article>
+      <article class="card">
+        <span class="tag">CGI</span>
+        <h2>Python CGI</h2>
+        <p>Tests query strings, POST bodies, environment variables, response headers, status generation, and executable script handling.</p>
+        <a href="/cgi.html">Open CGI laboratory →</a>
+      </article>
+      <article class="card">
+        <span class="tag">Errors</span>
+        <h2>Error handling</h2>
+        <p>Use deliberate bad requests to verify custom 404, 405, 412, and 413 behavior without disrupting the rest of the site.</p>
+        <a href="/this-page-does-not-exist">Trigger 404 →</a>
+      </article>
+    </section>
+
+    <section class="content-section two-column">
+      <div>
+        <p class="eyebrow">What this site verifies</p>
+        <h2>Coverage designed around the Webserv subject</h2>
+        <p>The site does not only show pages. It gives each route a clear purpose so failures can be traced to a specific server feature.</p>
+        <ul class="check-list">
+          <li>Multiple MIME types and static file delivery</li>
+          <li>Index file lookup and trailing-slash redirects</li>
+          <li>Longest matching location selection</li>
+          <li>Allowed and rejected HTTP methods</li>
+          <li>Multipart uploads and upload storage</li>
+          <li>CGI GET and POST execution</li>
+          <li>Generated autoindex pages and nested paths</li>
+          <li>Custom error responses and body-size limits</li>
+        </ul>
+      </div>
+      <aside class="note">
+        <h3>Suggested port</h3>
+        <p>The included configuration serves this site at:</p>
+        <code>http://127.0.0.1:7979</code>
+      </aside>
+    </section>
+  </main>
+
+  <footer>
+    <p>Webserv Validation Lab — static website and test fixtures for the 42 Webserv project.</p>
+  </footer>
+</body>
+</html>
