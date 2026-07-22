@@ -30,13 +30,17 @@ int main(int ac, char **av) {
 	s->add_serverfds(poll_fds);
 
 	struct sigaction sa = signal_handler();
+	signal(SIGPIPE, SIG_IGN);
 
 	int ready;
 	while (true) {
-		if (sa.sa_flags == SIGINT)
-			break;
-		//try reap if there's hanging zombie CGI that has reap_status==still_running and cgi_status==complete
+		//TODO: REAPER STILL LEAVES SOMETHING HANGING. 
+		//I THINK IT FAILS TO CREATE A RESPONSE IF PROCESS IS REAPED BY ZOMBIE-REAPER 
+		//BEFORE SENDING A RESPONSE!!!!!!!!!!!!!!!
 		s->reapZombieCGIProcs();
+
+		if (sa.sa_flags == SIGINT)
+			break;	
 
 		LOG("Waiting for socket events...");
 		ready = poll(poll_fds.data(), poll_fds.size(), -1);
@@ -57,6 +61,7 @@ int main(int ac, char **av) {
 				LOG("CGI event update");
 				if (pfd.revents & (POLLOUT | POLLIN | POLLHUP))
 					s->updateCGIEvent(poll_fds, pfd);
+				//s->reapZombieCGIProcs();
 				continue ;
 			}
 
@@ -88,8 +93,10 @@ int main(int ac, char **av) {
 				LOG("Client socket ready for writing");
 				s->handle_client_write(poll_fds, pfd.fd);
 			}
+			//s->reapZombieCGIProcs();
 		}
 		s->erasePollfds(poll_fds);
+		//s->reapZombieCGIProcs();
 	}
 
 	LOG("Shutting down server");

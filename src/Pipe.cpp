@@ -12,25 +12,29 @@ Pipe::Pipe() {
 	}
 }
 
-Pipe::Pipe(const Pipe& other) {
+Pipe::Pipe(Pipe& other) {
 	this->fds_[IN_FILENO] = other.getIn();
 	this->fds_[OUT_FILENO] = other.getOut();
 	this->is_valid_[IN_FILENO] = other.getIsInValid();
 	this->is_valid_[OUT_FILENO] = other.getIsOutValid();
+	other.invalidate();
 }
 
 Pipe::~Pipe() {
 	LOG("Pipe destructor runs");
-	closeRead();
-	closeWrite();
+	if (is_valid_[IN_FILENO])
+		closeRead();
+	if (is_valid_[OUT_FILENO])
+		closeWrite();
 }
 
-Pipe&	Pipe::operator=(const Pipe& other) {
+Pipe&	Pipe::operator=(Pipe& other) {
 	if (this != &other) {
 		this->fds_[IN_FILENO] = other.getIn();
 		this->fds_[OUT_FILENO] = other.getOut();
 		this->is_valid_[IN_FILENO] = other.getIsInValid();
 		this->is_valid_[OUT_FILENO] = other.getIsOutValid();
+		other.invalidate();
 	}
 	return *this;
 }

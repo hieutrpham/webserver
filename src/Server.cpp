@@ -113,7 +113,7 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd& pfd)
 	if (cgi_process.cgi_status == COMPLETE && cgi_process.reap_status == STILL_RUNNING) {
 		//if reap is unsuccessful, theres an extra reaper function at end of mainloop
 		cgi_process.getC2PPipe().closeRead();
-		cgi_process.reap_status = cgi_process.waitSubProcessNH();
+		cgi_process.waitSubProcessNH();
 		m_erase_pfds.push_back(pfd.fd);
 
 		//Get the actual client object and set it up for writing back a response
@@ -122,6 +122,7 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd& pfd)
 			client.writeBuffer += ResponseBuilder::buildErrorResponse(500, "Internal Server Error").serialize();
 		else
 			client.writeBuffer += cgi_process.respond().serialize();
+
 		setPollEvents(poll_fds, client.socket_fd, POLLOUT);
 		LOG("CGI event finished");
 	}
@@ -375,6 +376,14 @@ void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 void Server::close_client(std::vector<struct pollfd>& poll_fds, int fd) {
 	LOG("Closing connection to fd " + std::to_string(fd));
 
+	// if either one is already closed and has been repurposed by OS then you close the wrong fd
+	auto ite = m_active_cgis.find(fd);
+	if (ite != m_active_cgis.end()) {
+		m_erase_pfds.push_back(m_active_cgis[fd]->getReadPollFd().fd);
+		m_erase_pfds.push_back(m_active_cgis[fd]->getWritePollFd().fd);
+		m_active_cgis.erase(fd);
+	}
+
 	m_clients.erase(fd);
 	close(fd);
 
@@ -429,16 +438,23 @@ bool Server::isOngoingCGI(int fd)
 	return false;
 }
 
+//segfaults because m_cgi_per_client resizes with the erasure (one smaller), causing one of the next iterations to go too far.
 void Server::reapZombieCGIProcs()
 {
-	for (auto cgi_ite : m_cgi_per_client) {
-		CGIEvent& cgi_process = *cgi_ite.second.active_cgi_ptr;
-		if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR || (cgi_process.cgi_status == COMPLETE && cgi_process.reap_status == STILL_RUNNING)) {
-			cgi_process.reap_status = cgi_process.waitSubProcessNH();
-			if (cgi_process.reap_status == REAPED) {
-				m_cgi_per_client.erase(cgi_ite.first);
-			}
+	LOG("IN ZOMBIE REAPER");
+	for (auto cgi_ite = m_cgi_per_client.begin(); cgi_ite != m_cgi_per_client.end(); ) {
+		CGIEvent& cgi_process = *cgi_ite->second.active_cgi_ptr;
+
+		if (cgi_process.getPid() != -1) {
+			cgi_process.waitSubProcessNH();
+
+			if (cgi_process.reap_status == REAPED)
+				cgi_ite = m_cgi_per_client.erase(cgi_ite);
+			else
+				++cgi_ite;
 		}
+		else
+			++cgi_ite;
 	}
 	return ;
 }

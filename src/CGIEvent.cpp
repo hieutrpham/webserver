@@ -34,7 +34,7 @@ CGIEvent::CGIEvent(CGIEvent& other) :
 	p2c_pipe_(other.getP2CPipe()),
 	c2p_pipe_(other.getC2PPipe()),
 	pid_(other.getPid()),
-	write_poll_fd_(other.getReadPollFd()),
+	write_poll_fd_(other.getWritePollFd()),
 	read_poll_fd_(other.getReadPollFd()),
 	cgi_output_(other.getCgiOutput()),
 	client_address_(other.getClientAddress()),
@@ -52,7 +52,7 @@ CGIEvent&	CGIEvent::operator=(CGIEvent& other) {
 		p2c_pipe_ = other.getP2CPipe();
 		c2p_pipe_ = other.getC2PPipe();
 		pid_ = other.getPid();
-		write_poll_fd_ = other.getReadPollFd();
+		write_poll_fd_ = other.getWritePollFd();
 		read_poll_fd_ = other.getReadPollFd();
 		cgi_output_ = other.getCgiOutput();
 		client_address_ = other.getClientAddress();
@@ -322,10 +322,11 @@ int	CGIEvent::waitSubProcessNH() {
 	if (WIFEXITED(status)) {
 		int exit_status = WEXITSTATUS(status);
 		if (exit_status != SUCCESS) {
+			if (errno == ECHILD)
+				return reap_status = REAPED;
 			ERR(SYS_SUBEXIT);
 			return -1;
 		}
-		LOG("Script exited successfully");
 		return reap_status = REAPED;
 	}
 
