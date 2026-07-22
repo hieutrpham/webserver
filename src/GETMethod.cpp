@@ -231,6 +231,8 @@ std::string GetMethod::getMimeType(const std::string& path) {
 		return ("image/jpeg");
 	if (endsWith(path, ".gif"))
 		return ("image/gif");
+	if (endsWith(path, ".svg"))
+		return ("image/svg+xml");
 
 	return ("application/octet-stream");
 }
