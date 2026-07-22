@@ -4,6 +4,7 @@
 #include "CGIEvent.hpp"
 #include "Pipe.hpp"
 #include "main.hpp"
+#include <chrono>
 #include <map>
 #include "Request.hpp"
 
@@ -35,13 +36,14 @@ enum HttpStatus {
 };
 
 struct ClientState {
-	std::string readBuffer;
-	std::string writeBuffer;
-	std::string remoteAddr;
-	size_t bytesSent = 0;
-	bool closeAfterWrite = false;
-	std::shared_ptr<CGIEvent> active_cgi_ptr = nullptr;
-	int	socket_fd;
+	std::string                                        readBuffer;
+	std::string                                        writeBuffer;
+	std::string                                        remoteAddr;
+	size_t                                             bytesSent       = 0;
+	bool                                               closeAfterWrite = false;
+	std::shared_ptr<CGIEvent>                          active_cgi_ptr  = nullptr;
+	int                                                socket_fd;
+	std::chrono::time_point<std::chrono::system_clock> t0;
 };
 
 class Server {
