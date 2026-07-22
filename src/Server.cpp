@@ -148,7 +148,7 @@ void	Server::erasePollfds(std::vector<struct pollfd>& poll_fds) {
 				break ;
 			}
 		}
-	}
+	}  
 	m_erase_pfds.clear();
 }
 
