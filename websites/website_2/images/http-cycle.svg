@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 420">
+<rect width="700" height="420" rx="24" fill="#f3f6fc"/>
+<g font-family="Arial, sans-serif" text-anchor="middle">
+<rect x="45" y="145" width="170" height="110" rx="18" fill="#fff" stroke="#2457d6" stroke-width="5"/><text x="130" y="195" font-size="27" fill="#152033">Browser</text><text x="130" y="226" font-size="16" fill="#5c687c">HTTP client</text>
+<rect x="485" y="145" width="170" height="110" rx="18" fill="#fff" stroke="#2457d6" stroke-width="5"/><text x="570" y="195" font-size="27" fill="#152033">Webserv</text><text x="570" y="226" font-size="16" fill="#5c687c">HTTP server</text>
+<path d="M225 170h245" stroke="#2457d6" stroke-width="8" marker-end="url(#arrow)"/><text x="350" y="150" font-size="17" fill="#152033">Request</text>
+<path d="M475 235H230" stroke="#147a50" stroke-width="8" marker-end="url(#arrow2)"/><text x="350" y="274" font-size="17" fill="#152033">Response</text>
+</g>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0 0L0 6L8 3z" fill="#2457d6"/></marker><marker id="arrow2" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0 0L0 6L8 3z" fill="#147a50"/></marker></defs>
+</svg>

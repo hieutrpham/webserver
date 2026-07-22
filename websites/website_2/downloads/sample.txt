@@ -1,0 +1,2 @@
+Webserv plain-text download fixture.
+This confirms static file reading and text/plain MIME handling.

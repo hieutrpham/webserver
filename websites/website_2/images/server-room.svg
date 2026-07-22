@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-labelledby="title desc">
+<title id="title">Server room illustration</title><desc id="desc">Three server racks connected by network lines.</desc>
+<rect width="640" height="480" rx="34" fill="#e8efff"/>
+<circle cx="520" cy="94" r="55" fill="#d4e0ff"/>
+<path d="M70 390h500" stroke="#9eb5ee" stroke-width="12" stroke-linecap="round"/>
+<g fill="#fff" stroke="#2457d6" stroke-width="8">
+<rect x="80" y="105" width="130" height="270" rx="14"/><rect x="255" y="70" width="130" height="305" rx="14"/><rect x="430" y="125" width="130" height="250" rx="14"/>
+</g>
+<g fill="#2457d6">
+<rect x="103" y="135" width="84" height="30" rx="6"/><rect x="103" y="185" width="84" height="30" rx="6"/><rect x="103" y="235" width="84" height="30" rx="6"/><rect x="103" y="285" width="84" height="30" rx="6"/>
+<rect x="278" y="105" width="84" height="30" rx="6"/><rect x="278" y="155" width="84" height="30" rx="6"/><rect x="278" y="205" width="84" height="30" rx="6"/><rect x="278" y="255" width="84" height="30" rx="6"/><rect x="278" y="305" width="84" height="30" rx="6"/>
+<rect x="453" y="160" width="84" height="30" rx="6"/><rect x="453" y="210" width="84" height="30" rx="6"/><rect x="453" y="260" width="84" height="30" rx="6"/><rect x="453" y="310" width="84" height="30" rx="6"/>
+</g>
+<g fill="#8fb0ff"><circle cx="117" cy="150" r="5"/><circle cx="292" cy="120" r="5"/><circle cx="467" cy="175" r="5"/></g>
+<path d="M210 240h45M385 240h45" stroke="#2457d6" stroke-width="8" stroke-dasharray="10 10"/>
+</svg>
