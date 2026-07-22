@@ -89,6 +89,7 @@ int main(int ac, char **av) {
 				s->handle_client_write(poll_fds, pfd.fd);
 			}
 		}
+		s->erasePollfds(poll_fds);
 	}
 
 	LOG("Shutting down server");

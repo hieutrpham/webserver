@@ -98,7 +98,7 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd& pfd)
 	if (pfd.revents & POLLOUT && cgi_process.cgi_status == UNPROVIDED) {
 		cgi_process.provideBodyToScript();
 		cgi_process.getP2CPipe().closeWrite();
-		eraseCGIPipePollfd(poll_fds, pfd.fd);
+		m_erase_pfds.push_back(pfd.fd);
 		m_cgi_per_client.erase(pfd.fd);
 		LOG("Request body written to CGI subprocess pipe A");
 	}
@@ -114,7 +114,7 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd& pfd)
 		//if reap is unsuccessful, theres an extra reaper function at end of mainloop
 		cgi_process.getC2PPipe().closeRead();
 		cgi_process.reap_status = cgi_process.waitSubProcessNH();
-		eraseCGIPipePollfd(poll_fds, pfd.fd);
+		m_erase_pfds.push_back(pfd.fd);
 
 		//Get the actual client object and set it up for writing back a response
 		ClientState& client = m_clients[CGIEventClientObj.socket_fd];
@@ -140,13 +140,16 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd& pfd)
 	pfd.revents = 0;
 }
 
-void	Server::eraseCGIPipePollfd(std::vector<struct pollfd>& poll_fds, int fd) {
-	for (size_t i = 0; i < poll_fds.size(); i++) {
-		if (poll_fds[i].fd == fd) {
-			poll_fds.erase(poll_fds.begin() + i);
-			break;
+void	Server::erasePollfds(std::vector<struct pollfd>& poll_fds) {
+	for (int fd : m_erase_pfds) {
+		for (std::size_t i{0}; i < poll_fds.size(); ++i) {
+			if (poll_fds[i].fd == fd) {
+				poll_fds.erase(poll_fds.begin() + i);
+				break ;
+			}
 		}
 	}
+	m_erase_pfds.clear();
 }
 
 void requestDebugPrint(Request& request, ParseResult& result) {

@@ -51,6 +51,7 @@ private:
 	// std::map<int, std::string> m_clientBuffers; // Per-client buffer
 	std::map<int, ClientState>	m_clients;
 	std::map<int, ClientState>	m_cgi_per_client;
+	std::vector<int>			m_erase_pfds;
 public:
 	std::vector<int> m_server_fds;
 	Server(ConfigVec &);
@@ -60,7 +61,7 @@ public:
 	void updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd& pfd);
 	void spawnCGIEvent(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd);
 	void setClientErrorState(int code, const std::string& reason, std::vector<struct pollfd>& poll_fds, int fd);
-	void eraseCGIPipePollfd(std::vector<struct pollfd>& poll_fds, int fd);
+	void erasePollfds(std::vector<struct pollfd>& poll_fds);
 	bool is_server(int fd);
 	bool isOngoingCGI(int fd);
 	bool isCGIRequest(Request& request, ServerConfig& config);
