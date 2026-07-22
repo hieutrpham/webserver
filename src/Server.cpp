@@ -191,8 +191,9 @@ static std::string getReasonPhrase(int status)
 }
 
 /*
-active_cgis: cgiobj
-pollfds:  fd A  &  fd B
+active_cgi_ptr in client
+	is it handled after an event ends?
+404 doesn't lead to entry getting deleted from m_active_cgis
 
 */
 
@@ -209,11 +210,15 @@ void	Server::spawnCGIEvent(ServerConfig& server_config, ClientState& client, Req
 	//destroy shared cgi in server obj after event is done!!
 
 	int status = client.active_cgi_ptr->initiateCGI();
-	if (status == NOT_FOUND)
+	if (status == NOT_FOUND) {
+		m_active_cgis.erase(fd);
 		return setClientErrorState(NOT_FOUND, "Not Found", poll_fds, fd);
-	else if (status == INTERNAL_SERVER_ERROR)
+	}
+	else if (status == INTERNAL_SERVER_ERROR) {
+		m_active_cgis.erase(fd);
 		return setClientErrorState(INTERNAL_SERVER_ERROR, "Internal Server Error", poll_fds, fd);
-	LOG("CGI event spawned");
+	}
+		LOG("CGI event spawned");
 
 	client.socket_fd = fd;
 
