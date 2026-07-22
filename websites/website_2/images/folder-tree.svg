@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 420">
+<rect width="700" height="420" rx="24" fill="#f3f6fc"/>
+<g font-family="monospace" font-size="23" fill="#152033">
+<text x="75" y="75">/websites/site_three</text><text x="115" y="125">├── docs/</text><text x="155" y="175">│   └── guides/</text><text x="195" y="225">│       └── http/</text><text x="235" y="275">│           └── request-flow.html</text><text x="115" y="325">├── random/</text><text x="115" y="370">└── cgi-bin/</text>
+</g>
+</svg>
