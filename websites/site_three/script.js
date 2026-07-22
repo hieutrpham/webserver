@@ -1,1 +1,0 @@
-function hello(){document.getElementById('output').innerText='JavaScript loaded successfully!';}
