@@ -71,4 +71,5 @@ public:
 	void add_serverfds(std::vector<struct pollfd>& poll_fds);
 	void setPollEvents(std::vector<struct pollfd>& poll_fds, int fd, short events);
 	void close_client(std::vector<struct pollfd>& poll_fds, int fd);
+	void check_timer();
 };
