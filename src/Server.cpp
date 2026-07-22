@@ -247,7 +247,8 @@ void Server::check_timer()
 		if (duration.count() > POLL_TIMEOUT)
 		{
 			Response response = ResponseBuilder::buildErrorResponse(504, "Gateway Timeout");
-			if (send(client.first, response.serialize().c_str(), response.serialize().size(), 0) < 0)
+			auto data = response.serialize();
+			if (send(client.first, data.c_str(), data.size(), 0) < 0)
 				return;
 			close(client.first);
 		}
