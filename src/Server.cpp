@@ -5,6 +5,7 @@
 #include "main.hpp"
 #include "RequestParser.hpp"
 #include "CGIEvent.hpp"
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -82,8 +83,8 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 	// Set client fd nonblocking flag
 	setNonBlockFlags(new_socket);
 
-	// Create state for new client
-	m_clients[new_socket];
+	// Create state for new client and set t0 as when client connected
+	m_clients[new_socket].t0 = std::chrono::system_clock::now();
 
 	m_clients[new_socket].remoteAddr = inet_ntoa(addr.sin_addr);
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
@@ -253,6 +254,11 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 	// Append bytes from recv() to clients request buffer.
 	m_clients[fd].readBuffer.append(buf, bytes);
 
+	auto t = std::chrono::system_clock::now();
+	auto t0 = m_clients[fd].t0;
+	std::chrono::duration duration = std::chrono::duration_cast<std::chrono::seconds>(t - t0);
+
+	LOG("Duration: " + std::to_string(duration.count()));
 	// A single recv() may contain multiple HTTP requests.
 	// Keep parsing until the buffer is empty or the next request is incomplete.
 	while (!m_clients[fd].readBuffer.empty()) {
@@ -282,7 +288,7 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 
 		// Request parsing complete.
 		LOG("Request succesfully parsed");
-		requestDebugPrint(request, requestParse);
+		// requestDebugPrint(request, requestParse);
 
 		// Remove only the bytes that belonged to the parsed request.
 		m_clients[fd].readBuffer.erase(0, requestParse.bytesConsumed);
@@ -342,7 +348,7 @@ void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 
 	// Debug
 	LOG("Response successfully sent");
-	std::cout << "\n" << client.writeBuffer << std::endl;
+	// std::cout << "\n" << client.writeBuffer << std::endl;
 
 	// Response fully sent. Clear state.
 	client.writeBuffer.clear();
