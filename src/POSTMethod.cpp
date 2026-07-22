@@ -10,15 +10,11 @@ Response POSTMethod::handlePost(Request& request, ServerConfig& config)
 		return ResponseBuilder::buildErrorResponse(405, "Method Not Allowed", config);
 	}
 
-	auto content_type = request.getHeaders().at("content-type");
+	auto content_type = request.getHeader("content-type");
 	if (is_file_upload(content_type, request,  config))
 		return handleFileUpload(content_type, request, config);
-	Response response;
-	response.setVersion("HTTP/1.1");
-	response.setStatus(201, "Created");
-	response.setHeader("Content-Type", "text/html");
-	response.setBody("Success!");
-	return response;
+
+	return ResponseBuilder::buildErrorResponse(501, "Not Implemented", config);
 }
 
 Response POSTMethod::handleFileUpload(std::string &content_type, Request& request, ServerConfig& config)
