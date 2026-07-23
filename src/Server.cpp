@@ -442,14 +442,14 @@ bool Server::isOngoingCGI(int fd)
 void Server::reapZombieCGIProcs()
 {
 	LOG("IN ZOMBIE REAPER");
-	for (auto cgi_ite = m_cgi_per_client.begin(); cgi_ite != m_cgi_per_client.end(); ) {
-		CGIEvent& cgi_process = *cgi_ite->second.active_cgi_ptr;
+	for (auto cgi_ite = m_active_cgis.begin(); cgi_ite != m_active_cgis.end(); ) {
+		CGIEvent& cgi_process = *cgi_ite->second;
 
 		if (cgi_process.getPid() != -1) {
 			cgi_process.waitSubProcessNH();
 
 			if (cgi_process.reap_status == REAPED)
-				cgi_ite = m_cgi_per_client.erase(cgi_ite);
+				cgi_ite = m_active_cgis.erase(cgi_ite);
 			else
 				++cgi_ite;
 		}

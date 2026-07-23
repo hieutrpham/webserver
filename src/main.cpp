@@ -39,6 +39,9 @@ int main(int ac, char **av) {
 		//BEFORE SENDING A RESPONSE!!!!!!!!!!!!!!!
 		s->reapZombieCGIProcs();
 
+
+		// for ( )
+
 		if (sa.sa_flags == SIGINT)
 			break;	
 
