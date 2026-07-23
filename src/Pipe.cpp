@@ -19,11 +19,11 @@ Pipe::Pipe(const Pipe& other) {
 	this->is_valid_[OUT_FILENO] = other.getIsOutValid();
 }
 
-// Pipe::~Pipe() {
-// 	LOG("Pipe destructor runs");
-// 	closeRead();
-// 	closeWrite();
-// }
+Pipe::~Pipe() {
+	LOG("Pipe destructor runs");
+	closeRead();
+	closeWrite();
+}
 
 Pipe&	Pipe::operator=(const Pipe& other) {
 	if (this != &other) {
