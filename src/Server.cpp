@@ -195,8 +195,7 @@ pollfds:  fd A  &  fd B
 
 void	Server::spawnCGIEvent(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd) {
 	// Construct one shared CGI object per event.
-	client.active_cgi_ptr =
-		std::make_shared<CGIEvent>(server_config, request, client);
+	client.active_cgi_ptr = std::make_shared<CGIEvent>(server_config, request, client);
 
 	// Replace any stale CGI object stored under this reused client fd.
 	m_active_cgis[fd] = client.active_cgi_ptr;
