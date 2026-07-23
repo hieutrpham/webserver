@@ -173,18 +173,29 @@ void	CGIEvent::execChildProcess() {
 	char** 		envp = loadEnvp(env_vec, c_env_vec);
 	char*		executable = cgi_->binary.data();
 	char*		argv[2] = {executable, nullptr};
+
+	std::cerr
+	<< "CGI child pipes: p2c read=" << p2c_pipe_[IN_FILENO]
+	<< " write=" << p2c_pipe_[OUT_FILENO]
+	<< ", c2p read=" << c2p_pipe_[IN_FILENO]
+	<< " write=" << c2p_pipe_[OUT_FILENO]
+	<< '\n';
 	
 	p2c_pipe_.closeWrite();
 	c2p_pipe_.closeRead();
 
 	if (dup2(p2c_pipe_[IN_FILENO], STDIN_FILENO) == FAIL) {
-		perror("dup2");
+		std::cerr << "stdin dup2 failed, source fd: "
+				  << p2c_pipe_[IN_FILENO] << '\n';
+		perror("dup2 stdin");
 		_exit(1);
 	}
 	p2c_pipe_.closeRead();
 
 	if (dup2(c2p_pipe_[OUT_FILENO], STDOUT_FILENO) == FAIL) {
-		perror("dup2");
+		std::cerr << "stdout dup2 failed, source fd: "
+				  << c2p_pipe_[OUT_FILENO] << '\n';
+		perror("dup2 stdout");
 		_exit(1);
 	}
 	c2p_pipe_.closeWrite();
@@ -425,11 +436,19 @@ pid_t		CGIEvent::getPid() const {
 	return pid_;
 }
 
-Pipe		CGIEvent::getP2CPipe() const {
+Pipe& CGIEvent::getP2CPipe() {
 	return p2c_pipe_;
 }
 
-Pipe		CGIEvent::getC2PPipe() const {
+const Pipe& CGIEvent::getP2CPipe() const {
+	return p2c_pipe_;
+}
+
+Pipe& CGIEvent::getC2PPipe() {
+	return c2p_pipe_;
+}
+
+const Pipe& CGIEvent::getC2PPipe() const {
 	return c2p_pipe_;
 }
 
