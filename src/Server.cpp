@@ -5,6 +5,7 @@
 #include "main.hpp"
 #include "RequestParser.hpp"
 #include "CGIEvent.hpp"
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -82,8 +83,8 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 	// Set client fd nonblocking flag
 	setNonBlockFlags(new_socket);
 
-	// Create state for new client
-	m_clients[new_socket];
+	// Create state for new client and set t0 as when client connected
+	m_clients[new_socket].t0 = std::chrono::system_clock::now();
 
 	m_clients[new_socket].remoteAddr = inet_ntoa(addr.sin_addr);
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
@@ -235,9 +236,29 @@ void	Server::setClientErrorState(int code, const std::string& reason, std::vecto
 	return ;
 }
 
+void Server::check_timer()
+{
+	auto t = std::chrono::system_clock::now();
+
+	for (auto client: m_clients)
+	{
+		std::chrono::duration duration = std::chrono::duration_cast<std::chrono::seconds>(t - client.second.t0);
+
+		if (duration.count() > POLL_TIMEOUT)
+		{
+			Response response = ResponseBuilder::buildErrorResponse(504, "Gateway Timeout");
+			auto data = response.serialize();
+			if (send(client.first, data.c_str(), data.size(), 0) < 0)
+				return;
+			close(client.first);
+		}
+	}
+}
+
 void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, ConfigVec& config_vector) {
 	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
+	m_clients[fd].t0 = std::chrono::system_clock::now();
 	int bytes = recv(fd, buf, sizeof(buf), 0);
 	// No data or error.
 	if (bytes <= 0) {
@@ -282,7 +303,10 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 
 		// Request parsing complete.
 		LOG("Request succesfully parsed");
+
+		#ifdef DEBUG
 		requestDebugPrint(request, requestParse);
+		#endif
 
 		// Remove only the bytes that belonged to the parsed request.
 		m_clients[fd].readBuffer.erase(0, requestParse.bytesConsumed);
@@ -328,6 +352,9 @@ void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 	// Send response to client.
 	int bytes = send(fd, data, remaining, 0);
 
+	// reset the client timer after sent
+	client.t0 = std::chrono::system_clock::now();
+
 	// Client disconnected or send failed.
 	if (bytes <= 0) {
 		close_client(poll_fds, fd);
@@ -342,7 +369,10 @@ void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 
 	// Debug
 	LOG("Response successfully sent");
+
+#ifdef DEBUG
 	std::cout << "\n" << client.writeBuffer << std::endl;
+#endif
 
 	// Response fully sent. Clear state.
 	client.writeBuffer.clear();
