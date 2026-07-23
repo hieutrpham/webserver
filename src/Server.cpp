@@ -288,7 +288,10 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 
 		// Request parsing complete.
 		LOG("Request succesfully parsed");
-		// requestDebugPrint(request, requestParse);
+
+		#ifdef DEBUG
+		requestDebugPrint(request, requestParse);
+		#endif
 
 		// Remove only the bytes that belonged to the parsed request.
 		m_clients[fd].readBuffer.erase(0, requestParse.bytesConsumed);
@@ -348,7 +351,10 @@ void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 
 	// Debug
 	LOG("Response successfully sent");
-	// std::cout << "\n" << client.writeBuffer << std::endl;
+
+#ifdef DEBUG
+	std::cout << "\n" << client.writeBuffer << std::endl;
+#endif
 
 	// Response fully sent. Clear state.
 	client.writeBuffer.clear();

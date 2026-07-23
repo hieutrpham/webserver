@@ -59,7 +59,7 @@ bool ResponseBuilder::isRedirect(Request& request, ServerConfig& config)
 
 ServerConfig ResponseBuilder::getConfig(const Request& request, const ConfigVec& config_vector)
 {
-	auto host = request.getHeaders().at("host");
+	auto host = request.getHeader("host");
 	auto sep = host.find(":");
 	auto ip = host.substr(0, sep);
 	auto port = std::stoul(host.substr(sep+1, host.npos));
