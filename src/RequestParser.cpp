@@ -5,6 +5,8 @@
 #include <cctype> //isdigit
 #include <iostream>
 
+static bool hostContainsPort(const std::string& host);
+
 ParseResult RequestParser::parseRequest(const std::string& rawBuffer, Request& request, const ConfigVec& configVec) {
 	ParseResult result;
 
@@ -148,6 +150,10 @@ ParseResult RequestParser::parseRequestHeaders(const std::string& rawBuffer, Req
 	if (request.getHeader("host").empty())
 		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
 
+	if (!hostContainsPort(request.getHeader("host"))) {
+		return ((ParseResult){PARSE_BAD_REQUEST, HTTP_BAD_REQUEST});
+	}
+
 	// RFC 7230 (3.3.2) - Content-Length value must be a valid decimal number.
 	std::string contentLength = request.getHeader("content-length");
 	if (!contentLength.empty()) {
@@ -256,4 +262,28 @@ ParseResult RequestParser::parseRequestBodyChunked(const std::string& rawBuffer,
 		if (body.size() > config.client_max_bodysize)
 			return ((ParseResult){PARSE_BAD_REQUEST, HTTP_PAYLOAD_TOO_LARGE});
 	}
+}
+
+static bool hostContainsPort(const std::string& host)
+{
+	std::size_t colon;
+	std::string port;
+
+	colon = host.rfind(':');
+	if (colon == std::string::npos)
+		return (false);
+	if (colon == 0 || colon == host.length() - 1)
+		return (false);
+
+	port = host.substr(colon + 1);
+	for (std::size_t i = 0; i < port.length(); i++) {
+		if (!std::isdigit(static_cast<unsigned char>(port[i])))
+			return (false);
+	}
+
+	unsigned long portNumber = std::strtoul(port.c_str(), NULL, 10);
+	if (portNumber == 0 || portNumber > 65535)
+		return (false);
+
+	return (true);
 }
