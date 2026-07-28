@@ -19,7 +19,7 @@ class Pipe {
 	public:
 		Pipe();
 		Pipe(const Pipe& other);
-		//~Pipe();
+		~Pipe();
 		Pipe&	operator=(const Pipe& other);
 		int		operator[](int i);
 

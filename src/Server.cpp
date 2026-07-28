@@ -102,6 +102,7 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd pfd)
 		eraseCGIPipePollfd(poll_fds, pfd.fd);
 		m_cgi_per_client.erase(pfd.fd);
 		LOG("Request body written to CGI subprocess pipe A");
+		return ;
 	}
 
 	//read pipe (if incomplete) via pipe B
@@ -194,11 +195,17 @@ pollfds:  fd A  &  fd B
 */
 
 void	Server::spawnCGIEvent(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd) {
-	//construct one shared cgi object per event
-	m_active_cgis.emplace(fd, std::make_shared<CGIEvent>(server_config, request, client));
-	//client object has a pointer to it (client object is later copied to two places because of TWO pipes per event => two pollfds)
-	client.active_cgi_ptr = m_active_cgis[fd];
-	//destroy shared cgi in server obj after event is done!!
+	// Construct one shared CGI object per event.
+	client.active_cgi_ptr = std::make_shared<CGIEvent>(server_config, request, client);
+
+	// Replace any stale CGI object stored under this reused client fd.
+	m_active_cgis[fd] = client.active_cgi_ptr;
+
+	std::cerr
+		<< "spawnCGIEvent object="
+		<< client.active_cgi_ptr.get()
+		<< " fd=" << fd
+		<< '\n';
 
 	int status = client.active_cgi_ptr->initiateCGI();
 	if (status == NOT_FOUND)
@@ -446,16 +453,49 @@ bool Server::isOngoingCGI(int fd)
 
 void Server::reapZombieCGIProcs()
 {
-	for (auto cgi_ite : m_cgi_per_client) {
-		CGIEvent& cgi_process = *cgi_ite.second.active_cgi_ptr;
-		if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR || (cgi_process.cgi_status == COMPLETE && cgi_process.reap_status == STILL_RUNNING)) {
-			cgi_process.reap_status = cgi_process.waitSubProcessNH();
-			if (cgi_process.reap_status == REAPED) {
-				m_cgi_per_client.erase(cgi_ite.first);
-			}
+	// Manual iterator is required because elements may be erased
+	// while iterating. std::map::erase(iterator) returns a valid
+	// iterator to the next element.
+	auto it = m_cgi_per_client.begin();
+
+	while (it != m_cgi_per_client.end())
+	{
+		// If the CGI object has already been destroyed,
+		// remove this stale map entry.
+		if (!it->second.active_cgi_ptr)
+		{
+			it = m_cgi_per_client.erase(it);
+			continue;
 		}
+
+		// Convenience reference to the active CGI process.
+		CGIEvent& cgi_process = *it->second.active_cgi_ptr;
+
+		// Only attempt to reap CGI processes that have either:
+		//   - encountered an internal error, or
+		//   - finished producing output but whose subprocess
+		//     has not yet been reaped.
+		if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR
+			|| (cgi_process.cgi_status == COMPLETE
+				&& cgi_process.reap_status == STILL_RUNNING))
+		{
+			// Non-blocking waitpid(). If the child is still running,
+			// waitSubProcessNH() returns immediately.
+			cgi_process.reap_status = cgi_process.waitSubProcessNH();
+		}
+
+		// Once the subprocess has been successfully reaped,
+		// remove its tracking entry. erase() returns the next
+		// valid iterator, so do not increment manually.
+		if (cgi_process.reap_status == REAPED)
+		{
+			it = m_cgi_per_client.erase(it);
+			continue;
+		}
+
+		// CGI is still active; move on to the next entry.
+		++it;
 	}
-	return ;
 }
 
 void Server::print_endpoints()
