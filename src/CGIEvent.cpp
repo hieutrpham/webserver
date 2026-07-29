@@ -156,7 +156,6 @@ std::string	CGIEvent::matchCGIRequest() {
 	std::size_t bin_pos = target_path.rfind('/', ext_pos) + 1;
 	if (bin_pos != std::string::npos) {
 		bin_path = target_path.substr(bin_pos, target_path.length() - bin_pos);
-		std::cout << bin_path << std::endl;
 		if (!FileOperation::isValidPythonFile(bin_path))
 			throw CGINotFound(INVALID_BIN_REQ);
 	}
@@ -173,13 +172,6 @@ void	CGIEvent::execChildProcess() {
 	char** 		envp = loadEnvp(env_vec, c_env_vec);
 	char*		executable = cgi_->binary.data();
 	char*		argv[2] = {executable, nullptr};
-
-	std::cerr
-	<< "CGI child pipes: p2c read=" << p2c_pipe_[IN_FILENO]
-	<< " write=" << p2c_pipe_[OUT_FILENO]
-	<< ", c2p read=" << c2p_pipe_[IN_FILENO]
-	<< " write=" << c2p_pipe_[OUT_FILENO]
-	<< '\n';
 	
 	p2c_pipe_.closeWrite();
 	c2p_pipe_.closeRead();

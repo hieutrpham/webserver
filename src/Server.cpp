@@ -201,12 +201,6 @@ void	Server::spawnCGIEvent(ServerConfig& server_config, ClientState& client, Req
 	// Replace any stale CGI object stored under this reused client fd.
 	m_active_cgis[fd] = client.active_cgi_ptr;
 
-	std::cerr
-		<< "spawnCGIEvent object="
-		<< client.active_cgi_ptr.get()
-		<< " fd=" << fd
-		<< '\n';
-
 	int status = client.active_cgi_ptr->initiateCGI();
 	if (status == NOT_FOUND)
 		return setClientErrorState(NOT_FOUND, "Not Found", poll_fds, fd);
@@ -250,10 +244,10 @@ void Server::check_timer()
 	for (auto client: m_clients)
 	{
 		std::chrono::duration duration = std::chrono::duration_cast<std::chrono::seconds>(t - client.second.t0);
-
+		
 		if (duration.count() > POLL_TIMEOUT && client.second.status != WAITING)
 		{
-			LOG("Client timedout");
+			LOG("Client timedout after " + std::to_string(duration.count()) + " seconds");
 			Response response = ResponseBuilder::buildErrorResponse(504, "Gateway Timeout");
 			auto data = response.serialize();
 			if (send(client.first, data.c_str(), data.size(), 0) < 0)

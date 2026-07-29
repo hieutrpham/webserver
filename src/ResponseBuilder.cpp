@@ -49,7 +49,6 @@ bool ResponseBuilder::isRedirect(Request& request, ServerConfig& config)
 	try {
 		 loc = config.getLocation(request.getPath());
 	} catch (std::exception &e) {
-		LOG(e.what());
 		return false;
 	}
 	return loc.is_Redirected();

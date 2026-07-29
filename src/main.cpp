@@ -39,7 +39,7 @@ int main(int ac, char **av) {
 		s->reapZombieCGIProcs();
 		s->check_timer();
 
-		ready = poll(poll_fds.data(), poll_fds.size(), POLL_TIMEOUT);
+		ready = poll(poll_fds.data(), poll_fds.size(), 1);
 		if (ready < 0) {
 			LOG("poll() failed");
 			break;
@@ -54,7 +54,6 @@ int main(int ac, char **av) {
 
 			// Update CGI process.
 			if (s->isOngoingCGI(pfd.fd)) {
-				LOG("CGI event update");
 				if (pfd.revents & (POLLOUT | POLLIN | POLLHUP))
 					s->updateCGIEvent(poll_fds, pfd);
 				continue ;
@@ -62,7 +61,7 @@ int main(int ac, char **av) {
 
 			// Client disconnected / error.
 			if (pfd.revents & (POLLHUP | POLLERR | POLLNVAL)) {
-				LOG("Client disconnected / error");
+				LOG("Client disconnected");
 				if (!s->is_server(pfd.fd))
 					s->close_client(poll_fds, pfd.fd);
 				continue ;
@@ -71,7 +70,6 @@ int main(int ac, char **av) {
 			// Listening (server) socket ready
 			// Accept new connection.
 			if (s->is_server(pfd.fd)) {
-				LOG("Incoming connection");
 				if (pfd.revents & POLLIN)
 					s->handle_new_connection(poll_fds, pfd.fd);
 				continue ;
@@ -79,13 +77,11 @@ int main(int ac, char **av) {
 
 			// Client socket incoming request.
 			if (pfd.revents & POLLIN) {
-				LOG("Client request ready");
 				s->handle_client_read(poll_fds, pfd.fd, config_vector);
 			}
 			
 			// Client socket ready to write.
 			if (pfd.revents & POLLOUT) {
-				LOG("Client socket ready for writing");
 				s->handle_client_write(poll_fds, pfd.fd);
 			}
 		}
