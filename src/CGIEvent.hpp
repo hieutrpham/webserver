@@ -123,7 +123,7 @@ class CGIEvent {
 		//--------------------------------------//
 
 		//GETTERS---------------------------------
-		ServerConfig	getConfig() const;
+		ServerConfig&	getConfig();
 		Request			getRequest() const;
 		OptCgi			getCGIData() const;
 		pid_t			getPid() const;

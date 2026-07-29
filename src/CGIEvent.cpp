@@ -411,7 +411,7 @@ Response	CGIEvent::respond() {
 
 
 //GETTERS----------------------------------------------------
-ServerConfig	CGIEvent::getConfig() const {
+ServerConfig&	CGIEvent::getConfig() {
 	return config_;
 }
 
