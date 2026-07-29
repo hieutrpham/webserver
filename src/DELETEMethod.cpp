@@ -1,8 +1,12 @@
 #include "DELETEMethod.hpp"
+#include "GETMethod.hpp"
 
 Response DELETEMethod::handleDelete(Request &request, ServerConfig &config)
 {
-	auto location = ResponseBuilder::getLocation(request, config);
+	// auto location = ResponseBuilder::getLocation(request, config);
+	Location location;
+	if (!GetMethod::matchLocation(request.getPath(), config, location))
+		return (ResponseBuilder::buildErrorResponse(404, "Not Found", config));
 
 	if (!location.methods.except_allow[DELETE])
 	{
@@ -10,7 +14,7 @@ Response DELETEMethod::handleDelete(Request &request, ServerConfig &config)
 		return ResponseBuilder::buildErrorResponse(405, "Method Not Allowed", config);
 	}
 
-	auto file_name = "." + location.upload_store + "/" + request.getQuery();
+	auto file_name = "." + location.root + request.getPath();
 	if (remove(file_name.c_str()) < 0)
 	{
 		ERR("Unable to remove file: " + file_name);

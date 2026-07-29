@@ -24,8 +24,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
+#include <chrono>
 
-#define PORT 8888
+#define POLL_TIMEOUT 30
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
 #define RED     "\033[31m"

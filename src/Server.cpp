@@ -5,6 +5,7 @@
 #include "main.hpp"
 #include "RequestParser.hpp"
 #include "CGIEvent.hpp"
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -82,8 +83,8 @@ void Server::handle_new_connection(std::vector<struct pollfd>& poll_fds, int fd)
 	// Set client fd nonblocking flag
 	setNonBlockFlags(new_socket);
 
-	// Create state for new client
-	m_clients[new_socket];
+	// Create state for new client and set t0 as when client connected
+	m_clients[new_socket].t0 = std::chrono::system_clock::now();
 
 	m_clients[new_socket].remoteAddr = inet_ntoa(addr.sin_addr);
 	poll_fds.emplace_back((struct pollfd){.fd = new_socket, .events = POLLIN, .revents = 0});
@@ -101,6 +102,7 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd& pfd)
 		m_erase_pfds.push_back(pfd.fd);
 		m_cgi_per_client.erase(pfd.fd);
 		LOG("Request body written to CGI subprocess pipe A");
+		return ;
 	}
 
 	//read pipe (if incomplete) via pipe B
@@ -199,16 +201,17 @@ active_cgi_ptr in client
 */
 
 void	Server::spawnCGIEvent(ServerConfig& server_config, ClientState& client, Request& request, std::vector<struct pollfd>& poll_fds, int fd) {
-	//construct one shared cgi object per event
-	try {
-		m_active_cgis.emplace(fd, std::make_shared<CGIEvent>(server_config, request, client));
-	} catch (std::exception& e) {
-		return setClientErrorState(INTERNAL_SERVER_ERROR, "Internal Server Error", poll_fds, fd);
-	}
-	
-	//client object has a pointer to it (client object is later copied to two places because of TWO pipes per event => two pollfds)
-	client.active_cgi_ptr = m_active_cgis[fd];
-	//destroy shared cgi in server obj after event is done!!
+	// Construct one shared CGI object per event.
+	client.active_cgi_ptr = std::make_shared<CGIEvent>(server_config, request, client);
+
+	// Replace any stale CGI object stored under this reused client fd.
+	m_active_cgis[fd] = client.active_cgi_ptr;
+
+	std::cerr
+		<< "spawnCGIEvent object="
+		<< client.active_cgi_ptr.get()
+		<< " fd=" << fd
+		<< '\n';
 
 	int status = client.active_cgi_ptr->initiateCGI();
 	if (status == NOT_FOUND) {
@@ -251,9 +254,29 @@ void	Server::setClientErrorState(int code, const std::string& reason, std::vecto
 	return ;
 }
 
+void Server::check_timer()
+{
+	auto t = std::chrono::system_clock::now();
+
+	for (auto client: m_clients)
+	{
+		std::chrono::duration duration = std::chrono::duration_cast<std::chrono::seconds>(t - client.second.t0);
+
+		if (duration.count() > POLL_TIMEOUT)
+		{
+			Response response = ResponseBuilder::buildErrorResponse(504, "Gateway Timeout");
+			auto data = response.serialize();
+			if (send(client.first, data.c_str(), data.size(), 0) < 0)
+				return;
+			close(client.first);
+		}
+	}
+}
+
 void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, ConfigVec& config_vector) {
 	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
+	m_clients[fd].t0 = std::chrono::system_clock::now();
 	int bytes = recv(fd, buf, sizeof(buf), 0);
 	// No data or error.
 	if (bytes <= 0) {
@@ -298,7 +321,10 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 
 		// Request parsing complete.
 		LOG("Request succesfully parsed");
+
+		#ifdef DEBUG
 		requestDebugPrint(request, requestParse);
+		#endif
 
 		// Remove only the bytes that belonged to the parsed request.
 		m_clients[fd].readBuffer.erase(0, requestParse.bytesConsumed);
@@ -344,6 +370,9 @@ void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 	// Send response to client.
 	int bytes = send(fd, data, remaining, 0);
 
+	// reset the client timer after sent
+	client.t0 = std::chrono::system_clock::now();
+
 	// Client disconnected or send failed.
 	if (bytes <= 0) {
 		close_client(poll_fds, fd);
@@ -358,7 +387,10 @@ void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 
 	// Debug
 	LOG("Response successfully sent");
+
+#ifdef DEBUG
 	std::cout << "\n" << client.writeBuffer << std::endl;
+#endif
 
 	// Response fully sent. Clear state.
 	client.writeBuffer.clear();
@@ -438,21 +470,49 @@ bool Server::isOngoingCGI(int fd)
 //segfaults because m_cgi_per_client resizes with the erasure (one smaller), causing one of the next iterations to go too far.
 void Server::reapZombieCGIProcs()
 {
-	for (auto cgi_ite = m_active_cgis.begin(); cgi_ite != m_active_cgis.end(); ) {
-		CGIEvent& cgi_process = *cgi_ite->second;
+	// Manual iterator is required because elements may be erased
+	// while iterating. std::map::erase(iterator) returns a valid
+	// iterator to the next element.
+	auto it = m_cgi_per_client.begin();
 
-		if (cgi_process.getPid() != -1) {
-			cgi_process.waitSubProcessNH();
-
-			if (cgi_process.reap_status == REAPED)
-				cgi_ite = m_active_cgis.erase(cgi_ite);
-			else
-				++cgi_ite;
+	while (it != m_cgi_per_client.end())
+	{
+		// If the CGI object has already been destroyed,
+		// remove this stale map entry.
+		if (!it->second.active_cgi_ptr)
+		{
+			it = m_cgi_per_client.erase(it);
+			continue;
 		}
-		else
-			++cgi_ite;
+
+		// Convenience reference to the active CGI process.
+		CGIEvent& cgi_process = *it->second.active_cgi_ptr;
+
+		// Only attempt to reap CGI processes that have either:
+		//   - encountered an internal error, or
+		//   - finished producing output but whose subprocess
+		//     has not yet been reaped.
+		if (cgi_process.cgi_status == INTERNAL_SERVER_ERROR
+			|| (cgi_process.cgi_status == COMPLETE
+				&& cgi_process.reap_status == STILL_RUNNING))
+		{
+			// Non-blocking waitpid(). If the child is still running,
+			// waitSubProcessNH() returns immediately.
+			cgi_process.reap_status = cgi_process.waitSubProcessNH();
+		}
+
+		// Once the subprocess has been successfully reaped,
+		// remove its tracking entry. erase() returns the next
+		// valid iterator, so do not increment manually.
+		if (cgi_process.reap_status == REAPED)
+		{
+			it = m_cgi_per_client.erase(it);
+			continue;
+		}
+
+		// CGI is still active; move on to the next entry.
+		++it;
 	}
-	return ;
 }
 
 void Server::print_endpoints()

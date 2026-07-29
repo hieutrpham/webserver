@@ -38,15 +38,9 @@ int main(int ac, char **av) {
 		//I THINK IT FAILS TO CREATE A RESPONSE IF PROCESS IS REAPED BY ZOMBIE-REAPER 
 		//BEFORE SENDING A RESPONSE!!!!!!!!!!!!!!!
 		s->reapZombieCGIProcs();
+		s->check_timer();
 
-
-		// for ( )
-
-		if (sa.sa_flags == SIGINT)
-			break;	
-
-		LOG("Waiting for socket events...");
-		ready = poll(poll_fds.data(), poll_fds.size(), -1);
+		ready = poll(poll_fds.data(), poll_fds.size(), POLL_TIMEOUT);
 		if (ready < 0) {
 			LOG("poll() failed");
 			break;

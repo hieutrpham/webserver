@@ -128,7 +128,9 @@ class CGIEvent {
 		OptCgi			getCGIData() const;
 		pid_t			getPid() const;
 		Pipe&			getP2CPipe();
+		const Pipe&		getP2CPipe() const;
 		Pipe&			getC2PPipe();
+		const Pipe&		getC2PPipe() const;
 		pollfd			getWritePollFd() const;
 		pollfd			getReadPollFd() const;
 		std::string		getCgiOutput() const;

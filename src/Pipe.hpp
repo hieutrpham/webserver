@@ -18,11 +18,9 @@ class Pipe {
 		bool	is_valid_[2]{true, true};
 	public:
 		Pipe();
-		Pipe(const Pipe& other) = delete;
-		Pipe(Pipe& other);
+		Pipe(const Pipe& other);
 		~Pipe();
-		Pipe&	operator=(Pipe& other);
-		Pipe&	operator=(const Pipe& other) = delete;
+		Pipe&	operator=(const Pipe& other);
 		int		operator[](int i);
 
 		void	invalidate();

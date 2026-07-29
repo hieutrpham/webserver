@@ -9,8 +9,7 @@ Location	ServerConfig::getLocation(std::string uri) const {
 
 	if (ite == locations.end())
 	{
-		ERR("Can not find location!");
-		throw std::runtime_error("std::map::find");
+		throw std::runtime_error("Unable to find location based on: " + uri);
 	}
 	return ite->second;
 }
