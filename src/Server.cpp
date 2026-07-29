@@ -121,7 +121,7 @@ void	Server::updateCGIEvent(std::vector<struct pollfd>& poll_fds, pollfd pfd)
 		//Get the actual client object and set it up for writing back a response
 		ClientState& client = m_clients[CGIEventClientObj.socket_fd];
 		if (cgi_process.reap_status == -1)
-			client.writeBuffer += ResponseBuilder::buildErrorResponse(500, "Internal Server Error").serialize();
+			client.writeBuffer += ResponseBuilder::buildErrorResponse(500, "Internal Server Error", cgi_process.getConfig()).serialize();
 		else
 			client.writeBuffer += cgi_process.respond().serialize();
 		setPollEvents(poll_fds, client.socket_fd, POLLOUT);
@@ -234,7 +234,7 @@ void	Server::spawnCGIEvent(ServerConfig& server_config, ClientState& client, Req
 }
 
 void	Server::setClientErrorState(int code, const std::string& reason, std::vector<struct pollfd>& poll_fds, int fd) {
-	Response response = ResponseBuilder::buildErrorResponse(code, reason);
+	Response response = ResponseBuilder::buildErrorResponse(code, reason, m_clients[fd].active_cgi_ptr->getConfig());
 	m_clients[fd].writeBuffer += response.serialize();
 	m_clients[fd].readBuffer.clear();
 	m_clients[fd].closeAfterWrite = true;
@@ -422,9 +422,6 @@ bool Server::isCGIRequest(Request& request, ServerConfig& config)
 		std::string target = request.getPath();
 		std::size_t extension_pos = target.find(CGI_EXT, 0);
 		if (extension_pos != std::string::npos)
-			return true;
-		std::size_t dir_pos = target.find(cgi_conf->directory, 0);
-		if (dir_pos != std::string::npos)
 			return true;
 	}
     return false;
