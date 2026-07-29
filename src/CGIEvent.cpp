@@ -150,13 +150,13 @@ std::string	CGIEvent::matchCGIRequest() {
 		throw CGINotFound(INVALID_DIR_REQ);
 
 	std::size_t ext_pos = target_path.find(cgi_->extension);
-	if (ext_pos == std::string::npos)
+	if (ext_pos == std::string::npos) 
 		throw CGINotFound(INVALID_BIN_REQ);
 
 	std::size_t bin_pos = target_path.rfind('/', ext_pos) + 1;
 	if (bin_pos != std::string::npos) {
-		std::size_t	bin_pos_end = bin_pos + cgi_->binary.length();
-		bin_path = target_path.substr(bin_pos, bin_pos_end);
+		bin_path = target_path.substr(bin_pos, target_path.length() - bin_pos);
+		std::cout << bin_path << std::endl;
 		if (!FileOperation::isValidPythonFile(bin_path))
 			throw CGINotFound(INVALID_BIN_REQ);
 	}

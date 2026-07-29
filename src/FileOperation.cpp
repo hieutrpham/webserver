@@ -44,12 +44,10 @@ bool	FileOperation::isValidDir(std::string path) {
 bool	FileOperation::isValidPythonFile(std::string path) {
 	std::filesystem::path	 file_path(absoluteToRelative(path));
 
-	if (!std::filesystem::exists(file_path)) {
+	if (!std::filesystem::exists(file_path))
 		return false;
-	}
-	if (file_path.extension() != ".py") {
+	if (file_path.extension() != ".py")
 		return false;
-	}
 	return std::filesystem::is_regular_file(file_path);
 }
 

@@ -251,8 +251,9 @@ void Server::check_timer()
 	{
 		std::chrono::duration duration = std::chrono::duration_cast<std::chrono::seconds>(t - client.second.t0);
 
-		if (duration.count() > POLL_TIMEOUT)
+		if (duration.count() > POLL_TIMEOUT && client.second.status != WAITING)
 		{
+			LOG("Client timedout");
 			Response response = ResponseBuilder::buildErrorResponse(504, "Gateway Timeout");
 			auto data = response.serialize();
 			if (send(client.first, data.c_str(), data.size(), 0) < 0)
@@ -263,6 +264,7 @@ void Server::check_timer()
 }
 
 void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, ConfigVec& config_vector) {
+	m_clients[fd].status = READING;
 	char buf[CLIENT_DATA_MAX] = {0}; // storing the client request data.
 
 	m_clients[fd].t0 = std::chrono::system_clock::now();
@@ -350,6 +352,7 @@ void Server::handle_client_read(std::vector<struct pollfd>& poll_fds, int fd, Co
 }
 
 void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
+	m_clients[fd].status = WRITING;
 	ClientState& client = m_clients[fd];
 
 	// Calculate how much of the response is left to send.
@@ -376,6 +379,7 @@ void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 
 	// Debug
 	LOG("Response successfully sent");
+	m_clients[fd].status = WAITING;
 
 #ifdef DEBUG
 	std::cout << "\n" << client.writeBuffer << std::endl;

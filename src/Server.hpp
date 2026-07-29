@@ -35,6 +35,12 @@ enum HttpStatus {
 	HTTP_HTTP_VERSION_NOT_SUPPORTED  = 505
 };
 
+enum ClientProgress {
+	READING,
+	WRITING,
+	WAITING
+};
+
 struct ClientState {
 	std::string                                        readBuffer;
 	std::string                                        writeBuffer;
@@ -44,6 +50,7 @@ struct ClientState {
 	std::shared_ptr<CGIEvent>                          active_cgi_ptr  = nullptr;
 	int                                                socket_fd;
 	std::chrono::time_point<std::chrono::system_clock> t0;
+	ClientProgress									   status = WAITING;
 };
 
 class Server {

@@ -26,7 +26,7 @@
 #include <vector>
 #include <chrono>
 
-#define POLL_TIMEOUT 30
+#define POLL_TIMEOUT 15
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
 #define RED     "\033[31m"
