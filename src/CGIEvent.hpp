@@ -106,9 +106,9 @@ class CGIEvent {
 	public:
 		CGIEvent() = delete;
 		CGIEvent(ServerConfig& config, Request& request, ClientState& client);
-		CGIEvent(const CGIEvent& other);
+		CGIEvent(CGIEvent& other);
 		~CGIEvent();
-		CGIEvent&	operator=(const CGIEvent& other);
+		CGIEvent&	operator=(CGIEvent& other);
 
 		//EXTERNAL STATE-------------------------
 		int	cgi_status;
@@ -123,7 +123,7 @@ class CGIEvent {
 		//--------------------------------------//
 
 		//GETTERS---------------------------------
-		ServerConfig	getConfig() const;
+		ServerConfig&	getConfig();
 		Request			getRequest() const;
 		OptCgi			getCGIData() const;
 		pid_t			getPid() const;

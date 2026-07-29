@@ -27,7 +27,7 @@ CGIEvent::CGIEvent(ServerConfig& config, Request& request, ClientState& client) 
 {read_poll_fd_.fd = -1; read_poll_fd_.events = 0; read_poll_fd_.revents = 0;
 write_poll_fd_.fd = -1; write_poll_fd_.events = 0; write_poll_fd_.revents = 0;}
 
-CGIEvent::CGIEvent(const CGIEvent& other) : 
+CGIEvent::CGIEvent(CGIEvent& other) : 
 	config_(other.getConfig()),
 	req_(other.getRequest()),
 	cgi_(other.getCGIData()),
@@ -44,7 +44,7 @@ CGIEvent::CGIEvent(const CGIEvent& other) :
 
 CGIEvent::~CGIEvent() {}
 
-CGIEvent&	CGIEvent::operator=(const CGIEvent& other) {
+CGIEvent&	CGIEvent::operator=(CGIEvent& other) {
 	if (this != &other) {
 		config_ = other.getConfig();
 		req_ = other.getRequest();
@@ -420,7 +420,7 @@ Response	CGIEvent::respond() {
 
 
 //GETTERS----------------------------------------------------
-ServerConfig	CGIEvent::getConfig() const {
+ServerConfig&	CGIEvent::getConfig() {
 	return config_;
 }
 
