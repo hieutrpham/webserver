@@ -11,10 +11,30 @@ Response POSTMethod::handlePost(Request& request, ServerConfig& config)
 	}
 
 	auto content_type = request.getHeader("content-type");
-	if (is_file_upload(content_type, request,  config))
-		return handleFileUpload(content_type, request, config);
+	auto post_content_type = check_content_type(content_type, request, config);
 
-	return ResponseBuilder::buildErrorResponse(501, "Not Implemented", config);
+	if (post_content_type == MULTIPART_FORM_DATA)
+	{
+		return handleFileUpload(content_type, request, config);
+	}
+	else if (post_content_type == APPLICATION)
+	{
+		Response response;
+		response.setStatus(201, "Created");
+		response.setHeader("Content-Type", "text/html");
+		response.setBody(request.getBody());
+		return response;
+	}
+	else if (post_content_type == TEXT)
+	{
+		Response response;
+		response.setStatus(202, "Accepted");
+		response.setHeader("Content-Type", "text/html");
+		response.setBody(request.getBody());
+		return response;
+	}
+
+	return ResponseBuilder::buildErrorResponse(400, "Bad Request", config);
 }
 
 Response POSTMethod::handleFileUpload(std::string &content_type, Request& request, ServerConfig& config)
@@ -61,10 +81,17 @@ std::string POSTMethod::get_file_name(std::string &body)
 	return file_name;
 }
 
-bool POSTMethod::is_file_upload(std::string &content_type, Request &request, ServerConfig & config)
+post_method_content_type POSTMethod::check_content_type(std::string &content_type, Request &request, ServerConfig & config)
 {
-	return content_type.find("multipart/form-data") != std::string::npos
-	&& config.getLocation(request.getPath()).allow_file_uploads;
+	if (content_type.find("multipart/form-data") != std::string::npos
+	&& config.getLocation(request.getPath()).allow_file_uploads)
+		return MULTIPART_FORM_DATA;
+	if (content_type.find("application/x-www-form-urlencoded") != std::string::npos)
+		return APPLICATION;
+	if ((content_type.find("plain/text") != std::string::npos) || (content_type.find("text/plain") != std::string::npos))
+		return TEXT;
+
+	return UNKNOWN;
 }
 
 std::string POSTMethod::save_file_upload(std::string &content_type, Request &request, ServerConfig &config)

@@ -39,9 +39,6 @@ int main(int ac, char **av) {
 		s->reapZombieCGIProcs();
 		s->check_timer();
 
-		#ifdef DEBUG
-		LOG("Waiting for socket events...");
-		#endif
 		ready = poll(poll_fds.data(), poll_fds.size(), POLL_TIMEOUT);
 		if (ready < 0) {
 			LOG("poll() failed");
