@@ -250,8 +250,10 @@ void Server::check_timer()
 			LOG("Client timedout after " + std::to_string(duration.count()) + " seconds");
 			Response response = ResponseBuilder::buildErrorResponse(504, "Gateway Timeout");
 			auto data = response.serialize();
-			if (send(client.first, data.c_str(), data.size(), 0) < 0)
-				return;
+			if (send(client.first, data.c_str(), data.size(), 0) <= 0)
+			{
+				ERR(strerror(errno));
+			}
 			close(client.first);
 		}
 	}
