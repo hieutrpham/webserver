@@ -250,8 +250,10 @@ void Server::check_timer()
 			LOG("Client timedout after " + std::to_string(duration.count()) + " seconds");
 			Response response = ResponseBuilder::buildErrorResponse(504, "Gateway Timeout");
 			auto data = response.serialize();
-			if (send(client.first, data.c_str(), data.size(), 0) < 0)
-				return;
+			if (send(client.first, data.c_str(), data.size(), 0) <= 0)
+			{
+				ERR(strerror(errno));
+			}
 			close(client.first);
 		}
 	}
@@ -353,11 +355,11 @@ void Server::handle_client_write(std::vector<struct pollfd>& poll_fds, int fd) {
 	size_t remaining = client.writeBuffer.size() - client.bytesSent;
 	const char* data = client.writeBuffer.c_str() + client.bytesSent;
 
+	// reset the client timer
+	client.t0 = std::chrono::system_clock::now();
+
 	// Send response to client.
 	int bytes = send(fd, data, remaining, 0);
-
-	// reset the client timer after sent
-	client.t0 = std::chrono::system_clock::now();
 
 	// Client disconnected or send failed.
 	if (bytes <= 0) {

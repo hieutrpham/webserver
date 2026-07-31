@@ -224,6 +224,11 @@ void	ConfigParser::configPutClmaxbs() {
 		else if (specifier == "m" || specifier == "M")
 			multiplier = MB_MULTIP;
 	}
+	else
+	{
+		multiplier = 1;
+	}
+
 	uint64_t bytes = uintConverter(matches_[5]) * multiplier;
 	if (bytes > MAX_CLBSIZE)
 		throw ContentException(ERR_MAX_CLBS);
